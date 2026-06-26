@@ -1,0 +1,19 @@
+{
+  "name": "enquete-ascii",
+  "version": "0.1.0",
+  "description": "Jeu d'enquete ASCII en huis clos, dialogue alimenté par Claude",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.70.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.6"
+  }
+}

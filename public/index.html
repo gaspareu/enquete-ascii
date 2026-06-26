@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enquête — Huis clos</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="jeu">
+      <section id="scene" aria-label="Scène">
+        <pre id="visuel"></pre>
+        <div id="actions-zone"></div>
+      </section>
+
+      <aside id="cote">
+        <section id="panneau-plan">
+          <h2>PLAN DE LA PIÈCE</h2>
+          <div id="plan"></div>
+        </section>
+        <section id="panneau-sac">
+          <h2>SAC</h2>
+          <ul id="sac"></ul>
+          <button id="btn-accuser" type="button">⚖ ACCUSER</button>
+        </section>
+      </aside>
+
+      <section id="panneau-dialogue" aria-label="Dialogue">
+        <pre id="dialogue"></pre>
+        <form id="saisie" autocomplete="off">
+          <span class="invite">&gt;</span>
+          <input
+            id="message"
+            type="text"
+            maxlength="500"
+            placeholder="Parlez à l'interlocuteur…"
+          />
+        </form>
+      </section>
+    </div>
+
+    <div id="modale" class="cache" role="dialog" aria-modal="true">
+      <div id="modale-contenu"></div>
+    </div>
+
+    <script type="module" src="game.js"></script>
+  </body>
+</html>

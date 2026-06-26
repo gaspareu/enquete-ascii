@@ -1,0 +1,229 @@
+/* Thème terminal rétro : fond sombre, texte ambre, monospace, sans animation. */
+:root {
+  --fond: #0c0e0b;
+  --fond-panneau: #11140f;
+  --ambre: #e8b04b;
+  --ambre-faible: #8a6f33;
+  --vert: #7fdc6e;
+  --bordure: #3a3320;
+  --erreur: #e07a5f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--fond);
+  color: var(--ambre);
+  font-family: "Courier New", "DejaVu Sans Mono", monospace;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+#jeu {
+  display: grid;
+  grid-template-columns: 1fr 22rem;
+  grid-template-rows: 1fr 14rem;
+  grid-template-areas:
+    "scene cote"
+    "dialogue cote";
+  gap: 8px;
+  padding: 8px;
+  height: 100vh;
+}
+
+section,
+aside > section {
+  border: 1px solid var(--bordure);
+  background: var(--fond-panneau);
+  padding: 10px;
+  overflow: auto;
+}
+
+h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--ambre-faible);
+  border-bottom: 1px dashed var(--bordure);
+  padding-bottom: 4px;
+}
+
+/* --- Scène centrale --- */
+#scene {
+  grid-area: scene;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+#visuel {
+  margin: 0;
+  white-space: pre;
+  color: var(--vert);
+  text-align: left;
+}
+#actions-zone {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* --- Colonne de droite : plan + sac --- */
+#cote {
+  grid-area: cote;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: none;
+  background: none;
+  padding: 0;
+  overflow: visible;
+}
+#panneau-plan {
+  flex: 0 0 auto;
+}
+#panneau-sac {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+#plan {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.case {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ambre);
+  background: #161a12;
+  border: 1px solid var(--bordure);
+  padding: 12px 4px;
+  cursor: pointer;
+}
+.case:hover:not(:disabled) {
+  background: #20271a;
+}
+.case:disabled {
+  color: var(--ambre-faible);
+  cursor: default;
+  opacity: 0.5;
+}
+.case.centre {
+  color: var(--vert);
+  border-color: var(--vert);
+  cursor: default;
+}
+
+#sac {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  flex: 1 1 auto;
+}
+#sac li {
+  margin: 0 0 4px;
+}
+#sac .objet {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ambre);
+  background: #161a12;
+  border: 1px solid var(--bordure);
+  padding: 6px 8px;
+  cursor: pointer;
+}
+#sac .objet:hover {
+  background: #20271a;
+}
+#sac .vide {
+  color: var(--ambre-faible);
+  font-style: italic;
+}
+
+button {
+  font-family: inherit;
+  color: var(--ambre);
+  background: #1c2114;
+  border: 1px solid var(--ambre-faible);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+button:hover {
+  background: #2a3120;
+}
+#btn-accuser {
+  color: var(--erreur);
+  border-color: var(--erreur);
+}
+
+/* --- Dialogue --- */
+#panneau-dialogue {
+  grid-area: dialogue;
+  display: flex;
+  flex-direction: column;
+}
+#dialogue {
+  flex: 1 1 auto;
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-y: auto;
+}
+#saisie {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px dashed var(--bordure);
+  padding-top: 6px;
+}
+.invite {
+  color: var(--vert);
+}
+#message {
+  flex: 1 1 auto;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ambre);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* --- Modale --- */
+#modale {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#modale.cache {
+  display: none;
+}
+#modale-contenu {
+  background: var(--fond-panneau);
+  border: 1px solid var(--ambre);
+  padding: 24px;
+  max-width: 32rem;
+  white-space: pre-wrap;
+}
+#modale-contenu .boutons {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.systeme {
+  color: var(--ambre-faible);
+  font-style: italic;
+}
