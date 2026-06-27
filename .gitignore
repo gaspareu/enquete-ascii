@@ -3,4 +3,7 @@ node_modules/
 *.log
 coverage/
 .DS_Store
-.claude/
+
+# Config Claude Code : settings.json est partagé (versionné),
+# settings.local.json reste local à chaque machine.
+.claude/settings.local.json
