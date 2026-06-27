@@ -1,11 +1,21 @@
 import { describe, test, expect } from "vitest";
-import { artInterlocuteur, rendreDialogue } from "../public/render.js";
+import { artInterlocuteur, rendreDialogue, dialoguePartiel } from "../public/render.js";
 
 describe("artInterlocuteur", () => {
-  test("contient le nom du personnage et de l'art ASCII", () => {
-    const art = artInterlocuteur("Victor");
+  test("avec un visage personnalisé, l'affiche et inclut le nom", () => {
+    const art = artInterlocuteur({ nom: "Victor", visage: "[ O _ O ]" });
+    expect(art).toContain("[ O _ O ]");
+    expect(art).toContain("Victor");
+  });
+
+  test("sans visage, retombe sur le visage générique et inclut le nom", () => {
+    const art = artInterlocuteur({ nom: "Victor" });
     expect(art).toContain("Victor");
     expect(art.split("\n").length).toBeGreaterThan(1);
+  });
+
+  test("tolère un nom passé en chaîne (rétro-compatibilité)", () => {
+    expect(artInterlocuteur("Victor")).toContain("Victor");
   });
 });
 
@@ -33,5 +43,39 @@ describe("rendreDialogue", () => {
     );
     expect(txt).toContain("Vous ramassez les chocolats.");
     expect(txt).not.toContain("Victor :");
+  });
+});
+
+describe("dialoguePartiel", () => {
+  const historique = [
+    { role: "joueur", texte: "Salut" },
+    { role: "personnage", texte: "Bonjour à vous" },
+  ];
+
+  test("tronque le texte du dernier tour au nombre de caractères demandé", () => {
+    const txt = dialoguePartiel(historique, "Victor", 3);
+    expect(txt).toContain("Victor : Bon");
+    expect(txt).not.toContain("Bonjour à vous");
+  });
+
+  test("laisse les tours précédents intacts (seul le dernier est tronqué)", () => {
+    const txt = dialoguePartiel(historique, "Victor", 3);
+    expect(txt).toContain("Vous : Salut");
+  });
+
+  test("nCars couvrant tout le texte équivaut à rendreDialogue", () => {
+    expect(dialoguePartiel(historique, "Victor", 100)).toBe(
+      rendreDialogue(historique, "Victor"),
+    );
+  });
+
+  test("nCars à 0 n'affiche que le préfixe du dernier tour", () => {
+    const txt = dialoguePartiel(historique, "Victor", 0);
+    expect(txt).toContain("Victor : ");
+    expect(txt).not.toContain("Bonjour");
+  });
+
+  test("historique vide donne une chaîne vide", () => {
+    expect(dialoguePartiel([], "Victor", 5)).toBe("");
   });
 });

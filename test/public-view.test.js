@@ -15,6 +15,11 @@ describe("vuePublique", () => {
     expect(vue.declencheurs).toBeDefined();
   });
 
+  test("expose le visage ASCII du personnage (donnée publique pour le rendu)", () => {
+    expect(vue.personnage.visage).toBeDefined();
+    expect(vue.personnage.visage).toBe(scenario.personnage.visage);
+  });
+
   test("n'expose pas les descriptions d'objets (servies à l'examen)", () => {
     expect(vue.objets.tableau.description).toBeUndefined();
   });

@@ -63,4 +63,9 @@ _(rien pour l'instant)_
 
 ## Fait
 
+- **Polish terminal + Design System** — ambiance CRT subtile (scanlines, lueur
+  phosphore, vignette, curseur), effet machine à écrire interruptible + indicateur
+  « …réfléchit », visages ASCII par personnage (donnée publique), et mise en place
+  des design tokens (`public/tokens.css`) + `DESIGN-SYSTEM.md` pour itérer via
+  Claude Design. 45 tests. _(PR à référencer)_
 - **Mise en place du projet** — squelette, jeu jouable, 37 tests, CI, CLAUDE.md, backlog.

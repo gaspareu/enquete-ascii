@@ -19,7 +19,7 @@ export function vuePublique(scenario) {
   return {
     titre: scenario.titre,
     intro: scenario.intro,
-    personnage: { nom: scenario.personnage.nom },
+    personnage: { nom: scenario.personnage.nom, visage: scenario.personnage.visage },
     zones: scenario.zones,
     objets,
     declencheurs: scenario.declencheurs,

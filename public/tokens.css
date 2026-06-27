@@ -1,0 +1,54 @@
+/* =============================================================================
+   Design tokens — source de vérité du Design System « terminal/CRT phosphore ».
+   Tout style du projet doit puiser ici (couleur, typo, espacement, durée…) ;
+   aucune valeur brute dans style.css. Conçu pour être ingéré par Claude Design.
+   Doc d'usage : DESIGN-SYSTEM.md.
+   ========================================================================== */
+:root {
+  /* --- Couleurs : fonds & surfaces (du plus sombre au plus clair) --------- */
+  --c-fond: #0c0e0b; /* fond global de l'écran */
+  --c-fond-panneau: #11140f; /* fond des panneaux/sections */
+  --c-surface: #161a12; /* cases du plan, objets du sac */
+  --c-surface-survol: #20271a; /* survol d'une surface */
+  --c-bouton: #1c2114; /* fond des boutons d'action */
+  --c-bouton-survol: #2a3120; /* survol d'un bouton */
+  --c-voile: rgba(0, 0, 0, 0.8); /* voile sombre derrière la modale */
+
+  /* --- Couleurs : texte & accents (palette phosphore) -------------------- */
+  --c-ambre: #e8b04b; /* texte principal */
+  --c-ambre-faible: #8a6f33; /* texte secondaire, désactivé, titres */
+  --c-vert: #7fdc6e; /* accent : invite, art ASCII, centre du plan */
+  --c-erreur: #e07a5f; /* danger : accuser, messages d'erreur */
+  --c-bordure: #3a3320; /* traits de séparation et contours */
+
+  /* --- Typographie ------------------------------------------------------- */
+  --police: "Courier New", "DejaVu Sans Mono", monospace;
+  --taille-base: 15px;
+  --taille-petite: 13px;
+  --interligne: 1.4;
+  --interlettre-titre: 1px;
+
+  /* --- Échelle d'espacement (multiples cohérents) ----------------------- */
+  --esp-xs: 4px;
+  --esp-sm: 6px;
+  --esp-md: 8px;
+  --esp-lg: 10px;
+  --esp-xl: 12px;
+  --esp-2xl: 16px;
+  --esp-3xl: 24px;
+
+  /* --- Traits & rayons (terminal = coins nets) -------------------------- */
+  --trait: 1px;
+  --rayon: 0; /* pas d'arrondi : esthétique caractère/pixel */
+
+  /* --- Mouvement (durées) ----------------------------------------------- */
+  --duree-survol: 0.12s; /* transitions de survol */
+  --duree-clignotement: 1s; /* curseur clignotant */
+  --duree-frappe-ms: 18; /* ms par caractère (lu en JS pour la frappe) */
+
+  /* --- Ambiance CRT (subtile : ne doit pas nuire à la lisibilité) -------- */
+  --crt-lueur: 0 0 2px; /* offset/flou du text-shadow phosphore */
+  --crt-scanline-opacite: 0.05; /* intensité des scanlines */
+  --crt-scanline-pas: 3px; /* période verticale des scanlines */
+  --crt-vignette: 0.45; /* assombrissement des bords (0 = aucun) */
+}

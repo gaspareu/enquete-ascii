@@ -13,6 +13,19 @@ export const scenario = {
 
   personnage: {
     nom: "Victor",
+    // Visage ASCII du face-à-face (donnée publique, pas un secret). Exemple
+    // « maison » ; remplaçable par un rendu ASCII Facemaker (voir la licence).
+    visage: [
+      "    ________",
+      "   /        \\",
+      "  |  -.  .-  |",
+      "  |  (o)(o)  |",
+      "  |    ||    |",
+      "  |   '__'   |",
+      "   \\  ____  /",
+      "    | |  | |",
+      "   _|_|  |_|_",
+    ].join("\n"),
     // Comment il parle et se comporte (le LLM improvise le ton à partir de ça).
     personnalite:
       "Tu es Victor, neveu du défunt. Nerveux, affable en surface mais évasif. " +
