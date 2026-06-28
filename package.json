@@ -14,8 +14,8 @@
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^3.2.6",
+    "@vitest/coverage-v8": "^4.1.9",
     "supertest": "^7.2.2",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.9"
   }
 }
