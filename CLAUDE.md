@@ -35,11 +35,13 @@ server/            # Backend Node/Express (détient le scénario complet)
 data/
   scenario.js      # LE contenu de l'enquête (données) + flagsConnus()
 public/            # Front statique ASCII (servi tel quel)
-  index.html       #   structure en panneaux
-  style.css        #   thème terminal (grille CSS)
+  index.html       #   structure en panneaux (lie tokens.css puis style.css)
+  tokens.css       #   design tokens (source de vérité du DS) — voir DESIGN-SYSTEM.md
+  DESIGN-SYSTEM.md #   doc du Design System « terminal/CRT » (ingéré par Claude Design)
+  style.css        #   thème terminal (grille CSS) — consomme uniquement les tokens
   state.js         #   état immutable : flags, sac, historique (pur, sans DOM)
-  render.js        #   rendu ASCII pur : artInterlocuteur(), rendreDialogue()
-  game.js          #   orchestration DOM : événements, fetch, écran de fin
+  render.js        #   rendu ASCII pur : artInterlocuteur(), rendreDialogue(), dialoguePartiel()
+  game.js          #   orchestration DOM : événements, fetch, frappe, écran de fin
 test/              # Tests Vitest (un fichier par module de logique)
 ```
 
@@ -57,6 +59,12 @@ n'entre dans le prompt que si ses flags sont débloqués → secret impossible �
 - **JS ESM**, aucune étape de build. Node 18+.
 - **Immutabilité** : jamais de mutation en place (cf. `public/state.js`).
 - **Fichiers courts** (< 400 lignes), une responsabilité par fichier.
+- **Design System** : tout style passe par un token de `public/tokens.css` (aucune
+  valeur brute de couleur, typographie, espacement ou durée dans `style.css` ; seules
+  les dimensions structurelles de la grille — `rem`/`vh` — restent inline). Tenir
+  `public/DESIGN-SYSTEM.md` à jour — c'est ce que **Claude Design** ingère pour itérer
+  sur le front en restant fidèle à l'identité terminal. Animations toujours
+  neutralisées sous `@media (prefers-reduced-motion: reduce)`.
 - **TDD obligatoire** : test d'abord (RED) → minimal (GREEN) → refactor. Couverture ≥ 80 %.
 - **Français** pour l'UI, les commentaires et les messages de commit.
 - **Sécurité d'abord** : le coupable, les connaissances secrètes et les descriptions

@@ -1,13 +1,6 @@
-/* Thème terminal rétro : fond sombre, texte ambre, monospace, sans animation. */
-:root {
-  --fond: #0c0e0b;
-  --fond-panneau: #11140f;
-  --ambre: #e8b04b;
-  --ambre-faible: #8a6f33;
-  --vert: #7fdc6e;
-  --bordure: #3a3320;
-  --erreur: #e07a5f;
-}
+/* Thème terminal/CRT phosphore. Toutes les valeurs viennent des design tokens
+   (tokens.css) ; voir DESIGN-SYSTEM.md. Animations subtiles, désactivées sous
+   prefers-reduced-motion. */
 
 * {
   box-sizing: border-box;
@@ -17,11 +10,39 @@ html,
 body {
   margin: 0;
   height: 100%;
-  background: var(--fond);
-  color: var(--ambre);
-  font-family: "Courier New", "DejaVu Sans Mono", monospace;
-  font-size: 15px;
-  line-height: 1.4;
+  background: var(--c-fond);
+  color: var(--c-ambre);
+  font-family: var(--police);
+  font-size: var(--taille-base);
+  line-height: var(--interligne);
+}
+
+/* --- Ambiance CRT : scanlines + vignette en surimpression (sans interaction) --- */
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+}
+/* Vignette : assombrit les bords comme un tube cathodique. */
+body::before {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 55%,
+    rgba(0, 0, 0, var(--crt-vignette)) 100%
+  );
+}
+/* Lignes de balayage horizontales, très discrètes. */
+body::after {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, var(--crt-scanline-opacite)) 0,
+    rgba(0, 0, 0, var(--crt-scanline-opacite)) 1px,
+    transparent 1px,
+    transparent var(--crt-scanline-pas)
+  );
 }
 
 #jeu {
@@ -31,26 +52,27 @@ body {
   grid-template-areas:
     "scene cote"
     "dialogue cote";
-  gap: 8px;
-  padding: 8px;
+  gap: var(--esp-md);
+  padding: var(--esp-md);
   height: 100vh;
 }
 
 section,
 aside > section {
-  border: 1px solid var(--bordure);
-  background: var(--fond-panneau);
-  padding: 10px;
+  border: var(--trait) solid var(--c-bordure);
+  border-radius: var(--rayon);
+  background: var(--c-fond-panneau);
+  padding: var(--esp-lg);
   overflow: auto;
 }
 
 h2 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  letter-spacing: 1px;
-  color: var(--ambre-faible);
-  border-bottom: 1px dashed var(--bordure);
-  padding-bottom: 4px;
+  margin: 0 0 var(--esp-md);
+  font-size: var(--taille-petite);
+  letter-spacing: var(--interlettre-titre);
+  color: var(--c-ambre-faible);
+  border-bottom: var(--trait) dashed var(--c-bordure);
+  padding-bottom: var(--esp-xs);
 }
 
 /* --- Scène centrale --- */
@@ -64,14 +86,15 @@ h2 {
 #visuel {
   margin: 0;
   white-space: pre;
-  color: var(--vert);
+  color: var(--c-vert);
   text-align: left;
+  text-shadow: var(--crt-lueur) currentColor; /* lueur phosphore */
 }
 #actions-zone {
-  margin-top: 14px;
+  margin-top: var(--esp-2xl);
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--esp-sm);
   justify-content: center;
 }
 
@@ -80,7 +103,7 @@ h2 {
   grid-area: cote;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--esp-md);
   border: none;
   background: none;
   padding: 0;
@@ -98,72 +121,78 @@ h2 {
 #plan {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: var(--esp-xs);
 }
 .case {
   font-family: inherit;
-  font-size: 13px;
-  color: var(--ambre);
-  background: #161a12;
-  border: 1px solid var(--bordure);
-  padding: 12px 4px;
+  font-size: var(--taille-petite);
+  color: var(--c-ambre);
+  background: var(--c-surface);
+  border: var(--trait) solid var(--c-bordure);
+  border-radius: var(--rayon);
+  padding: var(--esp-xl) var(--esp-xs);
   cursor: pointer;
+  transition: background var(--duree-survol) ease;
 }
 .case:hover:not(:disabled) {
-  background: #20271a;
+  background: var(--c-surface-survol);
 }
 .case:disabled {
-  color: var(--ambre-faible);
+  color: var(--c-ambre-faible);
   cursor: default;
   opacity: 0.5;
 }
 .case.centre {
-  color: var(--vert);
-  border-color: var(--vert);
+  color: var(--c-vert);
+  border-color: var(--c-vert);
   cursor: default;
 }
 
 #sac {
   list-style: none;
-  margin: 0 0 10px;
+  margin: 0 0 var(--esp-lg);
   padding: 0;
   flex: 1 1 auto;
 }
 #sac li {
-  margin: 0 0 4px;
+  margin: 0 0 var(--esp-xs);
 }
 #sac .objet {
   width: 100%;
   text-align: left;
   font-family: inherit;
-  color: var(--ambre);
-  background: #161a12;
-  border: 1px solid var(--bordure);
-  padding: 6px 8px;
+  color: var(--c-ambre);
+  background: var(--c-surface);
+  border: var(--trait) solid var(--c-bordure);
+  border-radius: var(--rayon);
+  padding: var(--esp-sm) var(--esp-md);
   cursor: pointer;
+  transition: background var(--duree-survol) ease;
 }
 #sac .objet:hover {
-  background: #20271a;
+  background: var(--c-surface-survol);
 }
 #sac .vide {
-  color: var(--ambre-faible);
+  color: var(--c-ambre-faible);
   font-style: italic;
 }
 
 button {
   font-family: inherit;
-  color: var(--ambre);
-  background: #1c2114;
-  border: 1px solid var(--ambre-faible);
-  padding: 8px 10px;
+  color: var(--c-ambre);
+  background: var(--c-bouton);
+  border: var(--trait) solid var(--c-ambre-faible);
+  border-radius: var(--rayon);
+  padding: var(--esp-md) var(--esp-lg);
   cursor: pointer;
+  transition: background var(--duree-survol) ease;
 }
 button:hover {
-  background: #2a3120;
+  background: var(--c-bouton-survol);
 }
 #btn-accuser {
-  color: var(--erreur);
-  border-color: var(--erreur);
+  color: var(--c-erreur);
+  border-color: var(--c-erreur);
 }
 
 /* --- Dialogue --- */
@@ -174,25 +203,27 @@ button:hover {
 }
 #dialogue {
   flex: 1 1 auto;
-  margin: 0 0 8px;
+  margin: 0 0 var(--esp-md);
   white-space: pre-wrap;
   overflow-y: auto;
+  text-shadow: var(--crt-lueur) currentColor; /* lueur phosphore */
 }
 #saisie {
   display: flex;
   align-items: center;
-  gap: 6px;
-  border-top: 1px dashed var(--bordure);
-  padding-top: 6px;
+  gap: var(--esp-sm);
+  border-top: var(--trait) dashed var(--c-bordure);
+  padding-top: var(--esp-sm);
 }
 .invite {
-  color: var(--vert);
+  color: var(--c-vert);
+  animation: clignoter var(--duree-clignotement) steps(2, start) infinite;
 }
 #message {
   flex: 1 1 auto;
   font-family: inherit;
-  font-size: 15px;
-  color: var(--ambre);
+  font-size: var(--taille-base);
+  color: var(--c-ambre);
   background: transparent;
   border: none;
   outline: none;
@@ -202,28 +233,55 @@ button:hover {
 #modale {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--c-voile);
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: apparaitre var(--duree-survol) ease-out;
 }
 #modale.cache {
   display: none;
 }
 #modale-contenu {
-  background: var(--fond-panneau);
-  border: 1px solid var(--ambre);
-  padding: 24px;
+  background: var(--c-fond-panneau);
+  border: var(--trait) solid var(--c-ambre);
+  border-radius: var(--rayon);
+  padding: var(--esp-3xl);
   max-width: 32rem;
   white-space: pre-wrap;
 }
 #modale-contenu .boutons {
-  margin-top: 16px;
+  margin-top: var(--esp-2xl);
   display: flex;
-  gap: 10px;
+  gap: var(--esp-lg);
   flex-wrap: wrap;
 }
 .systeme {
-  color: var(--ambre-faible);
+  color: var(--c-ambre-faible);
   font-style: italic;
+}
+
+/* --- Animations (keyframes) --- */
+@keyframes clignoter {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes apparaitre {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Accessibilité : couper tout mouvement si l'utilisateur le demande --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  .invite,
+  #modale {
+    animation: none !important;
+    transition: none !important;
+  }
 }
