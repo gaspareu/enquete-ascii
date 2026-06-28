@@ -1,0 +1,20 @@
+# Mises à jour automatiques des dépendances (PR hebdomadaires).
+# Complète les « security updates » (correctifs de vulnérabilités) activés côté repo.
+version: 2
+updates:
+  # Dépendances npm du projet.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+
+  # Actions utilisées par les workflows CI (supply chain).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"

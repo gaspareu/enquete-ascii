@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# Moindre privilège : le GITHUB_TOKEN n'a besoin que de lire le code pour les tests.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
