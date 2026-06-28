@@ -23,12 +23,6 @@ forger. Faire calculer/valider la progression côté serveur à partir des geste
 **Acceptation** : un flag non gagné légitimement ne peut pas être obtenu en
 falsifiant la requête ; tests couvrant le rejet.
 
-### T-02 · 🔴 Tests d'intégration des routes Express
-`server/chat.js` (routes `/scenario`, `/examiner`, `/chat`, `/accuser`) n'est
-couvert qu'à ~38 %. Ajouter des tests d'intégration (p. ex. `supertest`), client
-Claude mocké pour `/chat`.
-**Acceptation** : couverture de `server/chat.js` ≥ 80 % ; suite verte.
-
 ### T-03 · 🟠 Conditionner le déblocage du tableau au dialogue
 Examiner le tableau révèle le code même sans avoir parlé au personnage. Lier la
 révélation à l'indice donné dans le dialogue (le perso doit avoir indiqué où chercher).
@@ -63,6 +57,16 @@ _(rien pour l'instant)_
 
 ## Fait
 
+- **T-02 · Tests d'intégration des routes Express** — `/scenario`, `/examiner`,
+  `/chat`, `/accuser` couverts via `supertest` (client/`repondreFn` injectés, sans
+  réseau) : gardes 400/503/502 et filtrage des flags forgés sur `/accuser`.
+  `server/chat.js` passe à 100 %. 55 tests.
+  ([PR #10](https://github.com/gaspareu/enquete-ascii/pull/10))
+- **Dépendances à jour (Dependabot)** — montée de `vitest` + `@vitest/coverage-v8`
+  3 → 4 (combinées), `@anthropic-ai/sdk` 0.70 → 0.106, et actions CI `checkout`/`setup-node`.
+  Config de couverture adaptée à vitest 4 (`all: true` ; cf. note dans `vitest.config.js`
+  sur les fichiers 100 % masqués du rapport).
+  ([PR #11](https://github.com/gaspareu/enquete-ascii/pull/11))
 - **Polish terminal + Design System** — ambiance CRT subtile (scanlines, lueur
   phosphore, vignette, curseur), effet machine à écrire interruptible + indicateur
   « …réfléchit », visages ASCII par personnage (donnée publique), et mise en place
