@@ -17,12 +17,6 @@ les tâches une à une.
 
 ## À faire
 
-### T-01 · 🟠 Dériver l'état de jeu côté serveur (anti-triche)
-Aujourd'hui le client tient les `flags`/`sac` et les envoie ; un joueur peut les
-forger. Faire calculer/valider la progression côté serveur à partir des gestes.
-**Acceptation** : un flag non gagné légitimement ne peut pas être obtenu en
-falsifiant la requête ; tests couvrant le rejet.
-
 ### T-03 · 🟠 Conditionner le déblocage du tableau au dialogue
 Examiner le tableau révèle le code même sans avoir parlé au personnage. Lier la
 révélation à l'indice donné dans le dialogue (le perso doit avoir indiqué où chercher).
@@ -57,6 +51,13 @@ _(rien pour l'instant)_
 
 ## Fait
 
+- **T-01 · Dériver l'état de jeu côté serveur (anti-triche)** — le client n'envoie
+  plus ses flags mais son *journal de gestes* ; le serveur le rejoue (`server/etat.js`
+  → `deriverFlags()`) et dérive les flags en imposant les préconditions (« donner »
+  exige l'objet ramassé). `vuePublique` ne publie plus `declencheurs` (secret serveur).
+  Un flag forgé sur `/accuser` est ignoré ; un journal incomplet ne débloque pas la
+  connaissance sur `/chat`. 74 tests, couverture ≥ seuils.
+  ([PR #13](https://github.com/gaspareu/enquete-ascii/pull/13))
 - **T-02 · Tests d'intégration des routes Express** — `/scenario`, `/examiner`,
   `/chat`, `/accuser` couverts via `supertest` (client/`repondreFn` injectés, sans
   réseau) : gardes 400/503/502 et filtrage des flags forgés sur `/accuser`.
