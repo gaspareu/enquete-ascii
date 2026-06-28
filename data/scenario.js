@@ -108,12 +108,15 @@ export const scenario = {
   },
 };
 
-// Ensemble des flags que le scénario peut produire — sert à valider les entrées
-// reçues du client (on rejette tout flag inconnu).
-export function flagsConnus(s = scenario) {
-  const flags = new Set();
-  for (const flag of Object.values(s.declencheurs)) flags.add(flag);
-  for (const c of s.connaissances) for (const f of c.requiert) flags.add(f);
-  for (const f of s.solution.preuvesRequises) flags.add(f);
-  return flags;
+// Ensemble des cibles que le scénario reconnaît (ids d'objets + cibles des
+// déclencheurs) — sert à valider le journal de gestes reçu du client : on rejette
+// tout geste portant sur une cible inconnue. Le serveur dérive ensuite les flags
+// du journal (cf. server/etat.js), le client n'en envoie plus.
+export function ciblesConnues(s = scenario) {
+  const cibles = new Set(Object.keys(s.objets));
+  for (const cle of Object.keys(s.declencheurs)) {
+    const sep = cle.indexOf(":");
+    if (sep !== -1) cibles.add(cle.slice(sep + 1));
+  }
+  return cibles;
 }

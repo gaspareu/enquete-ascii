@@ -1,16 +1,42 @@
 // Validation des entrées au boundary HTTP. On ne fait jamais confiance au client :
-// message borné, flags limités à ceux que le scénario peut réellement produire,
-// historique et note bornés. Renvoie { ok, valeur } ou { ok: false, erreur }.
+// message borné, JOURNAL DE GESTES limité aux gestes/cibles que le scénario connaît,
+// historique et note bornés. Le client n'envoie plus de flags : le serveur les dérive
+// du journal (cf. server/etat.js). Renvoie { ok, valeur } ou { ok: false, erreur }.
 
 const MAX_MESSAGE = 500;
 const MAX_NOTE = 200;
 const MAX_HISTORIQUE = 100;
+const MAX_GESTES = 100;
+const GESTES_VALIDES = new Set(["ramasser", "donner", "examiner"]);
 
 function estObjet(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-export function valideRequeteChat(body, flagsConnus) {
+// Valide le journal de gestes envoyé par le client. Chaque entrée doit être un geste
+// connu sur une cible connue ; on normalise à { geste, cible } (champs parasites
+// écartés). Renvoie { ok, valeur } ou { ok: false, erreur }.
+export function valideGestes(brut, ciblesConnues) {
+  const gestesBruts = brut ?? [];
+  if (!Array.isArray(gestesBruts) || gestesBruts.length > MAX_GESTES) {
+    return { ok: false, erreur: "Journal de gestes invalide." };
+  }
+  const gestes = [];
+  for (const g of gestesBruts) {
+    if (
+      !estObjet(g) ||
+      !GESTES_VALIDES.has(g.geste) ||
+      typeof g.cible !== "string" ||
+      !ciblesConnues.has(g.cible)
+    ) {
+      return { ok: false, erreur: "Geste inconnu." };
+    }
+    gestes.push({ geste: g.geste, cible: g.cible });
+  }
+  return { ok: true, valeur: gestes };
+}
+
+export function valideRequeteChat(body, ciblesConnues) {
   if (!estObjet(body)) {
     return { ok: false, erreur: "Requête invalide." };
   }
@@ -23,14 +49,9 @@ export function valideRequeteChat(body, flagsConnus) {
     return { ok: false, erreur: "Le message est trop long." };
   }
 
-  const flagsBruts = body.flags ?? [];
-  if (!Array.isArray(flagsBruts)) {
-    return { ok: false, erreur: "Flags invalides." };
-  }
-  for (const f of flagsBruts) {
-    if (typeof f !== "string" || !flagsConnus.has(f)) {
-      return { ok: false, erreur: "Flag inconnu." };
-    }
+  const vg = valideGestes(body.gestes, ciblesConnues);
+  if (!vg.ok) {
+    return vg;
   }
 
   const historiqueBrut = body.historique ?? [];
@@ -45,5 +66,5 @@ export function valideRequeteChat(body, flagsConnus) {
   const note =
     typeof body.note === "string" ? body.note.slice(0, MAX_NOTE) : "";
 
-  return { ok: true, valeur: { message, flags: flagsBruts, historique, note } };
+  return { ok: true, valeur: { message, gestes: vg.valeur, historique, note } };
 }

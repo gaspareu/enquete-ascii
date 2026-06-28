@@ -8,77 +8,70 @@ import {
 } from "../public/state.js";
 
 // Fixtures minimales — on teste la logique pure, indépendamment du vrai scénario.
+// Le front ne dérive plus de flags : il tient le sac (affichage) et le JOURNAL DE
+// GESTES envoyé au serveur (qui, lui, dérive les flags).
 const objets = {
   chocolats: { nom: "Chocolats", ramassable: true },
   cle: { nom: "Clé", ramassable: true },
   tableau: { nom: "Tableau", ramassable: false },
 };
-const declencheurs = {
-  "ramasser:chocolats": "chocolats_trouves",
-  "donner:chocolats": "chocolats_donnes",
-  "examiner:tableau": "code_lu",
-};
 
 describe("etatInitial", () => {
-  test("démarre avec flags, sac et historique vides", () => {
-    expect(etatInitial()).toEqual({ flags: [], sac: [], historique: [] });
+  test("démarre avec sac, historique et gestes vides", () => {
+    expect(etatInitial()).toEqual({ sac: [], historique: [], gestes: [] });
   });
 });
 
 describe("ramasser", () => {
-  test("ajoute un objet ramassable au sac et pose son flag", () => {
-    const apres = ramasser(etatInitial(), "chocolats", objets, declencheurs);
+  test("ajoute un objet ramassable au sac et journalise le geste", () => {
+    const apres = ramasser(etatInitial(), "chocolats", objets);
     expect(apres.sac).toEqual(["chocolats"]);
-    expect(apres.flags).toEqual(["chocolats_trouves"]);
+    expect(apres.gestes).toEqual([{ geste: "ramasser", cible: "chocolats" }]);
   });
 
   test("ne mute pas l'état d'origine (immutabilité)", () => {
     const avant = etatInitial();
-    ramasser(avant, "chocolats", objets, declencheurs);
-    expect(avant).toEqual({ flags: [], sac: [], historique: [] });
+    ramasser(avant, "chocolats", objets);
+    expect(avant).toEqual({ sac: [], historique: [], gestes: [] });
   });
 
-  test("ignore un objet non ramassable", () => {
-    const apres = ramasser(etatInitial(), "tableau", objets, declencheurs);
+  test("ignore un objet non ramassable (ni sac, ni geste)", () => {
+    const apres = ramasser(etatInitial(), "tableau", objets);
     expect(apres.sac).toEqual([]);
+    expect(apres.gestes).toEqual([]);
   });
 
-  test("ne duplique pas un objet déjà dans le sac", () => {
-    const une = ramasser(etatInitial(), "chocolats", objets, declencheurs);
-    const deux = ramasser(une, "chocolats", objets, declencheurs);
+  test("ne duplique ni l'objet dans le sac ni le geste", () => {
+    const une = ramasser(etatInitial(), "chocolats", objets);
+    const deux = ramasser(une, "chocolats", objets);
     expect(deux.sac).toEqual(["chocolats"]);
-    expect(deux.flags).toEqual(["chocolats_trouves"]);
-  });
-
-  test("ramasser un objet sans déclencheur n'ajoute aucun flag", () => {
-    const apres = ramasser(etatInitial(), "cle", objets, declencheurs);
-    expect(apres.sac).toEqual(["cle"]);
-    expect(apres.flags).toEqual([]);
+    expect(deux.gestes).toEqual([{ geste: "ramasser", cible: "chocolats" }]);
   });
 });
 
 describe("donner", () => {
-  test("pose le flag social si l'objet est dans le sac", () => {
-    const avecSac = ramasser(etatInitial(), "chocolats", objets, declencheurs);
-    const apres = donner(avecSac, "chocolats", declencheurs);
-    expect(apres.flags).toContain("chocolats_donnes");
+  test("journalise le geste si l'objet est dans le sac", () => {
+    const avecSac = ramasser(etatInitial(), "chocolats", objets);
+    const apres = donner(avecSac, "chocolats");
+    expect(apres.gestes).toContainEqual({ geste: "donner", cible: "chocolats" });
   });
 
-  test("ne pose aucun flag si l'objet n'est pas dans le sac", () => {
-    const apres = donner(etatInitial(), "chocolats", declencheurs);
-    expect(apres.flags).toEqual([]);
+  test("ne journalise rien si l'objet n'est pas dans le sac", () => {
+    const apres = donner(etatInitial(), "chocolats");
+    expect(apres.gestes).toEqual([]);
   });
 });
 
 describe("examiner", () => {
-  test("pose le flag du déclencheur examiner:cible", () => {
-    const apres = examiner(etatInitial(), "tableau", declencheurs);
-    expect(apres.flags).toEqual(["code_lu"]);
+  test("journalise le geste examiner:cible", () => {
+    const apres = examiner(etatInitial(), "tableau");
+    expect(apres.gestes).toEqual([{ geste: "examiner", cible: "tableau" }]);
   });
 
-  test("une cible sans déclencheur ne change pas les flags", () => {
-    const apres = examiner(etatInitial(), "fenetre", declencheurs);
-    expect(apres.flags).toEqual([]);
+  test("ne duplique pas un examen répété", () => {
+    const une = examiner(etatInitial(), "tableau");
+    const deux = examiner(une, "tableau");
+    expect(deux.gestes).toEqual([{ geste: "examiner", cible: "tableau" }]);
   });
 });
 
