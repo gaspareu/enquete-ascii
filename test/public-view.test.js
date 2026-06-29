@@ -12,7 +12,6 @@ describe("vuePublique", () => {
     expect(vue.zones).toBeDefined();
     expect(vue.objets.chocolats.nom).toBe("Chocolats");
     expect(vue.objets.chocolats.ramassable).toBe(true);
-    expect(vue.declencheurs).toBeDefined();
   });
 
   test("expose le visage ASCII du personnage (donnée publique pour le rendu)", () => {
@@ -29,6 +28,8 @@ describe("vuePublique", () => {
     expect(vue.solution).toBeUndefined();
     expect(vue.personnage.personnalite).toBeUndefined();
     expect(vue.personnage.faitsDeBase).toBeUndefined();
+    // Le mapping geste→flag reste secret côté serveur (anti-triche).
+    expect(vue.declencheurs).toBeUndefined();
 
     const json = JSON.stringify(vue).toLowerCase();
     expect(json).not.toContain("fiole de poison");

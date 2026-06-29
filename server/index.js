@@ -1,7 +1,7 @@
 import express from "express";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { scenario, flagsConnus } from "../data/scenario.js";
+import { scenario, ciblesConnues } from "../data/scenario.js";
 import { creerRouteur } from "./chat.js";
 import { creerClient } from "./claude.js";
 
@@ -36,7 +36,7 @@ app.use(
   "/api",
   creerRouteur({
     scenario,
-    flagsConnus: flagsConnus(),
+    ciblesConnues: ciblesConnues(),
     client,
     model: process.env.MODEL || "claude-sonnet-4-6",
   }),

@@ -190,12 +190,12 @@ async function examinerCible(cible) {
   } catch {
     // On garde le texte par défaut.
   }
-  etat = examiner(etat, cible, vue.declencheurs);
+  etat = examiner(etat, cible);
   ouvrirModale(texte, [["Fermer", fermerModale]]);
 }
 
 function ramasserObjet(id, dir) {
-  etat = ramasser(etat, id, vue.objets, vue.declencheurs);
+  etat = ramasser(etat, id, vue.objets);
   narration(`Vous ramassez : ${vue.objets[id].nom}.`);
   rendreSac();
   ouvrirZone(dir); // rafraîchit les actions (l'objet ramassé n'est plus à prendre)
@@ -232,7 +232,7 @@ function menuObjet(id) {
 
 function donnerObjet(id) {
   if (!etat.sac.includes(id)) return;
-  etat = donner(etat, id, vue.declencheurs);
+  etat = donner(etat, id);
   noteEnAttente = `Le joueur vient de te tendre : ${vue.objets[id].nom}`;
   narration(`Vous tendez ${vue.objets[id].nom} à ${vue.personnage.nom}.`);
   fermerModale();
@@ -259,7 +259,7 @@ elForm.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message,
-        flags: etat.flags,
+        gestes: etat.gestes,
         historique: historiqueLLM,
         note,
       }),
@@ -301,7 +301,7 @@ async function accuser(verdict) {
     const rep = await fetch("/api/accuser", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ verdict, flags: etat.flags }),
+      body: JSON.stringify({ verdict, gestes: etat.gestes }),
     });
     const data = await rep.json();
     const titre = data.gagne ? "✔ AFFAIRE RÉSOLUE" : "✘ ENQUÊTE À POURSUIVRE";

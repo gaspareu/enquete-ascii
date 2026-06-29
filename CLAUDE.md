@@ -29,30 +29,37 @@ server/            # Backend Node/Express (détient le scénario complet)
   chat.js          #   routeur : GET /scenario, POST /examiner /chat /accuser
                    #   + vuePublique() : strippe les secrets avant envoi au front
   prompt.js        #   construitPrompt() : système = perso + connaissances DÉBLOQUÉES
-  validate.js      #   valideRequeteChat() : validation au boundary HTTP
+  etat.js          #   deriverFlags() : rejoue le journal de gestes → flags (autorité)
+  validate.js      #   valideRequeteChat()/valideGestes() : validation au boundary HTTP
   accusation.js    #   evaluerAccusation() : verdict + preuves vs solution (serveur)
   claude.js        #   wrapper SDK Anthropic (client injecté → testable)
 data/
-  scenario.js      # LE contenu de l'enquête (données) + flagsConnus()
+  scenario.js      # LE contenu de l'enquête (données) + ciblesConnues()
 public/            # Front statique ASCII (servi tel quel)
   index.html       #   structure en panneaux (lie tokens.css puis style.css)
   tokens.css       #   design tokens (source de vérité du DS) — voir DESIGN-SYSTEM.md
   DESIGN-SYSTEM.md #   doc du Design System « terminal/CRT » (ingéré par Claude Design)
   style.css        #   thème terminal (grille CSS) — consomme uniquement les tokens
-  state.js         #   état immutable : flags, sac, historique (pur, sans DOM)
+  state.js         #   état immutable : sac, historique, journal de gestes (pur, sans DOM)
   render.js        #   rendu ASCII pur : artInterlocuteur(), rendreDialogue(), dialoguePartiel()
   game.js          #   orchestration DOM : événements, fetch, frappe, écran de fin
 test/              # Tests Vitest (un fichier par module de logique)
 ```
 
-**Flux d'un tour de dialogue** : `game.js` envoie `{message, flags, historique, note}`
-→ `validate.js` (rejette message trop long / flag inconnu) → `prompt.js` reconstruit
-le système avec **seulement** les connaissances dont les flags requis sont présents →
-`claude.js` appelle le modèle → réponse rendue. Le backend est **sans état**.
+**Flux d'un tour de dialogue** : `game.js` envoie `{message, gestes, historique, note}`
+→ `validate.js` (rejette message trop long / geste inconnu) → `etat.js` **dérive** les
+flags en rejouant le journal de gestes → `prompt.js` reconstruit le système avec
+**seulement** les connaissances dont les flags requis sont présents → `claude.js`
+appelle le modèle → réponse rendue. Le backend est **sans état** : chaque requête
+porte son journal complet, le client n'envoie jamais de flags.
 
-**Mécanique des flags** : examiner / ramasser / donner posent des flags
-(`data/scenario.js` → `declencheurs`). Une connaissance (`connaissances[].requiert`)
-n'entre dans le prompt que si ses flags sont débloqués → secret impossible à soutirer.
+**Mécanique des flags (anti-triche)** : le client tient un *journal de gestes*
+(examiner / ramasser / donner) ; le serveur le rejoue (`server/etat.js`) en imposant les
+préconditions (ex. : « donner » exige l'objet préalablement « ramassé ») et mappe
+geste→flag via `data/scenario.js` → `declencheurs` (**secret serveur**, hors vue
+publique). Une connaissance (`connaissances[].requiert`) n'entre dans le prompt que si
+ses flags sont débloqués. Comme le client n'envoie que des gestes (jamais de flags), un
+flag non gagné légitimement ne peut pas être forgé via la requête.
 
 ## Conventions
 
