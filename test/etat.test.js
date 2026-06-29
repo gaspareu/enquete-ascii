@@ -84,3 +84,48 @@ describe("deriverFlags", () => {
     expect(flags).toEqual(["chocolats_trouves"]);
   });
 });
+
+// Préconditions de flags (T-03) : un flag peut exiger qu'un AUTRE flag soit déjà
+// acquis (au-delà de la précondition de sac). Ex. : examiner le tableau ne révèle
+// le code que si l'on a d'abord obtenu l'indice (débloqué par chocolats_donnes).
+describe("deriverFlags — préconditions de flags", () => {
+  const scenarioPrecond = {
+    objets: {
+      chocolats: { nom: "Chocolats", ramassable: true },
+      tableau: { nom: "Tableau", ramassable: false },
+    },
+    declencheurs: {
+      "ramasser:chocolats": "chocolats_trouves",
+      "donner:chocolats": "chocolats_donnes",
+      "examiner:tableau": "code_lu",
+    },
+    preconditions: {
+      "examiner:tableau": ["chocolats_donnes"],
+    },
+  };
+
+  test("examiner le tableau sans l'indice ne pose pas le flag", () => {
+    expect(deriverFlags(scenarioPrecond, [g("examiner", "tableau")])).toEqual([]);
+  });
+
+  test("la séquence légitime (ramasser, donner, examiner) pose le flag conditionné", () => {
+    const flags = deriverFlags(scenarioPrecond, [
+      g("ramasser", "chocolats"),
+      g("donner", "chocolats"),
+      g("examiner", "tableau"),
+    ]);
+    expect(flags).toContain("code_lu");
+  });
+
+  // Le journal est idempotent : un examen « à froid » (avant l'indice) reste figé en
+  // tête de journal. La précondition doit être ENSEMBLISTE (ordre indifférent) pour ne
+  // pas verrouiller définitivement la révélation obtenue plus tard.
+  test("ensembliste : examiner avant de donner les chocolats reste validé après coup", () => {
+    const flags = deriverFlags(scenarioPrecond, [
+      g("examiner", "tableau"),
+      g("ramasser", "chocolats"),
+      g("donner", "chocolats"),
+    ]);
+    expect(flags).toContain("code_lu");
+  });
+});

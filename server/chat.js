@@ -38,13 +38,22 @@ export function creerRouteur({ scenario, ciblesConnues, client, model, repondreF
     res.json(vuePublique(scenario));
   });
 
-  // Examiner une cible (objet ou zone) : renvoie la description-révélation. C'est le
-  // seul canal par lequel un texte secret sort. Le flag éventuel est dérivé côté
-  // serveur depuis le journal de gestes, pas posé par cette réponse.
+  // Examiner une cible : renvoie sa description. C'est le seul canal par lequel un
+  // texte secret sort — il est donc gardé côté serveur. Une description n'est révélée
+  // que si son flag d'examen (declencheurs["examiner:cible"]) est légitimement dérivé
+  // du journal de gestes ; sinon on ne sert que l'aperçu non-spoiler (anti-triche
+  // T-03 : examiner le tableau avant l'indice ne révèle ni le code ni la fiole).
   routeur.post("/examiner", (req, res) => {
     const cible = typeof req.body?.cible === "string" ? req.body.cible : "";
     const objet = scenario.objets[cible];
-    const texte = objet?.description ?? "Rien de particulier ici.";
+    if (!objet) {
+      return res.json({ texte: "Rien de particulier ici." });
+    }
+    const vg = valideGestes(req.body?.gestes, ciblesConnues);
+    const flags = vg.ok ? deriverFlags(scenario, vg.valeur) : [];
+    const flagExamen = scenario.declencheurs[`examiner:${cible}`];
+    const revele = !flagExamen || flags.includes(flagExamen);
+    const texte = revele ? objet.description : (objet.apercu ?? objet.description);
     res.json({ texte });
   });
 

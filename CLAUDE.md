@@ -29,7 +29,7 @@ server/            # Backend Node/Express (détient le scénario complet)
   chat.js          #   routeur : GET /scenario, POST /examiner /chat /accuser
                    #   + vuePublique() : strippe les secrets avant envoi au front
   prompt.js        #   construitPrompt() : système = perso + connaissances DÉBLOQUÉES
-  etat.js          #   deriverFlags() : rejoue le journal de gestes → flags (autorité)
+  etat.js          #   deriverFlags() : rejoue le journal → flags, en imposant sac + préconditions (autorité)
   validate.js      #   valideRequeteChat()/valideGestes() : validation au boundary HTTP
   accusation.js    #   evaluerAccusation() : verdict + preuves vs solution (serveur)
   claude.js        #   wrapper SDK Anthropic (client injecté → testable)
@@ -54,12 +54,20 @@ appelle le modèle → réponse rendue. Le backend est **sans état** : chaque r
 porte son journal complet, le client n'envoie jamais de flags.
 
 **Mécanique des flags (anti-triche)** : le client tient un *journal de gestes*
-(examiner / ramasser / donner) ; le serveur le rejoue (`server/etat.js`) en imposant les
-préconditions (ex. : « donner » exige l'objet préalablement « ramassé ») et mappe
+(examiner / ramasser / donner) ; le serveur le rejoue (`server/etat.js`) puis mappe
 geste→flag via `data/scenario.js` → `declencheurs` (**secret serveur**, hors vue
-publique). Une connaissance (`connaissances[].requiert`) n'entre dans le prompt que si
-ses flags sont débloqués. Comme le client n'envoie que des gestes (jamais de flags), un
-flag non gagné légitimement ne peut pas être forgé via la requête.
+publique). Avant de poser un flag, il impose deux familles de préconditions :
+- **sac** (order-strict) : « donner » exige l'objet préalablement « ramassé » dans le
+  journal ;
+- **flags** (ensembliste, `scenario.preconditions`) : un déclencheur ne pose son flag que
+  si d'autres flags sont déjà acquis — ex. `examiner:tableau` exige `chocolats_donnes`.
+  Résolu à point fixe : l'ordre dans le journal (idempotent) n'importe pas.
+
+Une connaissance (`connaissances[].requiert`) n'entre dans le prompt que si ses flags
+sont débloqués ; de même, `/examiner` ne sert la *description-révélation* d'une cible que
+si son flag d'examen est légitimement dérivé, sinon un `apercu` non-spoiler. Comme le
+client n'envoie que des gestes (jamais de flags), un flag non gagné légitimement ne peut
+pas être forgé via la requête.
 
 ## Conventions
 

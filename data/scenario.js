@@ -76,6 +76,12 @@ export const scenario = {
     },
     tableau: {
       nom: "Portrait de M. Aldous",
+      // Aperçu servi tant que l'indice n'est pas débloqué : aucun spoiler. La
+      // révélation (description) n'est renvoyée par /examiner qu'une fois code_coffre_lu
+      // gagné (cf. preconditions ci-dessous + server/etat.js).
+      apercu:
+        "Un portrait austère de M. Aldous, le regard sévère sous un cadre massif. " +
+        "Rien d'évident ne s'en dégage au premier coup d'œil.",
       description:
         "En soulevant le cadre, vous découvrez un papier glissé au dos : le code du coffre, " +
         "et dans le coffre, une fiole de poison portant les empreintes de Victor.",
@@ -100,6 +106,14 @@ export const scenario = {
     "ramasser:cle_rouillee": "cle_trouvee", // objet d'ambiance, non requis
     "donner:chocolats": "chocolats_donnes",
     "examiner:tableau": "code_coffre_lu", // découvrir le code + la fiole de poison
+  },
+
+  // Préconditions de flags (au-delà du sac, géré dans server/etat.js). Un déclencheur
+  // ne pose son flag que si tous les flags listés ici sont déjà acquis. Ici : on ne
+  // découvre le code derrière le tableau qu'APRÈS l'indice de Victor — indice lui-même
+  // débloqué par chocolats_donnes. Examiner le tableau « à froid » ne révèle donc rien.
+  preconditions: {
+    "examiner:tableau": ["chocolats_donnes"],
   },
 
   solution: {
