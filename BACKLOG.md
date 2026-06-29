@@ -53,7 +53,8 @@ _(rien pour l'instant)_
   soufflé par Victor). `/examiner` dérive les flags du journal et ne sert la révélation
   (code + fiole) que si `code_coffre_lu` est gagné ; sinon un `apercu` non-spoiler.
   Anti-triche renforcé : examen à froid → ni flag, ni preuve à l'accusation. 80 tests,
-  couverture ≥ seuils. (PR à venir)
+  couverture ≥ seuils.
+  ([PR #14](https://github.com/gaspareu/enquete-ascii/pull/14))
 - **T-01 · Dériver l'état de jeu côté serveur (anti-triche)** — le client n'envoie
   plus ses flags mais son *journal de gestes* ; le serveur le rejoue (`server/etat.js`
   → `deriverFlags()`) et dérive les flags en imposant les préconditions (« donner »
