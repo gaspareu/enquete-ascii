@@ -9,8 +9,9 @@ les tâches une à une.
 - Pour traiter une tâche : suivre le **Flow de contribution** de [CLAUDE.md](CLAUDE.md)
   (branche → TDD → tests/couverture → `/code-review` → `/simplify` → `/security-review`
   → PR).
-- En commençant, déplacer la tâche dans **En cours** ; une fois la PR ouverte, la
-  déplacer dans **Fait** avec le lien de la PR.
+- En commençant, déplacer la tâche dans **En cours**. Une fois livrée (PR mergée),
+  la **retirer du backlog** : on garde « Fait » purgé — l'historique vit dans git
+  et les PR fermées.
 - Priorités : 🔴 haute · 🟠 moyenne · 🟢 basse.
 
 ---

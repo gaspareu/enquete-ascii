@@ -95,7 +95,7 @@ pas être forgé via la requête.
 5. **Qualité** : `/code-review` puis `/simplify` sur le diff.
 6. **Sécurité** : `/security-review`.
 7. **Livrer** : commit conventionnel (`feat|fix|chore|docs|test|refactor: …`), `git push -u`, puis `gh pr create`.
-8. **Tenir à jour** : cocher la tâche dans `BACKLOG.md` ; mettre à jour ce fichier si l'architecture change.
+8. **Tenir à jour** : une fois la tâche livrée (PR mergée), la **retirer de `BACKLOG.md`** — sortie de « À faire », et « Fait » gardé **purgé** (l'historique vit dans git et les PR fermées, on n'accumule pas de journal des tâches finies). Mettre à jour ce fichier si l'architecture change.
 
 > Un hook `Stop` lance les tests à la fin de chaque tour (filet anti-régression).
 > Attribution git désactivée globalement (pas de `Co-Authored-By`).
