@@ -7,16 +7,20 @@ const GESTES = new Set(["ramasser", "donner", "examiner"]);
 
 // Rejoue le journal de gestes et renvoie les flags légitimement obtenus (sans
 // doublon, dans l'ordre d'acquisition). Un flag n'est posé que par le geste
-// correspondant ET si ses préconditions sont remplies : on ne peut « donner »
-// qu'un objet préalablement « ramassé ». Un geste malformé est ignoré.
+// correspondant ET si ses préconditions sont remplies :
+//   - précondition de SAC (order-strict) : on ne peut « donner » qu'un objet
+//     préalablement « ramassé » dans le journal ;
+//   - préconditions de FLAGS (ensemblistes, cf. scenario.preconditions) : un flag
+//     peut exiger qu'un autre flag soit déjà acquis (ex. examiner le tableau ne
+//     révèle le code qu'après l'indice débloqué par chocolats_donnes).
+// Un geste malformé est ignoré.
 export function deriverFlags(scenario, gestes = []) {
-  const { objets, declencheurs } = scenario;
+  const { objets, declencheurs, preconditions = {} } = scenario;
   const sac = new Set();
-  const flags = [];
+  const declenches = []; // clés geste:cible réellement effectuées (sac order-strict), sans doublon
 
-  const poser = (cle) => {
-    const flag = declencheurs[cle];
-    if (flag && !flags.includes(flag)) flags.push(flag);
+  const declencher = (cle) => {
+    if (declencheurs[cle] && !declenches.includes(cle)) declenches.push(cle);
   };
 
   for (const item of gestes) {
@@ -27,12 +31,31 @@ export function deriverFlags(scenario, gestes = []) {
     if (geste === "ramasser") {
       if (objets[cible]?.ramassable) {
         sac.add(cible);
-        poser(`ramasser:${cible}`);
+        declencher(`ramasser:${cible}`);
       }
     } else if (geste === "donner") {
-      if (sac.has(cible)) poser(`donner:${cible}`);
+      if (sac.has(cible)) declencher(`donner:${cible}`);
     } else if (geste === "examiner") {
-      poser(`examiner:${cible}`);
+      declencher(`examiner:${cible}`);
+    }
+  }
+
+  // On ne pose un flag que si toutes ses préconditions de flags sont elles-mêmes
+  // acquises. L'ordre des gestes dans le journal n'importe pas (il est idempotent) :
+  // on itère jusqu'au point fixe, pour qu'un examen « à froid » ne verrouille pas la
+  // révélation légitimement obtenue plus tard.
+  const flags = [];
+  let progresse = true;
+  while (progresse) {
+    progresse = false;
+    for (const cle of declenches) {
+      const flag = declencheurs[cle];
+      if (flags.includes(flag)) continue;
+      const requis = preconditions[cle] ?? [];
+      if (requis.every((f) => flags.includes(f))) {
+        flags.push(flag);
+        progresse = true;
+      }
     }
   }
 

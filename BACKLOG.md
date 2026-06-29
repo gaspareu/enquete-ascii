@@ -17,11 +17,6 @@ les tâches une à une.
 
 ## À faire
 
-### T-03 · 🟠 Conditionner le déblocage du tableau au dialogue
-Examiner le tableau révèle le code même sans avoir parlé au personnage. Lier la
-révélation à l'indice donné dans le dialogue (le perso doit avoir indiqué où chercher).
-**Acceptation** : examiner le tableau avant l'indice ne pose pas `code_coffre_lu`.
-
 ### T-04 · 🟢 Couverture du front `game.js`
 Tester l'orchestration DOM avec un environnement `jsdom` (clics plan/sac, envoi,
 écran de fin).
@@ -51,6 +46,14 @@ _(rien pour l'instant)_
 
 ## Fait
 
+- **T-03 · Conditionner le déblocage du tableau au dialogue** — examiner le tableau
+  ne révèle plus le code « à froid ». Un déclencheur ne pose son flag que si ses
+  `preconditions` de flags sont réunies (`server/etat.js`, point fixe ensembliste, le
+  sac reste order-strict) ; `examiner:tableau` exige `chocolats_donnes` (l'indice
+  soufflé par Victor). `/examiner` dérive les flags du journal et ne sert la révélation
+  (code + fiole) que si `code_coffre_lu` est gagné ; sinon un `apercu` non-spoiler.
+  Anti-triche renforcé : examen à froid → ni flag, ni preuve à l'accusation. 80 tests,
+  couverture ≥ seuils. (PR à venir)
 - **T-01 · Dériver l'état de jeu côté serveur (anti-triche)** — le client n'envoie
   plus ses flags mais son *journal de gestes* ; le serveur le rejoue (`server/etat.js`
   → `deriverFlags()`) et dérive les flags en imposant les préconditions (« donner »

@@ -178,19 +178,21 @@ function ouvrirZone(dir) {
 }
 
 async function examinerCible(cible) {
+  // On journalise l'examen AVANT l'appel : la révélation dépend du journal dérivé
+  // côté serveur (un texte secret n'est servi que si son flag d'examen est posé).
+  etat = examiner(etat, cible);
   let texte = "Rien de particulier ici.";
   try {
     const rep = await fetch("/api/examiner", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cible }),
+      body: JSON.stringify({ cible, gestes: etat.gestes }),
     });
     const data = await rep.json();
     if (data?.texte) texte = data.texte;
   } catch {
     // On garde le texte par défaut.
   }
-  etat = examiner(etat, cible);
   ouvrirModale(texte, [["Fermer", fermerModale]]);
 }
 

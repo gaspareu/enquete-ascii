@@ -41,13 +41,41 @@ describe("GET /scenario", () => {
 });
 
 describe("POST /examiner", () => {
-  test("cible connue : renvoie la description-révélation (sans nom de flag)", async () => {
+  // T-03 : la révélation du tableau est conditionnée à l'indice du dialogue. Tant que
+  // le joueur n'a pas débloqué l'indice (séquence légitime), l'examen ne renvoie que
+  // l'aperçu non-spoiler — jamais le code ni la fiole.
+  test("tableau sans l'indice : aperçu non-spoiler, pas la révélation", async () => {
     const res = await request(faireApp())
       .post("/api/examiner")
-      .send({ cible: "tableau" });
+      .send({ cible: "tableau", gestes: [] });
+    expect(res.status).toBe(200);
+    const t = res.body.texte.toLowerCase();
+    expect(t).not.toContain("fiole de poison");
+    expect(t).not.toContain("code du coffre");
+    expect(res.body.texte).toBe(scenario.objets.tableau.apercu);
+  });
+
+  test("tableau après la séquence légitime : la révélation complète", async () => {
+    const res = await request(faireApp())
+      .post("/api/examiner")
+      .send({
+        cible: "tableau",
+        gestes: [
+          g("ramasser", "chocolats"),
+          g("donner", "chocolats"),
+          g("examiner", "tableau"),
+        ],
+      });
     expect(res.status).toBe(200);
     expect(res.body.texte).toBe(scenario.objets.tableau.description);
-    expect(res.body.flag).toBeUndefined();
+  });
+
+  test("objet sans secret (clé rouillée) : toujours révélé, sans condition", async () => {
+    const res = await request(faireApp())
+      .post("/api/examiner")
+      .send({ cible: "cle_rouillee", gestes: [] });
+    expect(res.status).toBe(200);
+    expect(res.body.texte).toBe(scenario.objets.cle_rouillee.description);
   });
 
   test("cible absente ou non-chaîne : texte par défaut", async () => {
@@ -132,9 +160,26 @@ describe("POST /accuser", () => {
   test("séquence légitime (preuve réunie) et bon verdict : partie gagnée", async () => {
     const res = await request(faireApp())
       .post("/api/accuser")
-      .send({ verdict: true, gestes: [g("examiner", "tableau")] });
+      .send({
+        verdict: true,
+        gestes: [
+          g("ramasser", "chocolats"),
+          g("donner", "chocolats"),
+          g("examiner", "tableau"),
+        ],
+      });
     expect(res.status).toBe(200);
     expect(res.body.gagne).toBe(true);
+  });
+
+  // T-03 : examiner le tableau « à froid » (sans l'indice débloqué par les chocolats)
+  // ne pose pas code_coffre_lu, donc la preuve n'est pas réunie.
+  test("anti-triche : examiner le tableau sans l'indice ne réunit pas la preuve", async () => {
+    const res = await request(faireApp())
+      .post("/api/accuser")
+      .send({ verdict: true, gestes: [g("examiner", "tableau")] });
+    expect(res.status).toBe(200);
+    expect(res.body.gagne).toBe(false);
   });
 
   test("anti-triche : un flag forgé dans la requête est ignoré (front non fiable)", async () => {
