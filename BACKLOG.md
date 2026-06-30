@@ -32,12 +32,7 @@ J'aimerai ajouter un système de point. Le joueur ne doit pas simplement repondr
 
 ## En cours
 
-### T-07 · 🟢 Enrichir le contenu / scénarios multiples
-Remplacement du scénario par l'enquête « Ce que préparait Hélène » (féminicide maquillé
-en suicide) : 8 zones, ~9 objets utiles + ~25 d'ambiance, 3 fils convergents (acte /
-mobile / surprise) et 3 preuves requises. Conception et plan validés.
-**Réf.** : [spec](docs/superpowers/specs/2026-06-29-scenario-enrichi-t07-design.md) ·
-[plan](docs/superpowers/plans/2026-06-29-scenario-enrichi-t07.md) · branche `feat/scenario-enrichi-t07`.
+_(rien pour l'instant)_
 
 ---
 
