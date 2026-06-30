@@ -11,7 +11,7 @@ import { construitPrompt } from "./prompt.js";
 import { valideRequeteChat, valideGestes } from "./validate.js";
 import { deriverFlags } from "./etat.js";
 import { evaluerAccusation } from "./accusation.js";
-import { repondre } from "./claude.js";
+import { repondreEnFlux } from "./claude.js";
 
 // Vue du scénario envoyée au navigateur : noms et ambiance seulement.
 // Pas de connaissances, pas de solution, pas de personnalité, pas de descriptions
@@ -31,7 +31,7 @@ export function vuePublique(scenario) {
   };
 }
 
-export function creerRouteur({ scenario, ciblesConnues, client, model, repondreFn = repondre }) {
+export function creerRouteur({ scenario, ciblesConnues, client, model, repondreFluxFn = repondreEnFlux }) {
   const routeur = express.Router();
 
   routeur.get("/scenario", (req, res) => {
@@ -69,15 +69,44 @@ export function creerRouteur({ scenario, ciblesConnues, client, model, repondreF
       });
     }
     const { message, gestes, historique, note } = v.valeur;
+
+    // Anti-triche : on dérive les flags AVANT de streamer ; toute erreur de
+    // préparation reste un échec « pré-vol » avec un code HTTP propre.
+    let system;
     try {
       const flags = deriverFlags(scenario, gestes);
-      const system = construitPrompt(scenario, flags, note);
-      const reponse = await repondreFn(client, { system, historique, message, model });
-      res.json({ reponse });
+      system = construitPrompt(scenario, flags, note);
     } catch (err) {
-      // Log serveur sans secret ; message neutre côté client.
-      console.error("Erreur appel Claude:", err?.message ?? err);
-      res.status(502).json({ erreur: "Le personnage est injoignable pour le moment." });
+      console.error("Erreur préparation prompt:", err?.message ?? err);
+      return res.status(502).json({ erreur: "Le personnage est injoignable pour le moment." });
+    }
+
+    // À partir d'ici les en-têtes 200 sont envoyées : une erreur en cours de flux
+    // passe par une trame `erreur`, pas par un code HTTP.
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    });
+    res.flushHeaders?.();
+    const ecrire = (chunk) => {
+      if (!res.writableEnded) res.write(chunk);
+    };
+
+    try {
+      await repondreFluxFn(client, { system, historique, message, model }, (texte) =>
+        ecrire(`event: delta\ndata: ${JSON.stringify({ texte })}\n\n`),
+      );
+      ecrire("event: fin\ndata: {}\n\n");
+    } catch (err) {
+      console.error("Erreur appel Claude (flux):", err?.message ?? err);
+      ecrire(
+        `event: erreur\ndata: ${JSON.stringify({
+          erreur: "Le personnage est injoignable pour le moment.",
+        })}\n\n`,
+      );
+    } finally {
+      res.end();
     }
   });
 

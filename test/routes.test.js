@@ -5,7 +5,7 @@ import { creerRouteur } from "../server/chat.js";
 import { scenario, ciblesConnues } from "../data/scenario.js";
 
 // Monte le routeur du jeu sur une app jetable. Les dépendances sont injectées
-// (client, modèle, repondreFn) pour tester sans appel réseau.
+// (client, modèle, repondreFluxFn) pour tester sans appel réseau.
 function faireApp(overrides = {}) {
   const app = express();
   app.use(express.json());
@@ -16,7 +16,7 @@ function faireApp(overrides = {}) {
       ciblesConnues: ciblesConnues(scenario),
       client: {},
       model: "modele-test",
-      repondreFn: async () => "Réponse de test.",
+      repondreFluxFn: async (_client, _args, onTexte) => onTexte("Réponse de test."),
       ...overrides,
     }),
   );
@@ -87,13 +87,13 @@ describe("POST /examiner", () => {
 });
 
 describe("POST /chat", () => {
-  test("requête invalide : 400 avec message d'erreur", async () => {
+  test("requête invalide : 400 JSON avec message d'erreur", async () => {
     const res = await request(faireApp()).post("/api/chat").send({ message: "" });
     expect(res.status).toBe(400);
     expect(typeof res.body.erreur).toBe("string");
   });
 
-  test("clé API absente (client null) : 503", async () => {
+  test("clé API absente (client null) : 503 JSON", async () => {
     const res = await request(faireApp({ client: null }))
       .post("/api/chat")
       .send({ message: "Bonjour" });
@@ -101,55 +101,64 @@ describe("POST /chat", () => {
     expect(res.body.erreur).toContain("ANTHROPIC_API_KEY");
   });
 
-  test("requête valide : 200 et délègue à repondreFn avec le bon contexte", async () => {
-    const repondreFn = vi.fn(async () => "Bonjour à vous.");
-    const res = await request(faireApp({ repondreFn }))
+  test("requête valide : flux SSE 200 avec trames delta puis fin", async () => {
+    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => {
+      onTexte("Bonjour");
+      onTexte(" à vous.");
+    });
+    const res = await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({ message: "Bonjour", gestes: [g("ramasser", "grand_cru")] });
 
     expect(res.status).toBe(200);
-    expect(res.body.reponse).toBe("Bonjour à vous.");
-    expect(repondreFn).toHaveBeenCalledOnce();
-    const [, args] = repondreFn.mock.calls[0];
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+    expect(res.text).toContain("event: delta");
+    expect(res.text).toContain('data: {"texte":"Bonjour"}');
+    expect(res.text).toContain('data: {"texte":" à vous."}');
+    expect(res.text).toContain("event: fin");
+
+    expect(repondreFluxFn).toHaveBeenCalledOnce();
+    const [, args] = repondreFluxFn.mock.calls[0];
     expect(args.message).toBe("Bonjour");
     expect(args.model).toBe("modele-test");
     expect(typeof args.system).toBe("string");
   });
 
-  test("anti-triche : un journal incomplet ne débloque pas la connaissance", async () => {
-    const repondreFn = vi.fn(async () => "…");
+  test("anti-triche : un journal incomplet ne débloque pas la connaissance secrète", async () => {
+    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
     // « donner » sans « ramasser » : la précondition de sac n'est pas remplie,
     // donc confiance_gagnee n'est pas dérivé et la connaissance reste verrouillée.
-    await request(faireApp({ repondreFn }))
+    await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({ message: "Parlez-moi de la soirée.", gestes: [g("donner", "grand_cru")] });
-    const [, args] = repondreFn.mock.calls[0];
+    const [, args] = repondreFluxFn.mock.calls[0];
     expect(args.system.toLowerCase()).not.toContain("monté toi-même");
   });
 
   test("séquence légitime : la connaissance se débloque côté serveur", async () => {
-    const repondreFn = vi.fn(async () => "…");
-    await request(faireApp({ repondreFn }))
+    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
+    await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({
         message: "Parlez-moi de la soirée.",
         gestes: [g("ramasser", "grand_cru"), g("donner", "grand_cru")],
       });
-    const [, args] = repondreFn.mock.calls[0];
+    const [, args] = repondreFluxFn.mock.calls[0];
     expect(args.system.toLowerCase()).toContain("monté toi-même");
   });
 
-  test("repondreFn échoue : 502 et l'erreur n'est pas avalée", async () => {
+  test("erreur pendant le flux : 200 + trame erreur (non avalée)", async () => {
     const erreurLog = vi.spyOn(console, "error").mockImplementation(() => {});
-    const repondreFn = vi.fn(async () => {
+    const repondreFluxFn = vi.fn(async () => {
       throw new Error("réseau coupé");
     });
-    const res = await request(faireApp({ repondreFn }))
+    const res = await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({ message: "Bonjour" });
 
-    expect(res.status).toBe(502);
-    expect(res.body.erreur).toBeDefined();
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("event: erreur");
+    expect(res.text).toContain("injoignable");
     expect(erreurLog).toHaveBeenCalled();
     erreurLog.mockRestore();
   });
