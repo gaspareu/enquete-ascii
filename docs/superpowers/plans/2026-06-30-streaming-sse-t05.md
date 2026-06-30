@@ -369,7 +369,7 @@ describe("POST /chat", () => {
     });
     const res = await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
-      .send({ message: "Bonjour", gestes: [g("ramasser", "chocolats")] });
+      .send({ message: "Bonjour", gestes: [g("ramasser", "grand_cru")] });
 
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toContain("text/event-stream");
@@ -387,11 +387,13 @@ describe("POST /chat", () => {
 
   test("anti-triche : un journal incomplet ne débloque pas la connaissance secrète", async () => {
     const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
+    // « donner » sans « ramasser » : la précondition de sac n'est pas remplie,
+    // donc confiance_gagnee n'est pas dérivé et la connaissance reste verrouillée.
     await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
-      .send({ message: "Où est le code ?", gestes: [g("donner", "chocolats")] });
+      .send({ message: "Parlez-moi de la soirée.", gestes: [g("donner", "grand_cru")] });
     const [, args] = repondreFluxFn.mock.calls[0];
-    expect(args.system.toLowerCase()).not.toContain("code du coffre");
+    expect(args.system.toLowerCase()).not.toContain("monté toi-même");
   });
 
   test("séquence légitime : la connaissance se débloque côté serveur", async () => {
@@ -399,11 +401,11 @@ describe("POST /chat", () => {
     await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({
-        message: "Où est le code ?",
-        gestes: [g("ramasser", "chocolats"), g("donner", "chocolats")],
+        message: "Parlez-moi de la soirée.",
+        gestes: [g("ramasser", "grand_cru"), g("donner", "grand_cru")],
       });
     const [, args] = repondreFluxFn.mock.calls[0];
-    expect(args.system.toLowerCase()).toContain("code du coffre");
+    expect(args.system.toLowerCase()).toContain("monté toi-même");
   });
 
   test("erreur pendant le flux : 200 + trame erreur (non avalée)", async () => {
