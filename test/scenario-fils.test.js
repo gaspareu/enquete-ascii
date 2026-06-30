@@ -17,7 +17,7 @@ function faireApp(overrides = {}) {
       ciblesConnues: ciblesConnues(scenario),
       client: {},
       model: "modele-test",
-      repondreFn: async () => "…",
+      repondreFluxFn: async (_c, _a, onTexte) => onTexte("…"),
       ...overrides,
     }),
   );
@@ -140,8 +140,8 @@ describe("bascules HTTP /examiner", () => {
 
 describe("connaissances conditionnelles dans le prompt /chat", () => {
   test("confronter le mot (séquence complète) injecte l'effondrement (aveu du mobile)", async () => {
-    const repondreFn = vi.fn(async () => "…");
-    await request(faireApp({ repondreFn }))
+    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
+    await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({
         message: "Vous la croyiez infidèle ?",
@@ -152,19 +152,19 @@ describe("connaissances conditionnelles dans le prompt /chat", () => {
           g("donner", "mot_manuscrit"),
         ],
       });
-    const [, args] = repondreFn.mock.calls[0];
+    const [, args] = repondreFluxFn.mock.calls[0];
     expect(args.system.toLowerCase()).toContain("infidèle");
   });
 
   test("éclaircir l'agenda débloque la connaissance « rdv innocents »", async () => {
-    const repondreFn = vi.fn(async () => "…");
-    await request(faireApp({ repondreFn }))
+    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
+    await request(faireApp({ repondreFluxFn }))
       .post("/api/chat")
       .send({
         message: "Ces rendez-vous secrets ?",
         gestes: [g("examiner", "telephone"), g("examiner", "agenda")],
       });
-    const [, args] = repondreFn.mock.calls[0];
+    const [, args] = repondreFluxFn.mock.calls[0];
     expect(args.system.toLowerCase()).toContain("à opposer");
   });
 });
