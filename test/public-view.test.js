@@ -10,8 +10,8 @@ describe("vuePublique", () => {
     expect(vue.intro).toBe(scenario.intro);
     expect(vue.personnage.nom).toBe(scenario.personnage.nom);
     expect(vue.zones).toBeDefined();
-    expect(vue.objets.chocolats.nom).toBe("Chocolats");
-    expect(vue.objets.chocolats.ramassable).toBe(true);
+    expect(vue.objets.grand_cru.nom).toBe("Grand cru");
+    expect(vue.objets.grand_cru.ramassable).toBe(true);
   });
 
   test("expose le visage ASCII du personnage (donnée publique pour le rendu)", () => {
@@ -19,8 +19,9 @@ describe("vuePublique", () => {
     expect(vue.personnage.visage).toBe(scenario.personnage.visage);
   });
 
-  test("n'expose pas les descriptions d'objets (servies à l'examen)", () => {
-    expect(vue.objets.tableau.description).toBeUndefined();
+  test("n'expose ni description ni aperçu des objets (servis à l'examen)", () => {
+    expect(vue.objets.plaquette_somniferes.description).toBeUndefined();
+    expect(vue.objets.plaquette_somniferes.apercu).toBeUndefined();
   });
 
   test("ne fuite jamais les secrets du scénario", () => {
@@ -30,9 +31,10 @@ describe("vuePublique", () => {
     expect(vue.personnage.faitsDeBase).toBeUndefined();
     // Le mapping geste→flag reste secret côté serveur (anti-triche).
     expect(vue.declencheurs).toBeUndefined();
+    expect(vue.preconditions).toBeUndefined();
 
     const json = JSON.stringify(vue).toLowerCase();
-    expect(json).not.toContain("fiole de poison");
-    expect(json).not.toContain("le code du coffre");
+    expect(json).not.toContain("au nom de laurent"); // révélation de la plaquette
+    expect(json).not.toContain("infidèle"); // mobile / aveu
   });
 });

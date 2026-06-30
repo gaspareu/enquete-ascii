@@ -3,9 +3,9 @@
 Petit jeu d'enquête web rétro. Une pièce vue en plan 3×3 : au centre, un
 interlocuteur ; autour, des zones à fouiller. Le but est de **confondre le
 meurtrier** grâce aux indices trouvés et au dialogue. La particularité : ce que
-le personnage « sait » évolue selon vos actions. Tant que vous ne lui avez pas
-offert les chocolats, il ignore où se cache le code du coffre ; une fois amadoué,
-il peut vous aiguiller.
+le personnage « sait » — et accepte de révéler — évolue selon vos actions. Tant
+que vous ne l'avez pas mis en confiance, il s'en tient prudemment à sa version ;
+amadoué, il finit par en dire plus qu'il ne voudrait.
 
 Le dialogue est joué par Claude (modèle Sonnet 4.6 par défaut).
 
@@ -60,8 +60,8 @@ Ouvrez ensuite <http://localhost:3000>.
 - **Accuser** : quand vous pensez tenir le coupable et la preuve, cliquez
   `⚖ ACCUSER`.
 
-Indice : le personnage cherche ses chocolats. Trouvez-les, donnez-les-lui, et
-écoutez ce qu'il laisse échapper…
+Indice : votre interlocuteur est sensible à la flatterie et tient à ses grands
+crus. Trouvez sa bouteille, offrez-la-lui, et écoutez ce qu'il laisse échapper…
 
 ## Modifier l'enquête
 

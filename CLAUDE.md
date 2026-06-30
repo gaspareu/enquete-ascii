@@ -60,7 +60,8 @@ publique). Avant de poser un flag, il impose deux familles de préconditions :
 - **sac** (order-strict) : « donner » exige l'objet préalablement « ramassé » dans le
   journal ;
 - **flags** (ensembliste, `scenario.preconditions`) : un déclencheur ne pose son flag que
-  si d'autres flags sont déjà acquis — ex. `examiner:tableau` exige `chocolats_donnes`.
+  si d'autres flags sont déjà acquis — ex. `examiner:plaquette_somniferes` exige `double_tasse`
+  (la 2e tasse), ou `examiner:mot_manuscrit` exige `fete_decouverte`.
   Résolu à point fixe : l'ordre dans le journal (idempotent) n'importe pas.
 
 Une connaissance (`connaissances[].requiert`) n'entre dans le prompt que si ses flags
