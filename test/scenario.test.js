@@ -12,10 +12,13 @@ describe("ciblesConnues", () => {
 
   test("couvre toutes les cibles du vrai scénario", () => {
     const cibles = ciblesConnues();
-    expect(cibles.has("chocolats")).toBe(true);
-    expect(cibles.has("cle_rouillee")).toBe(true);
-    expect(cibles.has("tableau")).toBe(true);
-    // Le défaut porte sur le scénario réel importé.
-    expect(cibles.has("chocolats")).toBe(ciblesConnues(scenario).has("chocolats"));
+    expect(cibles.has("theiere")).toBe(true);
+    expect(cibles.has("plaquette_somniferes")).toBe(true);
+    expect(cibles.has("cadeau_cache")).toBe(true);
+    expect(cibles.has("grand_cru")).toBe(true);
+    // Un objet d'ambiance est lui aussi reconnu, sinon ses gestes seraient rejetés
+    // à la validation HTTP.
+    expect(cibles.has("photos_mariage")).toBe(true);
+    expect(cibles.has("theiere")).toBe(ciblesConnues(scenario).has("theiere"));
   });
 });

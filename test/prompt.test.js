@@ -45,8 +45,8 @@ describe("construitPrompt", () => {
     expect(p).toContain("Le joueur t'a donné : Chocolats");
   });
 
-  test("scénario réel : le secret du coffre ne fuite pas sans chocolats_donnes", () => {
+  test("scénario réel : l'aveu du mobile ne fuite pas sans flag", () => {
     const p = construitPrompt(scenario, []);
-    expect(p.toLowerCase()).not.toContain("derrière le tableau");
+    expect(p.toLowerCase()).not.toContain("infidèle");
   });
 });

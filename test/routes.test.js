@@ -25,6 +25,14 @@ function faireApp(overrides = {}) {
 
 const g = (geste, cible) => ({ geste, cible });
 
+// Séquence d'examens qui réunit les trois preuves requises pour gagner.
+const SEQUENCE_GAGNANTE = [
+  g("examiner", "theiere"), // -> double_tasse
+  g("examiner", "plaquette_somniferes"), // -> recu_laurent_vu (précond double_tasse)
+  g("examiner", "cadeau_cache"), // -> fete_decouverte
+  g("examiner", "lettre_dettes"), // -> mobile_dettes
+];
+
 describe("GET /scenario", () => {
   test("renvoie la vue publique sans fuiter de secret ni le mapping des flags", async () => {
     const res = await request(faireApp()).get("/api/scenario");
@@ -33,49 +41,42 @@ describe("GET /scenario", () => {
     expect(res.body.personnage.nom).toBe(scenario.personnage.nom);
 
     const json = JSON.stringify(res.body).toLowerCase();
-    expect(json).not.toContain("fiole de poison");
+    expect(json).not.toContain("au nom de laurent");
+    expect(json).not.toContain("infidèle");
     expect(res.body.connaissances).toBeUndefined();
-    // Le mapping geste→flag est désormais un secret serveur.
     expect(res.body.declencheurs).toBeUndefined();
   });
 });
 
 describe("POST /examiner", () => {
-  // T-03 : la révélation du tableau est conditionnée à l'indice du dialogue. Tant que
-  // le joueur n'a pas débloqué l'indice (séquence légitime), l'examen ne renvoie que
-  // l'aperçu non-spoiler — jamais le code ni la fiole.
-  test("tableau sans l'indice : aperçu non-spoiler, pas la révélation", async () => {
+  // Bascule : la plaquette n'avoue le reçu de Laurent qu'après avoir constaté la
+  // deuxième tasse (double_tasse). Avant, on ne sert que l'aperçu non-spoiler.
+  test("plaquette sans l'indice : aperçu non-spoiler, pas la révélation", async () => {
     const res = await request(faireApp())
       .post("/api/examiner")
-      .send({ cible: "tableau", gestes: [] });
+      .send({ cible: "plaquette_somniferes", gestes: [] });
     expect(res.status).toBe(200);
-    const t = res.body.texte.toLowerCase();
-    expect(t).not.toContain("fiole de poison");
-    expect(t).not.toContain("code du coffre");
-    expect(res.body.texte).toBe(scenario.objets.tableau.apercu);
+    expect(res.body.texte.toLowerCase()).not.toContain("au nom de laurent");
+    expect(res.body.texte).toBe(scenario.objets.plaquette_somniferes.apercu);
   });
 
-  test("tableau après la séquence légitime : la révélation complète", async () => {
+  test("plaquette après la séquence légitime : la révélation complète", async () => {
     const res = await request(faireApp())
       .post("/api/examiner")
       .send({
-        cible: "tableau",
-        gestes: [
-          g("ramasser", "chocolats"),
-          g("donner", "chocolats"),
-          g("examiner", "tableau"),
-        ],
+        cible: "plaquette_somniferes",
+        gestes: [g("examiner", "theiere"), g("examiner", "plaquette_somniferes")],
       });
     expect(res.status).toBe(200);
-    expect(res.body.texte).toBe(scenario.objets.tableau.description);
+    expect(res.body.texte).toBe(scenario.objets.plaquette_somniferes.description);
   });
 
-  test("objet sans secret (clé rouillée) : toujours révélé, sans condition", async () => {
+  test("objet d'ambiance (photos de mariage) : toujours révélé, sans condition", async () => {
     const res = await request(faireApp())
       .post("/api/examiner")
-      .send({ cible: "cle_rouillee", gestes: [] });
+      .send({ cible: "photos_mariage", gestes: [] });
     expect(res.status).toBe(200);
-    expect(res.body.texte).toBe(scenario.objets.cle_rouillee.description);
+    expect(res.body.texte).toBe(scenario.objets.photos_mariage.description);
   });
 
   test("cible absente ou non-chaîne : texte par défaut", async () => {
@@ -87,9 +88,7 @@ describe("POST /examiner", () => {
 
 describe("POST /chat", () => {
   test("requête invalide : 400 avec message d'erreur", async () => {
-    const res = await request(faireApp())
-      .post("/api/chat")
-      .send({ message: "" });
+    const res = await request(faireApp()).post("/api/chat").send({ message: "" });
     expect(res.status).toBe(400);
     expect(typeof res.body.erreur).toBe("string");
   });
@@ -106,7 +105,7 @@ describe("POST /chat", () => {
     const repondreFn = vi.fn(async () => "Bonjour à vous.");
     const res = await request(faireApp({ repondreFn }))
       .post("/api/chat")
-      .send({ message: "Bonjour", gestes: [g("ramasser", "chocolats")] });
+      .send({ message: "Bonjour", gestes: [g("ramasser", "grand_cru")] });
 
     expect(res.status).toBe(200);
     expect(res.body.reponse).toBe("Bonjour à vous.");
@@ -117,15 +116,15 @@ describe("POST /chat", () => {
     expect(typeof args.system).toBe("string");
   });
 
-  test("anti-triche : un journal incomplet ne débloque pas la connaissance secrète", async () => {
+  test("anti-triche : un journal incomplet ne débloque pas la connaissance", async () => {
     const repondreFn = vi.fn(async () => "…");
-    // « donner » sans « ramasser » : la précondition (objet en sac) n'est pas remplie,
-    // donc chocolats_donnes n'est pas dérivé et la connaissance reste verrouillée.
+    // « donner » sans « ramasser » : la précondition de sac n'est pas remplie,
+    // donc confiance_gagnee n'est pas dérivé et la connaissance reste verrouillée.
     await request(faireApp({ repondreFn }))
       .post("/api/chat")
-      .send({ message: "Où est le code ?", gestes: [g("donner", "chocolats")] });
+      .send({ message: "Parlez-moi de la soirée.", gestes: [g("donner", "grand_cru")] });
     const [, args] = repondreFn.mock.calls[0];
-    expect(args.system.toLowerCase()).not.toContain("code du coffre");
+    expect(args.system.toLowerCase()).not.toContain("monté toi-même");
   });
 
   test("séquence légitime : la connaissance se débloque côté serveur", async () => {
@@ -133,11 +132,11 @@ describe("POST /chat", () => {
     await request(faireApp({ repondreFn }))
       .post("/api/chat")
       .send({
-        message: "Où est le code ?",
-        gestes: [g("ramasser", "chocolats"), g("donner", "chocolats")],
+        message: "Parlez-moi de la soirée.",
+        gestes: [g("ramasser", "grand_cru"), g("donner", "grand_cru")],
       });
     const [, args] = repondreFn.mock.calls[0];
-    expect(args.system.toLowerCase()).toContain("code du coffre");
+    expect(args.system.toLowerCase()).toContain("monté toi-même");
   });
 
   test("repondreFn échoue : 502 et l'erreur n'est pas avalée", async () => {
@@ -157,36 +156,30 @@ describe("POST /chat", () => {
 });
 
 describe("POST /accuser", () => {
-  test("séquence légitime (preuve réunie) et bon verdict : partie gagnée", async () => {
+  test("séquence légitime (3 preuves réunies) et bon verdict : partie gagnée", async () => {
     const res = await request(faireApp())
       .post("/api/accuser")
-      .send({
-        verdict: true,
-        gestes: [
-          g("ramasser", "chocolats"),
-          g("donner", "chocolats"),
-          g("examiner", "tableau"),
-        ],
-      });
+      .send({ verdict: true, gestes: SEQUENCE_GAGNANTE });
     expect(res.status).toBe(200);
     expect(res.body.gagne).toBe(true);
   });
 
-  // T-03 : examiner le tableau « à froid » (sans l'indice débloqué par les chocolats)
-  // ne pose pas code_coffre_lu, donc la preuve n'est pas réunie.
-  test("anti-triche : examiner le tableau sans l'indice ne réunit pas la preuve", async () => {
+  test("anti-triche : la plaquette « à froid » (sans double_tasse) ne réunit pas la preuve", async () => {
     const res = await request(faireApp())
       .post("/api/accuser")
-      .send({ verdict: true, gestes: [g("examiner", "tableau")] });
+      .send({ verdict: true, gestes: [g("examiner", "plaquette_somniferes")] });
     expect(res.status).toBe(200);
     expect(res.body.gagne).toBe(false);
   });
 
-  test("anti-triche : un flag forgé dans la requête est ignoré (front non fiable)", async () => {
+  test("anti-triche : des flags forgés dans la requête sont ignorés (front non fiable)", async () => {
     const res = await request(faireApp())
       .post("/api/accuser")
-      .send({ verdict: true, gestes: [], flags: ["code_coffre_lu"] });
-    // Aucun geste légitime → aucune preuve dérivée → l'accusation ne tient pas.
+      .send({
+        verdict: true,
+        gestes: [],
+        flags: ["recu_laurent_vu", "fete_decouverte", "mobile_dettes"],
+      });
     expect(res.status).toBe(200);
     expect(res.body.gagne).toBe(false);
   });
@@ -200,7 +193,7 @@ describe("POST /accuser", () => {
   test("journal de gestes invalide : 400", async () => {
     const res = await request(faireApp())
       .post("/api/accuser")
-      .send({ verdict: true, gestes: [g("voler", "chocolats")] });
+      .send({ verdict: true, gestes: [g("voler", "theiere")] });
     expect(res.status).toBe(400);
   });
 });
