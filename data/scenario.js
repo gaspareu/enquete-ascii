@@ -111,7 +111,7 @@ export const scenario = {
         "Recoupés avec les messages du téléphone, les rendez-vous se déchiffrent : « M. » " +
         "est Maurel, le traiteur ; « le solde », la facture d'un buffet. Les rencontres " +
         "clandestines étaient les préparatifs d'une fête, pas les rendez-vous d'un amant.",
-      ramassable: true,
+      ramassable: false,
     },
     theiere: {
       nom: "Plateau à tisane",
@@ -155,7 +155,7 @@ export const scenario = {
         "Un fil de messages avec « Maurel Traiteur » et avec sa sœur, à propos d'une " +
         "organisation tenue secrète. L'historique montre aussi que quelqu'un a " +
         "récemment fouillé l'appareil : saisies répétées du code, consultations nocturnes.",
-      ramassable: true,
+      ramassable: false,
     },
     grand_cru: {
       nom: "Grand cru",
