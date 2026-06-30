@@ -17,6 +17,12 @@ function faireApp(overrides = {}) {
       client: {},
       model: "modele-test",
       repondreFluxFn: async (_client, _args, onTexte) => onTexte("Réponse de test."),
+      noterFn: async () => [
+        { id: "qui", note: 5, justification: "ok" },
+        { id: "comment", note: 4, justification: "ok" },
+        { id: "mobile", note: 3, justification: "ok" },
+        { id: "surprise", note: 5, justification: "ok" },
+      ],
       ...overrides,
     }),
   );
@@ -24,14 +30,6 @@ function faireApp(overrides = {}) {
 }
 
 const g = (geste, cible) => ({ geste, cible });
-
-// Séquence d'examens qui réunit les trois preuves requises pour gagner.
-const SEQUENCE_GAGNANTE = [
-  g("examiner", "theiere"), // -> double_tasse
-  g("examiner", "plaquette_somniferes"), // -> recu_laurent_vu (précond double_tasse)
-  g("examiner", "cadeau_cache"), // -> fete_decouverte
-  g("examiner", "lettre_dettes"), // -> mobile_dettes
-];
 
 describe("GET /scenario", () => {
   test("renvoie la vue publique sans fuiter de secret ni le mapping des flags", async () => {
@@ -164,45 +162,57 @@ describe("POST /chat", () => {
   });
 });
 
-describe("POST /accuser", () => {
-  test("séquence légitime (3 preuves réunies) et bon verdict : partie gagnée", async () => {
-    const res = await request(faireApp())
-      .post("/api/accuser")
-      .send({ verdict: true, gestes: SEQUENCE_GAGNANTE });
+describe("POST /debrief", () => {
+  const reponsesOk = [
+    { id: "qui", reponse: "Laurent l'a empoisonnée." },
+    { id: "mobile", reponse: "Jalousie et dettes." },
+  ];
+
+  test("réponses valides : 200 avec total, max, rang et détails", async () => {
+    const res = await request(faireApp()).post("/api/debrief").send({ reponses: reponsesOk });
     expect(res.status).toBe(200);
-    expect(res.body.gagne).toBe(true);
+    expect(res.body.total).toBe(17);
+    expect(res.body.max).toBe(20);
+    expect(typeof res.body.rang).toBe("string");
+    expect(res.body.details).toHaveLength(4);
   });
 
-  test("anti-triche : la plaquette « à froid » (sans double_tasse) ne réunit pas la preuve", async () => {
+  test("réponses invalides (id inconnu) : 400", async () => {
     const res = await request(faireApp())
-      .post("/api/accuser")
-      .send({ verdict: true, gestes: [g("examiner", "plaquette_somniferes")] });
-    expect(res.status).toBe(200);
-    expect(res.body.gagne).toBe(false);
-  });
-
-  test("anti-triche : des flags forgés dans la requête sont ignorés (front non fiable)", async () => {
-    const res = await request(faireApp())
-      .post("/api/accuser")
-      .send({
-        verdict: true,
-        gestes: [],
-        flags: ["recu_laurent_vu", "fete_decouverte", "mobile_dettes"],
-      });
-    expect(res.status).toBe(200);
-    expect(res.body.gagne).toBe(false);
-  });
-
-  test("verdict et gestes absents : valeurs par défaut sûres, partie perdue", async () => {
-    const res = await request(faireApp()).post("/api/accuser").send({});
-    expect(res.status).toBe(200);
-    expect(res.body.gagne).toBe(false);
-  });
-
-  test("journal de gestes invalide : 400", async () => {
-    const res = await request(faireApp())
-      .post("/api/accuser")
-      .send({ verdict: true, gestes: [g("voler", "theiere")] });
+      .post("/api/debrief")
+      .send({ reponses: [{ id: "inconnu", reponse: "x" }] });
     expect(res.status).toBe(400);
+    expect(typeof res.body.erreur).toBe("string");
+  });
+
+  test("clé API absente (client null) : 503", async () => {
+    const res = await request(faireApp({ client: null }))
+      .post("/api/debrief")
+      .send({ reponses: reponsesOk });
+    expect(res.status).toBe(503);
+    expect(res.body.erreur).toContain("ANTHROPIC_API_KEY");
+  });
+
+  test("échec du juge : 502 (non avalé)", async () => {
+    const erreurLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const noterFn = async () => {
+      throw new Error("juge HS");
+    };
+    const res = await request(faireApp({ noterFn }))
+      .post("/api/debrief")
+      .send({ reponses: reponsesOk });
+    expect(res.status).toBe(502);
+    expect(typeof res.body.erreur).toBe("string");
+    expect(erreurLog).toHaveBeenCalled();
+    erreurLog.mockRestore();
+  });
+
+  test("transmet réponses et modèle au juge", async () => {
+    const noterFn = vi.fn(async () => []);
+    await request(faireApp({ noterFn })).post("/api/debrief").send({ reponses: reponsesOk });
+    expect(noterFn).toHaveBeenCalledOnce();
+    const [, args] = noterFn.mock.calls[0];
+    expect(args.model).toBe("modele-test");
+    expect(args.reponses).toEqual(reponsesOk);
   });
 });

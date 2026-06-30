@@ -8,9 +8,10 @@
 
 import express from "express";
 import { construitPrompt } from "./prompt.js";
-import { valideRequeteChat, valideGestes } from "./validate.js";
+import { valideRequeteChat, valideGestes, valideDebrief } from "./validate.js";
 import { deriverFlags } from "./etat.js";
-import { evaluerAccusation } from "./accusation.js";
+import { agregeScore } from "./scoring.js";
+import { noterDebrief } from "./juge.js";
 import { repondreEnFlux } from "./claude.js";
 
 // Vue du scénario envoyée au navigateur : noms et ambiance seulement.
@@ -35,8 +36,9 @@ export function vuePublique(scenario) {
   };
 }
 
-export function creerRouteur({ scenario, ciblesConnues, client, model, repondreFluxFn = repondreEnFlux }) {
+export function creerRouteur({ scenario, ciblesConnues, client, model, repondreFluxFn = repondreEnFlux, noterFn = noterDebrief }) {
   const routeur = express.Router();
+  const idsDebrief = new Set(scenario.debrief.questions.map((q) => q.id));
 
   routeur.get("/scenario", (req, res) => {
     res.json(vuePublique(scenario));
@@ -114,14 +116,23 @@ export function creerRouteur({ scenario, ciblesConnues, client, model, repondreF
     }
   });
 
-  routeur.post("/accuser", (req, res) => {
-    const verdict = req.body?.verdict === true;
-    const vg = valideGestes(req.body?.gestes, ciblesConnues);
-    if (!vg.ok) {
-      return res.status(400).json({ erreur: vg.erreur });
+  routeur.post("/debrief", async (req, res) => {
+    const vd = valideDebrief(req.body, idsDebrief);
+    if (!vd.ok) {
+      return res.status(400).json({ erreur: vd.erreur });
     }
-    const flags = deriverFlags(scenario, vg.valeur);
-    res.json(evaluerAccusation(scenario, { verdict, flags }));
+    if (!client) {
+      return res.status(503).json({
+        erreur: "Clé API Anthropic non configurée. Renseignez ANTHROPIC_API_KEY dans .env.",
+      });
+    }
+    try {
+      const notes = await noterFn(client, { scenario, reponses: vd.valeur, model });
+      res.json(agregeScore(scenario, notes));
+    } catch (err) {
+      console.error("Erreur notation débrief:", err?.message ?? err);
+      res.status(502).json({ erreur: "L'examinateur est injoignable pour le moment." });
+    }
   });
 
   return routeur;
