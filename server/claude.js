@@ -1,19 +1,11 @@
 // Wrapper mince autour du SDK officiel Anthropic. La clé est lue depuis
 // ANTHROPIC_API_KEY par le SDK ; elle reste côté serveur. Le client est injecté
-// dans `repondre`/`repondreEnFlux` pour rester testable sans appel réseau.
+// dans `repondreEnFlux` pour rester testable sans appel réseau.
 
 import Anthropic from "@anthropic-ai/sdk";
 
 export function creerClient() {
   return new Anthropic(); // lit process.env.ANTHROPIC_API_KEY
-}
-
-function texteDeReponse(reponse) {
-  return reponse.content
-    .filter((bloc) => bloc.type === "text")
-    .map((bloc) => bloc.text)
-    .join("")
-    .trim();
 }
 
 // Construit la liste `messages` de l'API : journal de dialogue + message courant.
@@ -25,19 +17,6 @@ function construireMessages(historique, message) {
     })),
     { role: "user", content: message },
   ];
-}
-
-export async function repondre(
-  client,
-  { system, historique = [], message, model, maxTokens = 512 },
-) {
-  const reponse = await client.messages.create({
-    model,
-    max_tokens: maxTokens,
-    system,
-    messages: construireMessages(historique, message),
-  });
-  return texteDeReponse(reponse);
 }
 
 // Variante streamée : appelle `onTexte(fragment)` pour chaque text_delta reçu, puis
