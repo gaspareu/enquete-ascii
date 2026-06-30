@@ -28,6 +28,10 @@ export function vuePublique(scenario) {
     personnage: { nom: scenario.personnage.nom, visage: scenario.personnage.visage },
     zones: scenario.zones,
     objets,
+    // Seuls id + libellé sont publics : barème et rangs restent secrets.
+    debrief: {
+      questions: scenario.debrief.questions.map((q) => ({ id: q.id, question: q.question })),
+    },
   };
 }
 
