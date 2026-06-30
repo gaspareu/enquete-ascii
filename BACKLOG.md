@@ -18,10 +18,6 @@ les tâches une à une.
 
 ## À faire
 
-### T-05 · 🟢 Streaming des réponses du personnage
-Diffuser la réponse du LLM en flux (SSE) pour un affichage progressif.
-**Acceptation** : le texte s'affiche au fil de l'eau ; dégradation propre si erreur.
-
 ### T-06 · 🟢 Sélection explicite de la preuve à l'accusation
 Lors de l'accusation, laisser le joueur désigner la preuve décisive (pas seulement
 le verdict).
@@ -32,7 +28,9 @@ J'aimerai ajouter un système de point. Le joueur ne doit pas simplement repondr
 
 ## En cours
 
-_(rien pour l'instant)_
+### T-05 · 🟢 Streaming des réponses du personnage
+Diffuser la réponse du LLM en flux (SSE) pour un affichage progressif.
+**Acceptation** : le texte s'affiche au fil de l'eau ; dégradation propre si erreur.
 
 ---
 

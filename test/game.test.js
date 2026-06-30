@@ -36,6 +36,34 @@ const VUE = {
 
 const rep = (data, ok = true) => ({ ok, json: async () => data });
 
+// Construit un ReadableStream qui émet les trames SSE fournies, dans l'ordre.
+function fluxSSE(frames) {
+  const enc = new TextEncoder();
+  let i = 0;
+  return new ReadableStream({
+    pull(controller) {
+      if (i < frames.length) controller.enqueue(enc.encode(frames[i++]));
+      else controller.close();
+    },
+  });
+}
+// Raccourci : des trames `delta` (un fragment chacune) suivies d'une trame `fin`.
+const tramesDelta = (...morceaux) => [
+  ...morceaux.map((t) => `event: delta\ndata: ${JSON.stringify({ texte: t })}\n\n`),
+  "event: fin\ndata: {}\n\n",
+];
+// Flux piloté manuellement par le test (pour observer le caret en cours de route).
+function fluxManuel() {
+  let ctrl;
+  const stream = new ReadableStream({ start: (c) => (ctrl = c) });
+  const enc = new TextEncoder();
+  return {
+    stream,
+    push: (frame) => ctrl.enqueue(enc.encode(frame)),
+    fin: () => ctrl.close(),
+  };
+}
+
 // Routeur fetch par défaut, surchargeable par test via `reponses`.
 function monterFetch(reponses = {}) {
   return vi.fn(async (url, opts) => {
@@ -49,7 +77,10 @@ function monterFetch(reponses = {}) {
     }
     if (url === "/api/chat") {
       if (reponses.chatErreur) throw new Error("réseau");
-      return rep(reponses.chat ?? { reponse: "Je n'ai rien à dire." }, reponses.chatOk ?? true);
+      if (reponses.chatOk === false) return rep(reponses.chat ?? { erreur: "Erreur." }, false);
+      if (reponses.chatBody) return { ok: true, body: reponses.chatBody };
+      const frames = reponses.chatTrames ?? tramesDelta(reponses.chatTexte ?? "Je n'ai rien à dire.");
+      return { ok: true, body: fluxSSE(frames) };
     }
     if (url === "/api/accuser") {
       if (reponses.accuserErreur) throw new Error("réseau");
@@ -184,19 +215,20 @@ describe("examen d'une cible", () => {
 });
 
 describe("dialogue (envoi de message)", () => {
-  test("envoie le message, affiche la réponse et n'inclut pas la narration dans l'historique LLM", async () => {
-    await charger({ chat: { reponse: "Bonjour, que voulez-vous ?" } });
+  test("envoie le message, affiche la réponse en flux et exclut la narration de l'historique LLM", async () => {
+    await charger({ chatTrames: tramesDelta("Bonjour, ", "que voulez-vous ?") });
     $("message").value = "Salut Victor";
     $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
 
-    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Bonjour, que voulez-vous ?"));
+    await vi.waitFor(() =>
+      expect($("dialogue").textContent).toContain("Bonjour, que voulez-vous ?"),
+    );
     expect($("dialogue").textContent).toContain("Vous : Salut Victor");
     expect($("message").value).toBe("");
 
     const appel = global.fetch.mock.calls.find(([u]) => u === "/api/chat");
     const corps = JSON.parse(appel[1].body);
     expect(corps.message).toBe("Salut Victor");
-    // L'intro système ne doit pas partir dans l'historique transmis au modèle.
     expect(corps.historique.some((t) => t.role === "systeme")).toBe(false);
   });
 
@@ -207,7 +239,7 @@ describe("dialogue (envoi de message)", () => {
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 
-  test("affiche l'erreur serveur quand la réponse n'est pas OK", async () => {
+  test("affiche l'erreur serveur (pré-vol) quand la réponse n'est pas OK", async () => {
     await charger({ chatOk: false, chat: { erreur: "Message trop long." } });
     $("message").value = "Test";
     $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
@@ -221,6 +253,19 @@ describe("dialogue (envoi de message)", () => {
     await vi.waitFor(() =>
       expect($("dialogue").textContent).toContain("Le personnage est injoignable (réseau)."),
     );
+  });
+
+  test("erreur en cours de flux : garde le texte partiel et signale l'interruption", async () => {
+    await charger({
+      chatTrames: [
+        `event: delta\ndata: ${JSON.stringify({ texte: "Je commence" })}\n\n`,
+        `event: erreur\ndata: ${JSON.stringify({ erreur: "x" })}\n\n`,
+      ],
+    });
+    $("message").value = "Test";
+    $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Je commence"));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("interrompue"));
   });
 });
 
@@ -289,22 +334,22 @@ describe("accusation", () => {
   });
 });
 
-describe("animation de la réponse", () => {
-  test("affiche un curseur pendant la frappe, qu'un clic dans le dialogue fige", async () => {
-    await charger({ chat: { reponse: "Bonjour à vous, cher enquêteur." } });
-    // Désactive le « mouvement réduit » : la frappe s'anime (timers réels, ~18ms/car).
-    window.matchMedia = () => ({ matches: false });
+describe("flux de la réponse", () => {
+  test("affiche un caret pendant le flux, retiré à la fin", async () => {
+    const flux = fluxManuel();
+    await charger({ chatBody: flux.stream });
 
     $("message").value = "Salut";
     $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
 
-    // Le caret apparaît pendant l'animation…
+    flux.push(`event: delta\ndata: ${JSON.stringify({ texte: "Bonjour" })}\n\n`);
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("▌"));
-    // …et un clic la fige sur le texte complet.
-    $("dialogue").dispatchEvent(new Event("click"));
+
+    flux.push("event: fin\ndata: {}\n\n");
+    flux.fin();
     await vi.waitFor(() => {
       expect($("dialogue").textContent).not.toContain("▌");
-      expect($("dialogue").textContent).toContain("Bonjour à vous, cher enquêteur.");
+      expect($("dialogue").textContent).toContain("Bonjour");
     });
   });
 });

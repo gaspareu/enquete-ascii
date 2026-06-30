@@ -3,7 +3,8 @@
 // state.js et render.js (testés) ; ici, c'est le câblage DOM.
 
 import { etatInitial, ramasser, donner, examiner, ajouterDialogue } from "./state.js";
-import { artInterlocuteur, rendreDialogue, dialoguePartiel } from "./render.js";
+import { artInterlocuteur, rendreDialogue } from "./render.js";
+import { decoupeTrames } from "./sse.js";
 
 const $ = (id) => document.getElementById(id);
 const elVisuel = $("visuel");
@@ -20,7 +21,6 @@ const elModaleContenu = $("modale-contenu");
 let vue = null;
 let etat = etatInitial();
 let noteEnAttente = "";
-let minuteurFrappe = null; // intervalle de l'effet machine à écrire
 let minuteurAttente = null; // intervalle de l'indicateur « …réfléchit »
 
 // Disposition du plan : C = centre (l'interlocuteur).
@@ -57,53 +57,19 @@ function rendrePerso() {
   elActions.replaceChildren();
 }
 
-// Affiche l'historique complet et fige toute frappe en cours.
+// Affiche l'historique complet du dialogue.
 function rendreDialogueDOM() {
-  annulerFrappe();
   elDialogue.textContent = rendreDialogue(etat.historique, vue.personnage.nom);
   elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
 // L'utilisateur a-t-il demandé à réduire les animations ?
+// (utilisé par demarrerAttente)
 function mouvementReduit() {
   return (
     typeof window.matchMedia === "function" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
-}
-
-// Durée par caractère pour la frappe, lue depuis le design token (--duree-frappe-ms).
-function dureeFrappeMs() {
-  const brut = getComputedStyle(document.documentElement).getPropertyValue("--duree-frappe-ms");
-  const ms = parseInt(brut, 10);
-  return Number.isFinite(ms) && ms > 0 ? ms : 18;
-}
-
-function annulerFrappe() {
-  if (minuteurFrappe) {
-    clearInterval(minuteurFrappe);
-    minuteurFrappe = null;
-  }
-}
-
-// Effet machine à écrire sur le dernier tour de l'historique (la réponse du perso).
-// Si l'utilisateur réduit les animations, affichage immédiat.
-function animerDernierTour() {
-  annulerFrappe();
-  const nom = vue.personnage.nom;
-  const dernier = etat.historique[etat.historique.length - 1];
-  const total = dernier ? dernier.texte.length : 0;
-  if (mouvementReduit() || total === 0) {
-    rendreDialogueDOM();
-    return;
-  }
-  let n = 0;
-  minuteurFrappe = setInterval(() => {
-    n += 1;
-    elDialogue.textContent = `${dialoguePartiel(etat.historique, nom, n)}▌`;
-    elDialogue.scrollTop = elDialogue.scrollHeight;
-    if (n >= total) rendreDialogueDOM(); // termine : retire le caret + texte complet
-  }, dureeFrappeMs());
 }
 
 function arreterAttente() {
@@ -115,7 +81,6 @@ function arreterAttente() {
 
 // Affiche « Nom réfléchit… » pendant l'appel réseau (points animés, sauf reduced-motion).
 function demarrerAttente() {
-  annulerFrappe();
   arreterAttente(); // évite d'empiler deux intervalles si on resoumet pendant l'attente
   const nom = vue.personnage.nom;
   const base = rendreDialogue(etat.historique, nom);
@@ -240,6 +205,65 @@ function donnerObjet(id) {
   fermerModale();
 }
 
+// Peint l'historique + la réplique en cours de réception (avec caret), sans encore
+// la committer dans l'état (immutabilité : le commit a lieu sur la trame « fin »).
+function peindreFlux(texte) {
+  const histo = [...etat.historique, { role: "personnage", texte }];
+  elDialogue.textContent = `${rendreDialogue(histo, vue.personnage.nom)}▌`;
+  elDialogue.scrollTop = elDialogue.scrollHeight;
+}
+
+// Lit le flux SSE de /api/chat et peint la réponse au fil de l'eau.
+async function consommerFlux(rep) {
+  const lecteur = rep.body.getReader();
+  const decodeur = new TextDecoder();
+  let tampon = ""; // trames SSE non terminées
+  let texte = ""; // réplique accumulée
+  let demarre = false;
+  try {
+    for (;;) {
+      const { value, done } = await lecteur.read();
+      if (done) break;
+      tampon += decodeur.decode(value, { stream: true });
+      const { trames, reste } = decoupeTrames(tampon);
+      tampon = reste;
+      for (const { event, data } of trames) {
+        if (event === "delta") {
+          if (!demarre) {
+            arreterAttente();
+            demarre = true;
+          }
+          texte += JSON.parse(data).texte;
+          peindreFlux(texte);
+        } else if (event === "erreur") {
+          arreterAttente();
+          if (texte) etat = ajouterDialogue(etat, "personnage", texte);
+          narration("(communication interrompue)");
+          return;
+        } else if (event === "fin") {
+          arreterAttente();
+          etat = ajouterDialogue(etat, "personnage", texte);
+          rendreDialogueDOM();
+          return;
+        }
+      }
+    }
+    // Flux clos sans trame « fin » : on commit ce qu'on a reçu.
+    arreterAttente();
+    if (texte) {
+      etat = ajouterDialogue(etat, "personnage", texte);
+      rendreDialogueDOM();
+    }
+  } catch {
+    arreterAttente();
+    if (texte) {
+      etat = ajouterDialogue(etat, "personnage", texte);
+      rendreDialogueDOM();
+    }
+    narration("Le personnage est injoignable (réseau).");
+  }
+}
+
 elForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const message = elInput.value.trim();
@@ -255,34 +279,28 @@ elForm.addEventListener("submit", async (e) => {
   const note = noteEnAttente;
   noteEnAttente = "";
   demarrerAttente();
+
+  let rep;
   try {
-    const rep = await fetch("/api/chat", {
+    rep = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        gestes: etat.gestes,
-        historique: historiqueLLM,
-        note,
-      }),
+      body: JSON.stringify({ message, gestes: etat.gestes, historique: historiqueLLM, note }),
     });
-    const data = await rep.json();
-    arreterAttente();
-    if (!rep.ok) {
-      narration(data.erreur ?? "Erreur de communication.");
-      return;
-    }
-    etat = ajouterDialogue(etat, "personnage", data.reponse);
-    animerDernierTour();
   } catch {
     arreterAttente();
     narration("Le personnage est injoignable (réseau).");
+    return;
   }
-});
 
-// Un clic dans le dialogue saute l'effet de frappe et affiche la réponse entière.
-elDialogue.addEventListener("click", () => {
-  if (minuteurFrappe) rendreDialogueDOM();
+  if (!rep.ok) {
+    arreterAttente();
+    const data = await rep.json().catch(() => ({}));
+    narration(data.erreur ?? "Erreur de communication.");
+    return;
+  }
+
+  await consommerFlux(rep);
 });
 
 elAccuser.addEventListener("click", () => {

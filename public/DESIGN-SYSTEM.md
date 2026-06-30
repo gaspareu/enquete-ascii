@@ -55,9 +55,8 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
 ## Mouvement & ambiance CRT
 
 Subtil par défaut. Tokens : `--duree-survol` (transitions), `--duree-clignotement`
-(curseur), `--duree-frappe-ms` (effet machine à écrire, lu en JS), `--crt-lueur`
-(text-shadow phosphore), `--crt-scanline-*` (lignes de balayage), `--crt-vignette`
-(assombrissement des bords).
+(curseur), `--crt-lueur` (text-shadow phosphore), `--crt-scanline-*` (lignes de
+balayage), `--crt-vignette` (assombrissement des bords).
 
 **Accessibilité (règle dure) :** toute animation (curseur, fade, scanlines animées,
 machine à écrire) doit être neutralisée sous `@media (prefers-reduced-motion: reduce)`.
