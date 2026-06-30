@@ -11,8 +11,8 @@ const GESTES = new Set(["ramasser", "donner", "examiner"]);
 //   - précondition de SAC (order-strict) : on ne peut « donner » qu'un objet
 //     préalablement « ramassé » dans le journal ;
 //   - préconditions de FLAGS (ensemblistes, cf. scenario.preconditions) : un flag
-//     peut exiger qu'un autre flag soit déjà acquis (ex. examiner le tableau ne
-//     révèle le code qu'après l'indice débloqué par chocolats_donnes).
+//     peut exiger qu'un autre flag soit déjà acquis (ex. examiner la plaquette de
+//     somnifères ne révèle le reçu de Laurent qu'après avoir constaté la 2e tasse).
 // Un geste malformé est ignoré.
 export function deriverFlags(scenario, gestes = []) {
   const { objets, declencheurs, preconditions = {} } = scenario;

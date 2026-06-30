@@ -42,7 +42,8 @@ export function creerRouteur({ scenario, ciblesConnues, client, model, repondreF
   // texte secret sort — il est donc gardé côté serveur. Une description n'est révélée
   // que si son flag d'examen (declencheurs["examiner:cible"]) est légitimement dérivé
   // du journal de gestes ; sinon on ne sert que l'aperçu non-spoiler (anti-triche
-  // T-03 : examiner le tableau avant l'indice ne révèle ni le code ni la fiole).
+  // T-03 : examiner la plaquette de somnifères avant d'avoir vu la 2e tasse ne
+  // révèle pas le reçu de Laurent).
   routeur.post("/examiner", (req, res) => {
     const cible = typeof req.body?.cible === "string" ? req.body.cible : "";
     const objet = scenario.objets[cible];
