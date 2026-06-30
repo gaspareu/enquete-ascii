@@ -44,7 +44,6 @@
   /* --- Mouvement (durées) ----------------------------------------------- */
   --duree-survol: 0.12s; /* transitions de survol */
   --duree-clignotement: 1s; /* curseur clignotant */
-  --duree-frappe-ms: 18; /* ms par caractère (lu en JS pour la frappe) */
 
   /* --- Ambiance CRT (subtile : ne doit pas nuire à la lisibilité) -------- */
   --crt-lueur: 0 0 2px; /* offset/flou du text-shadow phosphore */
