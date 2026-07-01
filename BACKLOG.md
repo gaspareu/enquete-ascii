@@ -18,19 +18,20 @@ les tâches une à une.
 
 ## À faire
 
-### T-06 · 🟢 Sélection explicite de la preuve à l'accusation
-Lors de l'accusation, laisser le joueur désigner la preuve décisive (pas seulement
-le verdict).
-**Acceptation** : l'écran d'accusation propose les indices découverts ; vérif serveur inchangée.
-J'aimerai ajouter un système de point. Le joueur ne doit pas simplement repondre sur le verdict, il doit répondre à une série de questions (3 à 5). En fonction de la précision de la réponse, il gagne des points. Exemple sans lien avec le scénario actuel: "Pourquoi il l'a tué ?", s'il dit que c'est pour le vol du tableau, c'est 1 point. S'il trouve que le tueur a accumulé des dettes et que la victime voulait le dénoncer à sa femme, et donc le tuer puis volé le tableau résolvait tout, c'est 5 points. 
+### T-07 · 🟢 Intégrer ElevenLab pour activer le mode vocal
 
+### T-08 · 🟢 Améliorer le design des pièces et plus se rapprocher de pixel art plutot que d'ASCII
 ---
 
 ## En cours
 
-### T-05 · 🟢 Streaming des réponses du personnage
-Diffuser la réponse du LLM en flux (SSE) pour un affichage progressif.
-**Acceptation** : le texte s'affiche au fil de l'eau ; dégradation propre si erreur.
+### T-06 · 🟢 Débrief noté à l'accusation
+Remplacer l'accusation binaire par un débrief de 4 questions ouvertes (qui / comment /
+mobile / surprise) notées 0-5 par un LLM-judge selon la précision de la réponse ; score
+sur 20 + rang d'enquêteur.
+**Acceptation** : `POST /api/debrief` valide les réponses, appelle le juge (barème secret),
+agrège en `{ total, max, rang, details }` ; le front affiche formulaire puis écran de
+score ; le barème ne quitte jamais le serveur.
 
 ---
 

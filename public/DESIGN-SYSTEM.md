@@ -51,6 +51,13 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   centre du plan (l'interlocuteur) en `--c-vert`, non cliquable.
 - **Modale** : voile sombre + boîte `--c-fond-panneau` contour `--c-ambre`.
 - **Invite de saisie** : caret `>` en `--c-vert`, champ sans bordure ni fond.
+- **Formulaire de débrief & écran de score (T-06)** : dans la modale, l'accusation
+  ouvre un **formulaire de débrief** — un `<textarea>` par question (fond `--c-surface`,
+  contour `--c-bordure`, focus → `--c-ambre`), libellés en `--c-ambre-faible` /
+  `--taille-petite`. À la soumission, la modale affiche l'**écran de score** : texte
+  ASCII pré-formaté (rang, score global, note + justification par question), rendu par
+  `rendreDebrief()` dans `#modale-contenu` (`white-space: pre-wrap`). Aucune valeur brute :
+  tout passe par les tokens ; `resize: vertical` reste la seule dimension structurelle.
 
 ## Mouvement & ambiance CRT
 
