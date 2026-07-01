@@ -5,6 +5,7 @@
 
 const MAX_MESSAGE = 500;
 const MAX_NOTE = 200;
+const MAX_REPONSE = 1000;
 const MAX_HISTORIQUE = 100;
 const MAX_GESTES = 100;
 const GESTES_VALIDES = new Set(["ramasser", "donner", "examiner"]);
@@ -67,4 +68,27 @@ export function valideRequeteChat(body, ciblesConnues) {
     typeof body.note === "string" ? body.note.slice(0, MAX_NOTE) : "";
 
   return { ok: true, valeur: { message, gestes: vg.valeur, historique, note } };
+}
+
+// Valide les réponses du débrief (T-06). Chaque entrée porte un id de question connu
+// et une réponse texte bornée ; nombre limité au nombre de questions. Réponse vide OK.
+export function valideDebrief(body, idsConnus) {
+  if (!estObjet(body)) {
+    return { ok: false, erreur: "Requête invalide." };
+  }
+  const brut = body.reponses ?? [];
+  if (!Array.isArray(brut) || brut.length > idsConnus.size) {
+    return { ok: false, erreur: "Réponses invalides." };
+  }
+  const reponses = [];
+  for (const r of brut) {
+    if (!estObjet(r) || typeof r.id !== "string" || !idsConnus.has(r.id)) {
+      return { ok: false, erreur: "Question inconnue." };
+    }
+    if (typeof r.reponse !== "string") {
+      return { ok: false, erreur: "Réponse invalide." };
+    }
+    reponses.push({ id: r.id, reponse: r.reponse.slice(0, MAX_REPONSE) });
+  }
+  return { ok: true, valeur: reponses };
 }

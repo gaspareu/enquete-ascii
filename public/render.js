@@ -32,3 +32,15 @@ export function rendreDialogue(historique, nomPerso) {
     })
     .join("\n\n");
 }
+
+// Écran de fin du débrief (T-06) : rang, score global, puis note + justification
+// par question. Rendu ASCII pur ; l'affichage DOM est câblé dans game.js.
+export function rendreDebrief({ total, max, rang, details }) {
+  const entete = [`RANG : ${rang}`, `SCORE : ${total} / ${max}`, ""];
+  const corps = details.flatMap((d) => {
+    const lignes = [`[${d.note}/5] ${d.question}`];
+    if (d.justification) lignes.push(`       ${d.justification}`);
+    return lignes;
+  });
+  return [...entete, ...corps].join("\n");
+}

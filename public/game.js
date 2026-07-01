@@ -3,7 +3,7 @@
 // state.js et render.js (testés) ; ici, c'est le câblage DOM.
 
 import { etatInitial, ramasser, donner, examiner, ajouterDialogue } from "./state.js";
-import { artInterlocuteur, rendreDialogue } from "./render.js";
+import { artInterlocuteur, rendreDialogue, rendreDebrief } from "./render.js";
 import { decoupeTrames } from "./sse.js";
 
 const $ = (id) => document.getElementById(id);
@@ -305,32 +305,65 @@ elForm.addEventListener("submit", async (e) => {
 
 elAccuser.addEventListener("click", () => {
   if (!vue) return;
-  ouvrirModale(
-    `Qui accusez-vous ? ${vue.personnage.nom} est-il le meurtrier ?`,
-    [
-      ["Coupable", () => accuser(true)],
-      ["Innocent", () => accuser(false)],
-      ["Annuler", fermerModale],
-    ],
-  );
+  ouvrirDebrief();
 });
 
-async function accuser(verdict) {
-  fermerModale();
+// Formulaire de débrief : un champ de réponse libre par question.
+function ouvrirDebrief() {
+  elModaleContenu.replaceChildren();
+
+  const titre = document.createElement("div");
+  titre.textContent = "DÉBRIEF — exposez vos conclusions, le plus précisément possible :";
+  elModaleContenu.appendChild(titre);
+
+  const form = document.createElement("form");
+  form.id = "form-debrief";
+  const champs = new Map();
+  for (const q of vue.debrief.questions) {
+    const label = document.createElement("label");
+    label.append(document.createTextNode(q.question));
+    const ta = document.createElement("textarea");
+    ta.rows = 2;
+    ta.maxLength = 1000;
+    label.appendChild(ta);
+    form.appendChild(label);
+    champs.set(q.id, ta);
+  }
+
+  const box = document.createElement("div");
+  box.className = "boutons";
+  const valider = bouton("Rendre mon verdict", () => {});
+  valider.type = "submit";
+  box.appendChild(valider);
+  box.appendChild(bouton("Annuler", fermerModale));
+  form.appendChild(box);
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const reponses = [...champs.entries()].map(([id, ta]) => ({ id, reponse: ta.value }));
+    soumettreDebrief(reponses);
+  });
+
+  elModaleContenu.appendChild(form);
+  elModale.classList.remove("cache");
+}
+
+async function soumettreDebrief(reponses) {
   try {
-    const rep = await fetch("/api/accuser", {
+    const rep = await fetch("/api/debrief", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ verdict, gestes: etat.gestes }),
+      body: JSON.stringify({ reponses }),
     });
+    if (!rep.ok) {
+      const data = await rep.json().catch(() => ({}));
+      ouvrirModale(data.erreur ?? "Impossible de rendre le verdict.", [["Fermer", fermerModale]]);
+      return;
+    }
     const data = await rep.json();
-    const titre = data.gagne ? "✔ AFFAIRE RÉSOLUE" : "✘ ENQUÊTE À POURSUIVRE";
-    const action = data.gagne
-      ? ["Rejouer", () => location.reload()]
-      : ["Continuer l'enquête", fermerModale];
-    ouvrirModale(`${titre}\n\n${data.message}`, [action]);
+    ouvrirModale(rendreDebrief(data), [["Rejouer", () => location.reload()]]);
   } catch {
-    ouvrirModale("Impossible de soumettre l'accusation (réseau).", [["Fermer", fermerModale]]);
+    ouvrirModale("Impossible de soumettre le débrief (réseau).", [["Fermer", fermerModale]]);
   }
 }
 
