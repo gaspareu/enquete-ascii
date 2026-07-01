@@ -32,6 +32,12 @@ const VUE = {
     cle: { nom: "Petite clé", ramassable: true },
     lettre: { nom: "Lettre froissée", ramassable: true },
   },
+  debrief: {
+    questions: [
+      { id: "qui", question: "Qui a tué ?" },
+      { id: "mobile", question: "Pourquoi ?" },
+    ],
+  },
 };
 
 const rep = (data, ok = true) => ({ ok, json: async () => data });
@@ -82,9 +88,17 @@ function monterFetch(reponses = {}) {
       const frames = reponses.chatTrames ?? tramesDelta(reponses.chatTexte ?? "Je n'ai rien à dire.");
       return { ok: true, body: fluxSSE(frames) };
     }
-    if (url === "/api/accuser") {
-      if (reponses.accuserErreur) throw new Error("réseau");
-      return rep(reponses.accuser ?? { gagne: false, message: "Pas assez de preuves." });
+    if (url === "/api/debrief") {
+      if (reponses.debriefErreur) throw new Error("réseau");
+      if (reponses.debriefOk === false) return rep(reponses.debrief ?? { erreur: "Réponses invalides." }, false);
+      return rep(
+        reponses.debrief ?? {
+          total: 12,
+          max: 20,
+          rang: "Enquêteur compétent",
+          details: [{ id: "qui", question: "Qui a tué ?", note: 5, justification: "Exact." }],
+        },
+      );
     }
     throw new Error(`URL non mockée : ${url}`);
   });
@@ -292,30 +306,39 @@ describe("donner un objet", () => {
   });
 });
 
-describe("accusation", () => {
-  test("verdict gagnant affiche l'écran « affaire résolue »", async () => {
-    await charger({ accuser: { gagne: true, message: "Vous l'avez confondu." } });
+describe("débrief", () => {
+  test("ouvre un formulaire avec un champ par question", async () => {
+    await charger();
     $("btn-accuser").click();
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("Coupable"));
-    boutonParTexte($("modale-contenu"), "Coupable").click();
+    await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
+    const champs = $("modale-contenu").querySelectorAll("textarea");
+    expect(champs.length).toBe(2);
+    expect($("modale-contenu").textContent).toContain("Qui a tué ?");
+    expect($("modale-contenu").textContent).toContain("Pourquoi ?");
+  });
 
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("AFFAIRE RÉSOLUE"));
-    expect($("modale-contenu").textContent).toContain("Vous l'avez confondu.");
+  test("rend le verdict et affiche le score + rang", async () => {
+    await charger();
+    $("btn-accuser").click();
+    await vi.waitFor(() => expect($("modale-contenu").querySelectorAll("textarea").length).toBe(2));
+    const champs = $("modale-contenu").querySelectorAll("textarea");
+    champs[0].value = "Laurent.";
+    champs[1].value = "Jalousie.";
+    $("form-debrief").dispatchEvent(new Event("submit", { cancelable: true }));
+
+    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("Enquêteur compétent"));
+    expect($("modale-contenu").textContent).toContain("12 / 20");
     expect(boutonParTexte($("modale-contenu"), "Rejouer")).toBeTruthy();
+
+    const appel = global.fetch.mock.calls.find(([u]) => u === "/api/debrief");
+    const corps = JSON.parse(appel[1].body);
+    expect(corps.reponses).toEqual([
+      { id: "qui", reponse: "Laurent." },
+      { id: "mobile", reponse: "Jalousie." },
+    ]);
   });
 
-  test("verdict perdant invite à poursuivre l'enquête", async () => {
-    await charger({ accuser: { gagne: false, message: "Trop tôt pour accuser." } });
-    $("btn-accuser").click();
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("Innocent"));
-    boutonParTexte($("modale-contenu"), "Innocent").click();
-
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("ENQUÊTE À POURSUIVRE"));
-    boutonParTexte($("modale-contenu"), "Continuer").click();
-    expect($("modale").classList.contains("cache")).toBe(true);
-  });
-
-  test("« Annuler » referme la modale d'accusation", async () => {
+  test("« Annuler » referme le formulaire", async () => {
     await charger();
     $("btn-accuser").click();
     await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
@@ -323,13 +346,13 @@ describe("accusation", () => {
     expect($("modale").classList.contains("cache")).toBe(true);
   });
 
-  test("signale une panne réseau à l'accusation", async () => {
-    await charger({ accuserErreur: true });
+  test("signale une panne réseau au débrief", async () => {
+    await charger({ debriefErreur: true });
     $("btn-accuser").click();
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("Coupable"));
-    boutonParTexte($("modale-contenu"), "Coupable").click();
+    await vi.waitFor(() => expect($("modale-contenu").querySelectorAll("textarea").length).toBe(2));
+    $("form-debrief").dispatchEvent(new Event("submit", { cancelable: true }));
     await vi.waitFor(() =>
-      expect($("modale-contenu").textContent).toContain("Impossible de soumettre l'accusation"),
+      expect($("modale-contenu").textContent).toContain("Impossible de soumettre le débrief"),
     );
   });
 });
