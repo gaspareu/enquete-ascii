@@ -18,12 +18,15 @@ les tâches une à une.
 
 ## À faire
 
-### T-07 · 🟢 Intégrer ElevenLab pour activer le mode vocal
-
 ### T-08 · 🟢 Améliorer le design des pièces et plus se rapprocher de pixel art plutot que d'ASCII
 ---
 
 ## En cours
+
+### T-07 · 🟢 Intégrer ElevenLabs pour activer le mode vocal
+
+Voix du personnage (ElevenLabs TTS, opt-in + lecture auto) + entrée micro joueur
+(Web Speech API navigateur). Conception : [docs/superpowers/specs/2026-07-02-mode-vocal-elevenlabs-design.md](docs/superpowers/specs/2026-07-02-mode-vocal-elevenlabs-design.md).
 
 ---
 
