@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { artInterlocuteur, rendreDialogue } from "../public/render.js";
+import { artInterlocuteur, rendreDialogue, rendreDebrief } from "../public/render.js";
 
 describe("artInterlocuteur", () => {
   test("avec un visage personnalisé, l'affiche et inclut le nom", () => {
@@ -43,5 +43,31 @@ describe("rendreDialogue", () => {
     );
     expect(txt).toContain("Vous ramassez les chocolats.");
     expect(txt).not.toContain("Victor :");
+  });
+});
+
+describe("rendreDebrief", () => {
+  const resultat = {
+    total: 17,
+    max: 20,
+    rang: "Fin limier",
+    details: [
+      { id: "qui", question: "Qui ?", note: 5, justification: "Laurent, exact." },
+      { id: "mobile", question: "Pourquoi ?", note: 3, justification: "Partiel." },
+    ],
+  };
+
+  test("affiche le rang et le score global", () => {
+    const txt = rendreDebrief(resultat);
+    expect(txt).toContain("Fin limier");
+    expect(txt).toContain("17 / 20");
+  });
+
+  test("affiche la note et la justification de chaque question", () => {
+    const txt = rendreDebrief(resultat);
+    expect(txt).toContain("Qui ?");
+    expect(txt).toContain("5/5");
+    expect(txt).toContain("Laurent, exact.");
+    expect(txt).toContain("3/5");
   });
 });

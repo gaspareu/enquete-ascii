@@ -386,6 +386,56 @@ export const scenario = {
     coupable: true, // Laurent est bien le meurtrier.
     preuvesRequises: ["recu_laurent_vu", "fete_decouverte", "mobile_dettes"],
   },
+
+  // Débrief noté (T-06) : questions ouvertes + barème SECRET (jamais en vue publique).
+  // Le LLM-judge note chaque réponse 0-5 selon sa précision (cf. server/scoring.js).
+  debrief: {
+    questions: [
+      {
+        id: "qui",
+        question: "Qui a tué Hélène — et était-ce vraiment un suicide ?",
+        bareme: [
+          { note: 1, critere: "Nomme Laurent OU dit que ce n'est pas un suicide." },
+          { note: 3, critere: "Laurent, et ce n'est pas un suicide : un tiers était présent." },
+          { note: 5, critere: "Laurent l'a empoisonnée puis a maquillé un suicide ; étayé par les deux tasses ou le fait qu'il lui montait la tisane." },
+        ],
+      },
+      {
+        id: "comment",
+        question: "Comment Laurent s'y est-il pris ?",
+        bareme: [
+          { note: 1, critere: "Empoisonnement ou somnifères, sans précision." },
+          { note: 3, critere: "Surdose de somnifères dans la tisane du soir." },
+          { note: 5, critere: "Somnifères achetés à son nom, dissous dans la tisane qu'il lui montait lui-même ; reçu de pharmacie + double tasse." },
+        ],
+      },
+      {
+        id: "mobile",
+        question: "Quel était son mobile ?",
+        bareme: [
+          { note: 1, critere: "Jalousie OU argent, isolément." },
+          { note: 3, critere: "Il la croyait infidèle (rendez-vous secrets) — jalousie possessive." },
+          { note: 5, critere: "Jalousie (il prenait les rendez-vous secrets pour une liaison) ET dettes (il convoitait le montant de son prix) ; il ne supportait pas de la perdre." },
+        ],
+      },
+      {
+        id: "surprise",
+        question: "Que cachait réellement Hélène ?",
+        bareme: [
+          { note: 1, critere: "Une fête ou une surprise." },
+          { note: 3, critere: "Une fête surprise pour Laurent, pas un amant." },
+          { note: 5, critere: "Les rendez-vous secrets étaient les préparatifs d'une fête surprise pour Laurent (traiteur Maurel, cadeau, mot) — elle ne le trompait pas." },
+        ],
+      },
+    ],
+    // Rangs par seuil de score total (choisi par seuil décroissant).
+    rangs: [
+      { seuil: 19, titre: "Maître enquêteur" },
+      { seuil: 15, titre: "Fin limier" },
+      { seuil: 9, titre: "Enquêteur compétent" },
+      { seuil: 0, titre: "Affaire classée sans suite" },
+    ],
+  },
 };
 
 // Ensemble des cibles que le scénario reconnaît (ids d'objets + cibles des

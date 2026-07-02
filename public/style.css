@@ -261,6 +261,35 @@ button:hover {
   font-style: italic;
 }
 
+/* --- Formulaire de débrief (modale) --- */
+#form-debrief {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-lg);
+  margin-top: var(--esp-lg);
+}
+#form-debrief label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-xs);
+  color: var(--c-ambre-faible);
+  font-size: var(--taille-petite);
+}
+#form-debrief textarea {
+  font-family: inherit;
+  font-size: var(--taille-base);
+  color: var(--c-ambre);
+  background: var(--c-surface);
+  border: var(--trait) solid var(--c-bordure);
+  border-radius: var(--rayon);
+  padding: var(--esp-sm) var(--esp-md);
+  resize: vertical;
+}
+#form-debrief textarea:focus {
+  outline: none;
+  border-color: var(--c-ambre);
+}
+
 /* --- Animations (keyframes) --- */
 @keyframes clignoter {
   50% {

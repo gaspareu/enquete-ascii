@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { valideRequeteChat, valideGestes } from "../server/validate.js";
+import { valideRequeteChat, valideGestes, valideDebrief } from "../server/validate.js";
 
 const ciblesConnues = new Set(["chocolats", "cle_rouillee", "tableau"]);
 const g = (geste, cible) => ({ geste, cible });
@@ -92,5 +92,49 @@ describe("valideGestes", () => {
   test("rejette un journal trop long", () => {
     const journal = Array.from({ length: 101 }, () => g("examiner", "tableau"));
     expect(valideGestes(journal, ciblesConnues).ok).toBe(false);
+  });
+});
+
+describe("valideDebrief", () => {
+  const ids = new Set(["qui", "mobile"]);
+
+  test("réponses valides : normalisées { id, reponse }", () => {
+    const r = valideDebrief({ reponses: [{ id: "qui", reponse: "Laurent", extra: 1 }] }, ids);
+    expect(r.ok).toBe(true);
+    expect(r.valeur).toEqual([{ id: "qui", reponse: "Laurent" }]);
+  });
+
+  test("réponse vide tolérée (sera notée 0)", () => {
+    const r = valideDebrief({ reponses: [{ id: "mobile", reponse: "" }] }, ids);
+    expect(r.ok).toBe(true);
+  });
+
+  test("id inconnu : rejeté", () => {
+    const r = valideDebrief({ reponses: [{ id: "inconnu", reponse: "x" }] }, ids);
+    expect(r.ok).toBe(false);
+  });
+
+  test("réponse non-chaîne : rejetée", () => {
+    const r = valideDebrief({ reponses: [{ id: "qui", reponse: 42 }] }, ids);
+    expect(r.ok).toBe(false);
+  });
+
+  test("trop de réponses : rejeté", () => {
+    const r = valideDebrief(
+      { reponses: [{ id: "qui", reponse: "a" }, { id: "mobile", reponse: "b" }, { id: "qui", reponse: "c" }] },
+      ids,
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  test("réponse trop longue : tronquée à la borne", () => {
+    const r = valideDebrief({ reponses: [{ id: "qui", reponse: "x".repeat(5000) }] }, ids);
+    expect(r.ok).toBe(true);
+    expect(r.valeur[0].reponse.length).toBe(1000);
+  });
+
+  test("corps invalide : rejeté", () => {
+    expect(valideDebrief(null, ids).ok).toBe(false);
+    expect(valideDebrief({ reponses: "non" }, ids).ok).toBe(false);
   });
 });

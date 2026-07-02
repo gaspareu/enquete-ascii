@@ -37,4 +37,22 @@ describe("vuePublique", () => {
     expect(json).not.toContain("au nom de laurent"); // révélation de la plaquette
     expect(json).not.toContain("infidèle"); // mobile / aveu
   });
+
+  test("expose les questions du débrief (id + libellé) pour le formulaire", () => {
+    expect(Array.isArray(vue.debrief.questions)).toBe(true);
+    expect(vue.debrief.questions.length).toBe(4);
+    const qui = vue.debrief.questions.find((q) => q.id === "qui");
+    expect(typeof qui.question).toBe("string");
+    expect(qui.question.length).toBeGreaterThan(0);
+  });
+
+  test("ne fuite jamais le barème ni les rangs du débrief", () => {
+    for (const q of vue.debrief.questions) {
+      expect(q.bareme).toBeUndefined();
+    }
+    expect(vue.debrief.rangs).toBeUndefined();
+    const json = JSON.stringify(vue.debrief).toLowerCase();
+    expect(json).not.toContain("reçu de pharmacie");
+    expect(json).not.toContain("maître enquêteur");
+  });
 });
