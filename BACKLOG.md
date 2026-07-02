@@ -25,14 +25,6 @@ les tâches une à une.
 
 ## En cours
 
-### T-06 · 🟢 Débrief noté à l'accusation
-Remplacer l'accusation binaire par un débrief de 4 questions ouvertes (qui / comment /
-mobile / surprise) notées 0-5 par un LLM-judge selon la précision de la réponse ; score
-sur 20 + rang d'enquêteur.
-**Acceptation** : `POST /api/debrief` valide les réponses, appelle le juge (barème secret),
-agrège en `{ total, max, rang, details }` ; le front affiche formulaire puis écran de
-score ; le barème ne quitte jamais le serveur.
-
 ---
 
 ## Fait
