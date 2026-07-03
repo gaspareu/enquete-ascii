@@ -17,6 +17,8 @@ function faireApp(overrides = {}) {
       client: {},
       model: "modele-test",
       repondreFluxFn: async (_client, _args, onTexte) => onTexte("Réponse de test."),
+      voix: { apiKey: "k", voiceId: "v", model: "m" },
+      synthetiserFn: async () => Buffer.from([9, 9, 9]),
       noterFn: async () => [
         { id: "qui", note: 5, justification: "ok" },
         { id: "comment", note: 4, justification: "ok" },
@@ -214,5 +216,55 @@ describe("POST /debrief", () => {
     const [, args] = noterFn.mock.calls[0];
     expect(args.model).toBe("modele-test");
     expect(args.reponses).toEqual(reponsesOk);
+  });
+});
+
+describe("POST /voix", () => {
+  test("texte valide : 200 audio/mpeg avec l'audio synthétisé", async () => {
+    const res = await request(faireApp())
+      .post("/api/voix")
+      .send({ texte: "Bonjour à vous." });
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("audio/mpeg");
+    expect(res.body).toBeInstanceOf(Buffer);
+    expect(res.body.length).toBe(3);
+  });
+
+  test("texte invalide : 400 JSON", async () => {
+    const res = await request(faireApp()).post("/api/voix").send({ texte: "" });
+    expect(res.status).toBe(400);
+    expect(typeof res.body.erreur).toBe("string");
+  });
+
+  test("voix non configurée : 503 JSON", async () => {
+    const res = await request(faireApp({ voix: null }))
+      .post("/api/voix")
+      .send({ texte: "Bonjour" });
+    expect(res.status).toBe(503);
+    expect(res.body.erreur).toContain("ELEVENLABS_API_KEY");
+  });
+
+  test("échec de synthèse : 502 (non avalé)", async () => {
+    const erreurLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const synthetiserFn = async () => {
+      throw new Error("TTS HS");
+    };
+    const res = await request(faireApp({ synthetiserFn }))
+      .post("/api/voix")
+      .send({ texte: "Bonjour" });
+    expect(res.status).toBe(502);
+    expect(typeof res.body.erreur).toBe("string");
+    expect(erreurLog).toHaveBeenCalled();
+    erreurLog.mockRestore();
+  });
+
+  test("passe texte, voix, modèle et clé au wrapper", async () => {
+    const synthetiserFn = vi.fn(async () => Buffer.from([1]));
+    await request(faireApp({ synthetiserFn }))
+      .post("/api/voix")
+      .send({ texte: "  Salut  " });
+    expect(synthetiserFn).toHaveBeenCalledOnce();
+    const [, args] = synthetiserFn.mock.calls[0];
+    expect(args).toMatchObject({ texte: "Salut", voiceId: "v", model: "m", apiKey: "k" });
   });
 });
