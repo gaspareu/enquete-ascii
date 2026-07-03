@@ -32,8 +32,12 @@ const modeVocal = creerModeVocal({
   jouer: (blob) => {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    audio.addEventListener("ended", () => URL.revokeObjectURL(url));
-    audio.play().catch(() => {}); // lecture refusée : on garde le texte
+    // Libère l'URL objet quoi qu'il arrive (fin normale, erreur, lecture refusée),
+    // sinon elle fuit à chaque réplique jusqu'au rechargement.
+    const liberer = () => URL.revokeObjectURL(url);
+    audio.addEventListener("ended", liberer);
+    audio.addEventListener("error", liberer);
+    audio.play().catch(liberer); // lecture refusée : on garde le texte
   },
 });
 
@@ -421,7 +425,13 @@ if (elBtnMicro) {
     });
     elBtnMicro.addEventListener("click", () => {
       elBtnMicro.classList.add("ecoute");
-      micro.demarrer();
+      try {
+        micro.demarrer();
+      } catch {
+        // Reconnaissance déjà active (double-clic) ou refusée : on ne bloque pas
+        // le bouton en pulsation « écoute ».
+        elBtnMicro.classList.remove("ecoute");
+      }
     });
   } else {
     elBtnMicro.hidden = true; // navigateur sans reconnaissance vocale
