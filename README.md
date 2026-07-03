@@ -42,6 +42,17 @@ Le fichier `.env` est ignoré par git (voir `.gitignore`).
 > Sans clé, le jeu se lance quand même : vous pouvez fouiller la pièce, mais le
 > personnage répondra par un message d'erreur tant que la clé n'est pas configurée.
 
+### Mode vocal (optionnel)
+
+- **Voix du personnage** : renseignez `ELEVENLABS_API_KEY` et `ELEVENLABS_VOICE_ID`
+  (+ `ELEVENLABS_MODEL`, défaut `eleven_multilingual_v2`) dans `.env`. La clé reste
+  côté serveur. Sans ces variables, le jeu fonctionne normalement, sans voix.
+- **Parler au personnage** : le bouton 🎙 utilise la reconnaissance vocale du
+  navigateur (Web Speech API). L'audio de votre voix **ne transite pas par ce
+  serveur**. Attention : certains navigateurs (Chrome) l'envoient à leurs propres
+  services pour la transcription — un comportement hors de notre contrôle. Le
+  bouton est masqué si le navigateur ne supporte pas cette API.
+
 ## Lancer le jeu
 
 ```bash
