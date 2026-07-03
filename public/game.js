@@ -5,6 +5,8 @@
 import { etatInitial, ramasser, donner, examiner, ajouterDialogue } from "./state.js";
 import { artInterlocuteur, rendreDialogue, rendreDebrief } from "./render.js";
 import { decoupeTrames } from "./sse.js";
+import { creerModeVocal } from "./voix.js";
+import { microDisponible, creerMicro } from "./micro.js";
 
 const $ = (id) => document.getElementById(id);
 const elVisuel = $("visuel");
@@ -17,11 +19,23 @@ const elInput = $("message");
 const elAccuser = $("btn-accuser");
 const elModale = $("modale");
 const elModaleContenu = $("modale-contenu");
+const elBtnVoix = $("btn-voix");
+const elBtnMicro = $("btn-micro");
 
 let vue = null;
 let etat = etatInitial();
 let noteEnAttente = "";
 let minuteurAttente = null; // intervalle de l'indicateur « …réfléchit »
+
+// Mode vocal : le play audio (side-effect) est injecté ici ; la logique vit dans voix.js.
+const modeVocal = creerModeVocal({
+  jouer: (blob) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+    audio.play().catch(() => {}); // lecture refusée : on garde le texte
+  },
+});
 
 // Disposition du plan : C = centre (l'interlocuteur).
 const GRILLE = [
@@ -244,6 +258,7 @@ async function consommerFlux(rep) {
           arreterAttente();
           etat = ajouterDialogue(etat, "personnage", texte);
           rendreDialogueDOM();
+          modeVocal.dire(texte); // no-op si la voix est désactivée
           return;
         }
       }
@@ -385,6 +400,32 @@ function ouvrirModale(texte, actions) {
 function fermerModale() {
   elModale.classList.add("cache");
   elModaleContenu.replaceChildren();
+}
+
+// --- Mode vocal (T-07) : toggle voix + micro (dégradation gracieuse) ---
+if (elBtnVoix) {
+  elBtnVoix.addEventListener("click", () => {
+    const actif = modeVocal.basculer();
+    elBtnVoix.setAttribute("aria-pressed", String(actif));
+    elBtnVoix.classList.toggle("actif", actif);
+  });
+}
+if (elBtnMicro) {
+  if (microDisponible()) {
+    const micro = creerMicro({
+      onTexte: (texte) => {
+        elInput.value = texte;
+        elInput.focus();
+      },
+      onFin: () => elBtnMicro.classList.remove("ecoute"),
+    });
+    elBtnMicro.addEventListener("click", () => {
+      elBtnMicro.classList.add("ecoute");
+      micro.demarrer();
+    });
+  } else {
+    elBtnMicro.hidden = true; // navigateur sans reconnaissance vocale
+  }
 }
 
 init();
