@@ -10,7 +10,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.106.0",
+    "@anthropic-ai/sdk": "^0.110.0",
     "express": "^5.2.1"
   },
   "devDependencies": {
