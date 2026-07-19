@@ -15,7 +15,11 @@ const MARKUP = `
   <ul id="sac"></ul>
   <button id="btn-accuser" type="button"></button>
   <pre id="dialogue"></pre>
-  <form id="saisie"><input id="message" type="text" /></form>
+  <form id="saisie">
+    <input id="message" type="text" />
+    <button id="btn-micro" type="button">🎙</button>
+    <button id="btn-voix" type="button" aria-pressed="false">🔊</button>
+  </form>
   <div id="modale" class="cache"><div id="modale-contenu"></div></div>
 `;
 
@@ -99,6 +103,9 @@ function monterFetch(reponses = {}) {
           details: [{ id: "qui", question: "Qui a tué ?", note: 5, justification: "Exact." }],
         },
       );
+    }
+    if (url === "/api/voix") {
+      return { ok: true, blob: async () => new Blob(["audio"]) };
     }
     throw new Error(`URL non mockée : ${url}`);
   });
@@ -374,5 +381,64 @@ describe("flux de la réponse", () => {
       expect($("dialogue").textContent).not.toContain("▌");
       expect($("dialogue").textContent).toContain("Bonjour");
     });
+  });
+});
+
+describe("mode vocal (T-07)", () => {
+  test("le bouton Voix bascule l'état aria-pressed", async () => {
+    await charger();
+    const btn = $("btn-voix");
+    expect(btn.getAttribute("aria-pressed")).toBe("false");
+    btn.click();
+    expect(btn.getAttribute("aria-pressed")).toBe("true");
+    btn.click();
+    expect(btn.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("voix active : la réplique déclenche un appel à /api/voix", async () => {
+    // Stubs audio (jsdom n'implémente pas play()).
+    global.URL.createObjectURL = () => "blob:x";
+    global.URL.revokeObjectURL = () => {};
+    window.HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+
+    await charger({ chatTrames: tramesDelta("Bonjour.") });
+    $("btn-voix").click(); // active la voix
+
+    $("message").value = "Salut";
+    $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
+
+    await vi.waitFor(() =>
+      expect(global.fetch.mock.calls.some(([u]) => u === "/api/voix")).toBe(true),
+    );
+    const appel = global.fetch.mock.calls.find(([u]) => u === "/api/voix");
+    expect(JSON.parse(appel[1].body).texte).toContain("Bonjour.");
+  });
+
+  test("micro indisponible : le bouton Parler est masqué", async () => {
+    await charger(); // pas de SpeechRecognition sur window
+    expect($("btn-micro").hidden).toBe(true);
+  });
+
+  test("micro disponible : un clic remplit le champ avec la transcription", async () => {
+    let reco;
+    class FauxReco {
+      constructor() {
+        this.ecouteurs = {};
+        this.start = () => {};
+        this.stop = () => {};
+        reco = this;
+      }
+      addEventListener(type, cb) {
+        this.ecouteurs[type] = cb;
+      }
+    }
+    window.SpeechRecognition = FauxReco;
+
+    await charger();
+    $("btn-micro").click();
+    reco.ecouteurs.result({ results: [[{ transcript: "où étais-tu hier soir" }]] });
+    expect($("message").value).toBe("où étais-tu hier soir");
+
+    delete window.SpeechRecognition;
   });
 });

@@ -29,6 +29,19 @@ if (process.env.ANTHROPIC_API_KEY) {
   console.warn("ANTHROPIC_API_KEY absent : le dialogue sera indisponible.");
 }
 
+// Voix (T-07) : n'est active que si la clé ET la voix sont fournies. Sinon la
+// route /api/voix renvoie 503 et le jeu reste jouable au clavier + texte.
+let voix = null;
+if (process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID) {
+  voix = {
+    apiKey: process.env.ELEVENLABS_API_KEY,
+    voiceId: process.env.ELEVENLABS_VOICE_ID,
+    model: process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2",
+  };
+} else {
+  console.warn("ELEVENLABS_API_KEY/VOICE_ID absents : la voix sera indisponible.");
+}
+
 const app = express();
 app.use(express.json({ limit: "256kb" }));
 app.use(express.static(publicDir));
@@ -39,6 +52,7 @@ app.use(
     ciblesConnues: ciblesConnues(),
     client,
     model: process.env.MODEL || "claude-sonnet-4-6",
+    voix,
   }),
 );
 

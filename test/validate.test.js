@@ -1,5 +1,10 @@
 import { describe, test, expect } from "vitest";
-import { valideRequeteChat, valideGestes, valideDebrief } from "../server/validate.js";
+import {
+  valideRequeteChat,
+  valideGestes,
+  valideDebrief,
+  valideRequeteVoix,
+} from "../server/validate.js";
 
 const ciblesConnues = new Set(["chocolats", "cle_rouillee", "tableau"]);
 const g = (geste, cible) => ({ geste, cible });
@@ -136,5 +141,27 @@ describe("valideDebrief", () => {
   test("corps invalide : rejeté", () => {
     expect(valideDebrief(null, ids).ok).toBe(false);
     expect(valideDebrief({ reponses: "non" }, ids).ok).toBe(false);
+  });
+});
+
+describe("valideRequeteVoix", () => {
+  test("texte valide : ok + texte trimmé", () => {
+    expect(valideRequeteVoix({ texte: "  Bonjour  " })).toEqual({
+      ok: true,
+      valeur: { texte: "Bonjour" },
+    });
+  });
+
+  test("corps non-objet : refus", () => {
+    expect(valideRequeteVoix(null).ok).toBe(false);
+  });
+
+  test("texte absent ou vide : refus", () => {
+    expect(valideRequeteVoix({}).ok).toBe(false);
+    expect(valideRequeteVoix({ texte: "   " }).ok).toBe(false);
+  });
+
+  test("texte trop long : refus", () => {
+    expect(valideRequeteVoix({ texte: "a".repeat(2001) }).ok).toBe(false);
   });
 });

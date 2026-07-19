@@ -58,6 +58,13 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   ASCII pré-formaté (rang, score global, note + justification par question), rendu par
   `rendreDebrief()` dans `#modale-contenu` (`white-space: pre-wrap`). Aucune valeur brute :
   tout passe par les tokens ; `resize: vertical` reste la seule dimension structurelle.
+- **Boutons icône du dialogue — micro & voix (T-07)** : `.btn-icone` (`#btn-micro`,
+  `#btn-voix`), fond `--c-surface`, contour `--c-bordure`, survol `--c-surface-survol`.
+  États : `#btn-voix.actif` (voix activée) en accent `--c-vert`, texte et contour —
+  même accent que le centre du plan ; `#btn-micro.ecoute` (micro en écoute) en
+  `--c-erreur` avec une pulsation discrète (`@keyframes pulser`, durée
+  `--duree-clignotement`), neutralisée sous `prefers-reduced-motion` par la règle `*`
+  déjà en place. Aucune valeur brute introduite : tout vient des tokens existants.
 
 ## Mouvement & ambiance CRT
 

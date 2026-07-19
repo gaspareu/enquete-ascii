@@ -8,11 +8,12 @@
 
 import express from "express";
 import { construitPrompt } from "./prompt.js";
-import { valideRequeteChat, valideGestes, valideDebrief } from "./validate.js";
+import { valideRequeteChat, valideGestes, valideDebrief, valideRequeteVoix } from "./validate.js";
 import { deriverFlags } from "./etat.js";
 import { agregeScore } from "./scoring.js";
 import { noterDebrief } from "./juge.js";
 import { repondreEnFlux } from "./claude.js";
+import { synthetiserVoix } from "./voix.js";
 
 // Vue du scénario envoyée au navigateur : noms et ambiance seulement.
 // Pas de connaissances, pas de solution, pas de personnalité, pas de descriptions
@@ -36,7 +37,16 @@ export function vuePublique(scenario) {
   };
 }
 
-export function creerRouteur({ scenario, ciblesConnues, client, model, repondreFluxFn = repondreEnFlux, noterFn = noterDebrief }) {
+export function creerRouteur({
+  scenario,
+  ciblesConnues,
+  client,
+  model,
+  voix = null,
+  repondreFluxFn = repondreEnFlux,
+  noterFn = noterDebrief,
+  synthetiserFn = synthetiserVoix,
+}) {
   const routeur = express.Router();
   const idsDebrief = new Set(scenario.debrief.questions.map((q) => q.id));
 
@@ -132,6 +142,34 @@ export function creerRouteur({ scenario, ciblesConnues, client, model, repondreF
     } catch (err) {
       console.error("Erreur notation débrief:", err?.message ?? err);
       res.status(502).json({ erreur: "L'examinateur est injoignable pour le moment." });
+    }
+  });
+
+  // Synthèse vocale (T-07). Le texte reçu est la réplique du personnage, déjà
+  // affichée côté client : aucun secret ne sort par ce canal. La clé ElevenLabs
+  // reste côté serveur (config `voix`). Renvoie du MP3 binaire (audio/mpeg).
+  routeur.post("/voix", async (req, res) => {
+    const v = valideRequeteVoix(req.body);
+    if (!v.ok) {
+      return res.status(400).json({ erreur: v.erreur });
+    }
+    if (!voix) {
+      return res.status(503).json({
+        erreur: "Voix non configurée. Renseignez ELEVENLABS_API_KEY dans .env.",
+      });
+    }
+    try {
+      const audio = await synthetiserFn(fetch, {
+        texte: v.valeur.texte,
+        voiceId: voix.voiceId,
+        model: voix.model,
+        apiKey: voix.apiKey,
+      });
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.send(audio);
+    } catch (err) {
+      console.error("Erreur synthèse vocale:", err?.message ?? err);
+      res.status(502).json({ erreur: "La voix est indisponible pour le moment." });
     }
   });
 

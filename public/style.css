@@ -229,6 +229,29 @@ button:hover {
   outline: none;
 }
 
+/* --- Boutons icône du dialogue : micro + voix (T-07) --- */
+.btn-icone {
+  padding: var(--esp-xs) var(--esp-sm);
+  background: var(--c-surface);
+  border: var(--trait) solid var(--c-bordure);
+  line-height: 1;
+}
+.btn-icone:hover {
+  background: var(--c-surface-survol);
+}
+/* Voix active : accent phosphore vert (comme le centre du plan). */
+#btn-voix.actif {
+  color: var(--c-vert);
+  border-color: var(--c-vert);
+}
+/* Micro en écoute : pulsation discrète (coupée sous prefers-reduced-motion via la
+   règle `*` existante en bas de fichier). */
+#btn-micro.ecoute {
+  color: var(--c-erreur);
+  border-color: var(--c-erreur);
+  animation: pulser var(--duree-clignotement) ease-in-out infinite;
+}
+
 /* --- Modale --- */
 #modale {
   position: fixed;
@@ -302,6 +325,11 @@ button:hover {
   }
   to {
     opacity: 1;
+  }
+}
+@keyframes pulser {
+  50% {
+    opacity: 0.4;
   }
 }
 
