@@ -1,108 +1,96 @@
 # Enquête ASCII — guide projet
 
-Jeu d'enquête web rétro en huis clos. Une pièce en plan 3×3 : au centre un
-interlocuteur (joué par Claude), autour des zones à fouiller. Le joueur confond
-le meurtrier via les indices et le dialogue. Originalité : la connaissance du
-personnage évolue selon les actions du joueur (système de *flags*).
+Jeu d'enquête web rétro en huis clos. Une pièce en plan 3 × 3 place Laurent au
+centre et huit zones à fouiller autour de lui. Le joueur rassemble des indices,
+fait évoluer ce que le personnage accepte de révéler, puis répond à un débrief
+noté. Le dialogue et le juge utilisent `@anthropic-ai/sdk` (Sonnet 4.6 par défaut).
 
-Stack : Node + Express (serveur), JavaScript ESM vanilla (front, sans build),
-Vitest (tests). Dialogue via `@anthropic-ai/sdk` (modèle Sonnet 4.6 par défaut).
+Stack : Node + Express côté serveur, JavaScript ESM vanilla sans build côté front,
+Vitest pour les tests. Le mode vocal optionnel combine ElevenLabs (TTS, serveur)
+et Web Speech API (micro, navigateur).
 
 ## Commandes
 
 | Commande | Usage |
 |---|---|
 | `npm install` | Installer les dépendances |
-| `npm start` | Lancer le serveur → http://localhost:3000 (nécessite `.env`) |
+| `npm start` | Lancer le serveur sur `http://localhost:3000` |
 | `npm test` | Lancer la suite Vitest |
-| `npm run coverage` | Tests + rapport de couverture (seuils appliqués) |
+| `npm run coverage` | Tests et rapport de couverture avec seuils |
 | `npm run test:watch` | Tests en mode watch |
 
-Config : `cp .env.example .env` puis renseigner `ANTHROPIC_API_KEY` (+ `MODEL`,
-`PORT`). La clé reste **côté serveur**, jamais envoyée au navigateur.
+Copier `.env.example` vers `.env`, puis renseigner `ANTHROPIC_API_KEY` (et, si
+souhaité, la configuration ElevenLabs). Les secrets restent uniquement côté serveur.
 
-## Architecture (codemap)
+## Architecture
 
 ```
-server/            # Backend Node/Express (détient le scénario complet)
-  index.js         #   bootstrap : .env, static public/, monte /api, client Claude
-  chat.js          #   routeur : GET /scenario, POST /examiner /chat /accuser
-                   #   + vuePublique() : strippe les secrets avant envoi au front
-  prompt.js        #   construitPrompt() : système = perso + connaissances DÉBLOQUÉES
-  etat.js          #   deriverFlags() : rejoue le journal → flags, en imposant sac + préconditions (autorité)
-  validate.js      #   valideRequeteChat()/valideGestes() : validation au boundary HTTP
-  accusation.js    #   evaluerAccusation() : verdict + preuves vs solution (serveur)
-  claude.js        #   wrapper SDK Anthropic (client injecté → testable)
-data/
-  scenario.js      # LE contenu de l'enquête (données) + ciblesConnues()
-public/            # Front statique ASCII (servi tel quel)
-  index.html       #   structure en panneaux (lie tokens.css puis style.css)
-  tokens.css       #   design tokens (source de vérité du DS) — voir DESIGN-SYSTEM.md
-  DESIGN-SYSTEM.md #   doc du Design System « terminal/CRT » (ingéré par Claude Design)
-  style.css        #   thème terminal (grille CSS) — consomme uniquement les tokens
-  state.js         #   état immutable : sac, historique, journal de gestes (pur, sans DOM)
-  render.js        #   rendu ASCII pur : artInterlocuteur(), rendreDialogue(), dialoguePartiel()
-  game.js          #   orchestration DOM : événements, fetch, frappe, écran de fin
-test/              # Tests Vitest (un fichier par module de logique)
+server/
+  index.js         bootstrap Express, environnement, clients Claude/ElevenLabs
+  chat.js          routes : scenario, examiner, chat SSE, debrief, voix
+  prompt.js        prompt système avec connaissances légitimement débloquées
+  etat.js          dérivation serveur des flags à partir du journal de gestes
+  validate.js      validation de toutes les entrées HTTP
+  claude.js        client Claude et réponse en flux
+  juge.js          appel du modèle pour noter le débrief
+  scoring.js       agrégation du score et du rang
+  voix.js          proxy minimal ElevenLabs TTS
+data/scenario.js   scénario complet, secrets, déclencheurs, débrief et barème
+public/
+  index.html       panneaux de jeu, dialogue, modale et boutons voix/micro
+  tokens.css       source de vérité des tokens visuels
+  style.css        thème terminal/CRT qui consomme les tokens
+  state.js         état front immuable et journal de gestes
+  render.js        rendu ASCII pur
+  game.js          orchestration DOM, API, SSE et écran de débrief
+  sse.js           lecture du flux Server-Sent Events
+  voix.js          état et lecture du mode vocal
+  micro.js         wrapper Web Speech API
+test/              tests unitaires et de routes
 ```
 
-**Flux d'un tour de dialogue** : `game.js` envoie `{message, gestes, historique, note}`
-→ `validate.js` (rejette message trop long / geste inconnu) → `etat.js` **dérive** les
-flags en rejouant le journal de gestes → `prompt.js` reconstruit le système avec
-**seulement** les connaissances dont les flags requis sont présents → `claude.js`
-appelle le modèle → réponse rendue. Le backend est **sans état** : chaque requête
-porte son journal complet, le client n'envoie jamais de flags.
+### Flux et sécurité
 
-**Mécanique des flags (anti-triche)** : le client tient un *journal de gestes*
-(examiner / ramasser / donner) ; le serveur le rejoue (`server/etat.js`) puis mappe
-geste→flag via `data/scenario.js` → `declencheurs` (**secret serveur**, hors vue
-publique). Avant de poser un flag, il impose deux familles de préconditions :
-- **sac** (order-strict) : « donner » exige l'objet préalablement « ramassé » dans le
-  journal ;
-- **flags** (ensembliste, `scenario.preconditions`) : un déclencheur ne pose son flag que
-  si d'autres flags sont déjà acquis — ex. `examiner:plaquette_somniferes` exige `double_tasse`
-  (la 2e tasse), ou `examiner:mot_manuscrit` exige `fete_decouverte`.
-  Résolu à point fixe : l'ordre dans le journal (idempotent) n'importe pas.
+`game.js` envoie `{ message, gestes, historique, note }` à `/api/chat`.
+`validate.js` valide la requête, puis `etat.js` rejoue le journal pour en dériver
+les flags. `prompt.js` ne transmet à Claude que les connaissances dont les flags
+sont débloqués. La réponse revient en SSE et est rendue progressivement.
 
-Une connaissance (`connaissances[].requiert`) n'entre dans le prompt que si ses flags
-sont débloqués ; de même, `/examiner` ne sert la *description-révélation* d'une cible que
-si son flag d'examen est légitimement dérivé, sinon un `apercu` non-spoiler. Comme le
-client n'envoie que des gestes (jamais de flags), un flag non gagné légitimement ne peut
-pas être forgé via la requête.
+Le backend est sans état : le navigateur ne transmet jamais de flags. Pour poser
+un flag, le serveur exige un journal cohérent : « donner » suppose que l'objet a
+été ramassé ; les préconditions de scénario sont résolues à point fixe. Une
+révélation, la solution et le barème ne quittent pas le serveur avant le moment
+autorisé.
+
+Après l'enquête, `/api/debrief` valide les réponses et demande au juge de les
+noter, avant que `scoring.js` calcule le total et le rang. Le bouton voix ne
+transmet que la réplique déjà visible à `/api/voix`; le micro alimente simplement
+le champ de texte local.
 
 ## Conventions
 
-- **JS ESM**, aucune étape de build. Node 18+.
-- **Immutabilité** : jamais de mutation en place (cf. `public/state.js`).
-- **Fichiers courts** (< 400 lignes), une responsabilité par fichier.
-- **Design System** : tout style passe par un token de `public/tokens.css` (aucune
-  valeur brute de couleur, typographie, espacement ou durée dans `style.css` ; seules
-  les dimensions structurelles de la grille — `rem`/`vh` — restent inline). Tenir
-  `public/DESIGN-SYSTEM.md` à jour — c'est ce que **Claude Design** ingère pour itérer
-  sur le front en restant fidèle à l'identité terminal. Animations toujours
-  neutralisées sous `@media (prefers-reduced-motion: reduce)`.
-- **TDD obligatoire** : test d'abord (RED) → minimal (GREEN) → refactor. Couverture ≥ 80 %.
-- **Français** pour l'UI, les commentaires et les messages de commit.
-- **Sécurité d'abord** : le coupable, les connaissances secrètes et les descriptions
-  de révélation ne quittent jamais le serveur. Toujours valider les entrées de `/api/*`.
-  Le front est non fiable : ne jamais lui faire confiance pour une décision de jeu.
+- JavaScript ESM, Node 18+ et aucune étape de build.
+- Immutabilité : pas de mutation en place, notamment dans `public/state.js`.
+- Un fichier, une responsabilité ; garder les fichiers sous 400 lignes.
+- Toute valeur visuelle de `style.css` passe par un token de `tokens.css` ; les
+  animations sont neutralisées sous `prefers-reduced-motion`.
+- UI, commentaires et messages de commit en français.
+- TDD : test rouge, implémentation minimale, refactor ; couverture minimale 80 %
+  (75 % pour les branches).
+- Le front est non fiable : valider chaque entrée `/api/*` et ne jamais lui confier
+  une décision de jeu ni un secret.
 
-## Flow de contribution (à suivre pour CHAQUE tâche)
+## Flow de contribution
 
-1. **Choisir** une tâche dans [BACKLOG.md](BACKLOG.md).
-2. **Brancher** : `git fetch && git status` (partir d'un `main` à jour) → `git checkout -b feat/...` ou `fix/...`.
-3. **TDD** : écrire le test, le voir échouer, implémenter, refactorer.
-4. **Vérifier** : `npm test` puis `npm run coverage` (doit rester ≥ seuils).
-5. **Qualité** : `/code-review` puis `/simplify` sur le diff.
-6. **Sécurité** : `/security-review`.
-7. **Livrer** : commit conventionnel (`feat|fix|chore|docs|test|refactor: …`), `git push -u`, puis `gh pr create`.
-8. **Tenir à jour** : une fois la tâche livrée (PR mergée), la **retirer de `BACKLOG.md`** — sortie de « À faire », et « Fait » gardé **purgé** (l'historique vit dans git et les PR fermées, on n'accumule pas de journal des tâches finies). Mettre à jour ce fichier si l'architecture change.
-
-> Un hook `Stop` lance les tests à la fin de chaque tour (filet anti-régression).
-> Attribution git désactivée globalement (pas de `Co-Authored-By`).
+1. Choisir une tâche dans [BACKLOG.md](BACKLOG.md).
+2. Partir d'un `main` à jour sur une branche `feat/...` ou `fix/...`.
+3. Écrire le test avant le code, puis vérifier `npm test` et `npm run coverage`.
+4. Relire le diff (qualité et sécurité), créer une PR, puis retirer la tâche du
+   backlog après sa fusion.
+5. Mettre ce guide à jour quand l'architecture change.
 
 ## Voir aussi
 
-- [README.md](README.md) — installation et règles du jeu.
-- [BACKLOG.md](BACKLOG.md) — tâches priorisées pour enchaîner les améliorations.
-- [data/scenario.js](data/scenario.js) — éditer l'enquête sans toucher au code.
+- [README.md](README.md) — cible produit, état et démarrage.
+- [BACKLOG.md](BACKLOG.md) — travail ouvert.
+- [data/scenario.js](data/scenario.js) — contenu de l'enquête.

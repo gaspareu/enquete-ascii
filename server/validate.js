@@ -6,6 +6,7 @@
 const MAX_MESSAGE = 500;
 const MAX_NOTE = 200;
 const MAX_REPONSE = 1000;
+const MAX_TEXTE_VOIX = 2000; // réplique bornée par max_tokens du dialogue (~512 tokens)
 const MAX_HISTORIQUE = 100;
 const MAX_GESTES = 100;
 const GESTES_VALIDES = new Set(["ramasser", "donner", "examiner"]);
@@ -91,4 +92,20 @@ export function valideDebrief(body, idsConnus) {
     reponses.push({ id: r.id, reponse: r.reponse.slice(0, MAX_REPONSE) });
   }
   return { ok: true, valeur: reponses };
+}
+
+// Valide le texte à vocaliser (T-07). Le texte est la réplique du personnage
+// (déjà publique) ; on borne surtout la longueur pour éviter d'abuser du quota TTS.
+export function valideRequeteVoix(body) {
+  if (!estObjet(body)) {
+    return { ok: false, erreur: "Requête invalide." };
+  }
+  const texte = typeof body.texte === "string" ? body.texte.trim() : "";
+  if (texte.length === 0) {
+    return { ok: false, erreur: "Le texte est vide." };
+  }
+  if (texte.length > MAX_TEXTE_VOIX) {
+    return { ok: false, erreur: "Le texte est trop long." };
+  }
+  return { ok: true, valeur: { texte } };
 }
