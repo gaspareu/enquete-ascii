@@ -1,35 +1,36 @@
 # Backlog
 
-File d'améliorations pour le projet. Conçu pour que des agents (ou toi) enchaînent
-les tâches une à une.
+Ce fichier décrit uniquement le travail produit encore ouvert. Les décisions
+livrées sont conservées dans `docs/superpowers/`, git et les pull requests, afin
+que ce backlog reste lisible.
 
-**Mode d'emploi**
-- Chaque tâche est autonome et porte un identifiant (`T-xx`), une priorité et un
-  critère d'acceptation vérifiable.
-- Pour traiter une tâche : suivre le **Flow de contribution** de [CLAUDE.md](CLAUDE.md)
-  (branche → TDD → tests/couverture → `/code-review` → `/simplify` → `/security-review`
-  → PR).
-- En commençant, déplacer la tâche dans **En cours**. Une fois livrée (PR mergée),
-  la **retirer du backlog** : on garde « Fait » purgé — l'historique vit dans git
-  et les PR fermées.
-- Priorités : 🔴 haute · 🟠 moyenne · 🟢 basse.
+## Cible
 
----
+Finaliser une enquête web courte et immersive, où l'exploration, le dialogue et
+le débrief récompensent une vraie déduction. L'expérience doit rester fluide au
+clavier et lisible, tout en faisant progressivement évoluer l'esthétique terminal
+vers un pixel art rétro assumé.
 
 ## À faire
 
-### T-08 · 🟢 Améliorer le design des pièces et plus se rapprocher de pixel art plutot que d'ASCII
----
+### T-08 · 🟢 Décors pixel art pour la pièce
+
+Faire évoluer les pièces et les zones fouillables vers des décors pixel art, sans
+régression fonctionnelle ni perte de l'identité rétro du jeu.
+
+Critères d'acceptation :
+
+- le plan et la scène restent immédiatement lisibles sur ordinateur et mobile ;
+- les interactions existantes (zones, inventaire, dialogue, modale) sont intactes ;
+- les nouveaux styles respectent `public/tokens.css`,
+  `public/DESIGN-SYSTEM.md` et `prefers-reduced-motion` ;
+- les tests et le rapport de couverture restent verts.
 
 ## En cours
 
-### T-07 · 🟢 Intégrer ElevenLabs pour activer le mode vocal
+### T-07 · 🟢 Mode vocal
 
-Voix du personnage (ElevenLabs TTS, opt-in + lecture auto) + entrée micro joueur
-(Web Speech API navigateur). Conception : [docs/superpowers/specs/2026-07-02-mode-vocal-elevenlabs-design.md](docs/superpowers/specs/2026-07-02-mode-vocal-elevenlabs-design.md).
-
----
-
-## Fait
-
-_(historique purgé — voir l'historique git / les PR fermées)_
+La synthèse ElevenLabs et la saisie micro sont implémentées sur la branche active.
+La tâche reste ici jusqu'à sa revue, sa fusion et son retrait conformément au
+processus de contribution. Référence :
+[spec](docs/superpowers/specs/2026-07-02-mode-vocal-elevenlabs-design.md).
