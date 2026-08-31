@@ -19,6 +19,15 @@ describe("vuePublique", () => {
     expect(vue.personnage.visage).toBe(scenario.personnage.visage);
   });
 
+  test("expose les portraits publics du personnage pour l'animation", () => {
+    expect(vue.personnage.portraits).toEqual({
+      neutre: "/images/laurent-neutre.png",
+      mefiant: "/images/laurent-mefiant.png",
+      irrite: "/images/laurent-irrite.png",
+      inquiet: "/images/laurent-inquiet.png",
+    });
+  });
+
   test("n'expose ni description ni aperçu des objets (servis à l'examen)", () => {
     expect(vue.objets.plaquette_somniferes.description).toBeUndefined();
     expect(vue.objets.plaquette_somniferes.apercu).toBeUndefined();

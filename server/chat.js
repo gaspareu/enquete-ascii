@@ -27,7 +27,11 @@ export function vuePublique(scenario) {
   return {
     titre: scenario.titre,
     intro: scenario.intro,
-    personnage: { nom: scenario.personnage.nom, visage: scenario.personnage.visage },
+    personnage: {
+      nom: scenario.personnage.nom,
+      visage: scenario.personnage.visage,
+      portraits: scenario.personnage.portraits,
+    },
     zones: scenario.zones,
     objets,
     // Seuls id + libellé sont publics : barème et rangs restent secrets.

@@ -22,3 +22,18 @@ describe("ciblesConnues", () => {
     expect(cibles.has("theiere")).toBe(ciblesConnues(scenario).has("theiere"));
   });
 });
+
+describe("illustrations de zones", () => {
+  test("associe une illustration publique à chaque zone explorée", () => {
+    expect(Object.values(scenario.zones).map((zone) => zone.illustration)).toEqual([
+      "/images/nord.jpeg",
+      "/images/nord-est.jpeg",
+      "/images/est.jpeg",
+      "/images/sud-est.jpeg",
+      "/images/sud.jpeg",
+      "/images/sud-ouest.jpeg",
+      "/images/ouest.jpeg",
+      "/images/nord-ouest.jpeg",
+    ]);
+  });
+});

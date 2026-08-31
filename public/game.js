@@ -10,7 +10,10 @@ import { microDisponible, creerMicro } from "./micro.js";
 
 const $ = (id) => document.getElementById(id);
 const elVisuel = $("visuel");
-const elActions = $("actions-zone");
+const elPortrait = $("portrait-personnage");
+const elPortraitImage = $("portrait-personnage-image");
+const elIllustration = $("illustration-zone");
+const elIllustrationImage = $("illustration-zone-image");
 const elPlan = $("plan");
 const elSac = $("sac");
 const elDialogue = $("dialogue");
@@ -26,6 +29,7 @@ let vue = null;
 let etat = etatInitial();
 let noteEnAttente = "";
 let minuteurAttente = null; // intervalle de l'indicateur « …réfléchit »
+let attitudeLaurent = "neutre";
 
 // Mode vocal : le play audio (side-effect) est injecté ici ; la logique vit dans voix.js.
 const modeVocal = creerModeVocal({
@@ -71,8 +75,54 @@ function bouton(label, onClick) {
 }
 
 function rendrePerso() {
-  elVisuel.textContent = artInterlocuteur(vue.personnage);
-  elActions.replaceChildren();
+  elIllustration.classList.add("cache");
+  elIllustrationImage.removeAttribute("src");
+  const portraits = vue.personnage.portraits ?? [];
+  const portrait = portraits[attitudeLaurent] ?? portraits.neutre;
+  if (!portrait) {
+    elPortrait.classList.add("cache");
+    elPortraitImage.removeAttribute("src");
+    elVisuel.classList.remove("cache");
+    elVisuel.textContent = artInterlocuteur(vue.personnage);
+    return;
+  }
+  elVisuel.classList.add("cache");
+  elPortraitImage.src = portrait;
+  elPortraitImage.alt = `Portrait de ${vue.personnage.nom}`;
+  elPortrait.classList.remove("cache");
+}
+
+function rendreZone(zone) {
+  elPortrait.classList.add("cache");
+  elPortraitImage.removeAttribute("src");
+  if (!zone.illustration) {
+    elIllustration.classList.add("cache");
+    elVisuel.classList.remove("cache");
+    elVisuel.textContent = zone.description;
+    return;
+  }
+  elVisuel.classList.add("cache");
+  elIllustrationImage.src = zone.illustration;
+  elIllustrationImage.alt = `Illustration pixel art : ${zone.description}`;
+  elIllustration.classList.remove("cache");
+}
+
+function adapterAttitude(texte) {
+  const portraits = vue.personnage.portraits;
+  if (!portraits?.neutre) return;
+  const reponse = normaliser(texte);
+  if (/\b(accusation|laissez|ca suffit|mensonge|ridicule|aucun droit)\b/.test(reponse)) {
+    attitudeLaurent = "irrite";
+  } else if (/\b(helene|mort|suicide|desole|peur|triste|deuil)\b/.test(reponse)) {
+    attitudeLaurent = "inquiet";
+  } else if (/\b(rien a dire|je ne sais|aucune idee|pas compris|mefie)\b/.test(reponse)) {
+    attitudeLaurent = "mefiant";
+  } else {
+    attitudeLaurent = "neutre";
+  }
+  if (!elPortrait.classList.contains("cache")) {
+    elPortraitImage.src = portraits[attitudeLaurent] ?? portraits.neutre;
+  }
 }
 
 // Affiche l'historique complet du dialogue.
@@ -132,7 +182,7 @@ function rendrePlan() {
       if (dir === "C") {
         btn.classList.add("centre");
         btn.textContent = vue.personnage.nom;
-        btn.disabled = true;
+        btn.addEventListener("click", rendrePerso);
       } else if (vue.zones[dir]) {
         btn.textContent = dir;
         btn.addEventListener("click", () => ouvrirZone(dir));
@@ -147,17 +197,7 @@ function rendrePlan() {
 
 function ouvrirZone(dir) {
   const zone = vue.zones[dir];
-  elVisuel.textContent = zone.description;
-  elActions.replaceChildren();
-  for (const id of zone.objetsCaches) {
-    const obj = vue.objets[id];
-    if (!obj) continue;
-    elActions.appendChild(bouton(`Examiner ${obj.nom}`, () => examinerCible(id)));
-    if (obj.ramassable && !etat.sac.includes(id)) {
-      elActions.appendChild(bouton(`Ramasser ${obj.nom}`, () => ramasserObjet(id, dir)));
-    }
-  }
-  elActions.appendChild(bouton("↩ Revenir au face-à-face", rendrePerso));
+  rendreZone(zone);
 }
 
 async function examinerCible(cible) {
@@ -179,11 +219,10 @@ async function examinerCible(cible) {
   ouvrirModale(texte, [["Fermer", fermerModale]]);
 }
 
-function ramasserObjet(id, dir) {
+function ramasserObjet(id) {
   etat = ramasser(etat, id, vue.objets);
   narration(`Vous ramassez : ${vue.objets[id].nom}.`);
   rendreSac();
-  ouvrirZone(dir); // rafraîchit les actions (l'objet ramassé n'est plus à prendre)
 }
 
 function rendreSac() {
@@ -197,22 +236,10 @@ function rendreSac() {
   }
   for (const id of etat.sac) {
     const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.className = "objet";
-    b.textContent = vue.objets[id].nom;
-    b.addEventListener("click", () => menuObjet(id));
-    li.appendChild(b);
+    li.className = "objet";
+    li.textContent = vue.objets[id].nom;
     elSac.appendChild(li);
   }
-}
-
-function menuObjet(id) {
-  const nom = vue.objets[id].nom;
-  ouvrirModale(`Que faire avec : ${nom} ?`, [
-    ["Examiner", () => { fermerModale(); examinerCible(id); }],
-    [`Donner à ${vue.personnage.nom}`, () => donnerObjet(id)],
-    ["Fermer", fermerModale],
-  ]);
 }
 
 function donnerObjet(id) {
@@ -220,7 +247,60 @@ function donnerObjet(id) {
   etat = donner(etat, id);
   noteEnAttente = `Le joueur vient de te tendre : ${vue.objets[id].nom}`;
   narration(`Vous tendez ${vue.objets[id].nom} à ${vue.personnage.nom}.`);
-  fermerModale();
+}
+
+function normaliser(texte) {
+  return texte
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("fr-FR");
+}
+
+function gesteDemande(message) {
+  const texte = normaliser(message);
+  const cible = Object.entries(vue.objets)
+    .sort(([, a], [, b]) => normaliser(b.nom).length - normaliser(a.nom).length)
+    .find(([, objet]) => texte.includes(normaliser(objet.nom)))?.[0];
+  if (!cible) return null;
+  if (/\b(examine|examiner|inspecte|inspecter|regarde|regarder|observe|observer|fouille|fouiller)\b/.test(texte)) {
+    return { type: "examiner", cible };
+  }
+  if (/\b(ramasse|ramasser|prends|prendre|recupere|recuperer)\b/.test(texte)) {
+    return { type: "ramasser", cible };
+  }
+  if (/\b(donne|donner|tends|tendre|presente|presenter)\b/.test(texte)) {
+    return { type: "donner", cible };
+  }
+  return null;
+}
+
+async function executerGesteDialogue(message) {
+  const geste = gesteDemande(message);
+  if (!geste) return false;
+
+  etat = ajouterDialogue(etat, "joueur", message);
+  rendreDialogueDOM();
+  const objet = vue.objets[geste.cible];
+  if (geste.type === "examiner") {
+    await examinerCible(geste.cible);
+    return true;
+  }
+  if (geste.type === "ramasser") {
+    if (!objet.ramassable) {
+      narration(`Vous ne pouvez pas ramasser : ${objet.nom}.`);
+    } else if (etat.sac.includes(geste.cible)) {
+      narration(`Vous avez déjà : ${objet.nom}.`);
+    } else {
+      ramasserObjet(geste.cible);
+    }
+    return true;
+  }
+  if (!etat.sac.includes(geste.cible)) {
+    narration(`Vous devez d'abord ramasser : ${objet.nom}.`);
+  } else {
+    donnerObjet(geste.cible);
+  }
+  return true;
 }
 
 // Peint l'historique + la réplique en cours de réception (avec caret), sans encore
@@ -261,6 +341,7 @@ async function consommerFlux(rep) {
         } else if (event === "fin") {
           arreterAttente();
           etat = ajouterDialogue(etat, "personnage", texte);
+          adapterAttitude(texte);
           rendreDialogueDOM();
           modeVocal.dire(texte); // no-op si la voix est désactivée
           return;
@@ -271,12 +352,14 @@ async function consommerFlux(rep) {
     arreterAttente();
     if (texte) {
       etat = ajouterDialogue(etat, "personnage", texte);
+      adapterAttitude(texte);
       rendreDialogueDOM();
     }
   } catch {
     arreterAttente();
     if (texte) {
       etat = ajouterDialogue(etat, "personnage", texte);
+      adapterAttitude(texte);
       rendreDialogueDOM();
     }
     narration("Le personnage est injoignable (réseau).");
@@ -288,6 +371,7 @@ elForm.addEventListener("submit", async (e) => {
   const message = elInput.value.trim();
   if (!message || !vue) return;
   elInput.value = "";
+  if (await executerGesteDialogue(message)) return;
 
   // L'historique envoyé au LLM ne contient que les échanges (pas la narration),
   // et pas le message courant (que le serveur ajoute lui-même).

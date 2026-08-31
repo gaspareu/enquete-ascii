@@ -30,6 +30,12 @@ export const scenario = {
       "     |  |",
       "   __|  |__",
     ].join("\n"),
+    portraits: {
+      neutre: "/images/laurent-neutre.png",
+      mefiant: "/images/laurent-mefiant.png",
+      irrite: "/images/laurent-irrite.png",
+      inquiet: "/images/laurent-inquiet.png",
+    },
     personnalite:
       "Tu es Laurent Vasseur, mari d'Hélène. Posé, charmant, sûr de toi en surface. " +
       "Tu pousses la thèse du suicide : tu la décris surmenée, fragilisée par sa " +
@@ -54,34 +60,42 @@ export const scenario = {
     N: {
       description:
         "La grande table à dessin d'Hélène. Au mur, une distinction encadrée et des plans.",
+      illustration: "/images/nord.jpeg",
       objetsCaches: ["distinction", "maquette", "crayons_plans", "plante_fanee"],
     },
     NE: {
       description: "Une bibliothèque d'architecture et des classeurs bien rangés.",
+      illustration: "/images/nord-est.jpeg",
       objetsCaches: ["agenda", "monographies", "revues_deco", "presse_papier"],
     },
     E: {
       description: "Un guéridon où repose le plateau à tisane du soir.",
+      illustration: "/images/est.jpeg",
       objetsCaches: ["theiere", "boite_tisanes", "napperon", "cuillere_argent"],
     },
     SE: {
       description: "Une corbeille à papier près du bureau.",
+      illustration: "/images/sud-est.jpeg",
       objetsCaches: ["plaquette_somniferes", "brouillons_froisses", "enveloppe_pub", "trognon_pomme"],
     },
     S: {
       description: "Un coin salon : un canapé, une table basse, quelques souvenirs.",
+      illustration: "/images/sud.jpeg",
       objetsCaches: ["mot_manuscrit", "photos_mariage", "plaid", "roman_corne"],
     },
     SO: {
       description: "Un placard fermé, au fond de l'atelier.",
+      illustration: "/images/sud-ouest.jpeg",
       objetsCaches: ["cadeau_cache", "manteaux", "cartons_archives", "raquette_tennis"],
     },
     O: {
       description: "Un secrétaire près de la fenêtre qui donne sur la rue.",
+      illustration: "/images/ouest.jpeg",
       objetsCaches: ["telephone", "courrier", "stylo_plume", "cartes_postales", "cactus"],
     },
     NO: {
       description: "Un meuble-bar cossu — l'espace de Laurent, qui détonne dans l'atelier.",
+      illustration: "/images/nord-ouest.jpeg",
       objetsCaches: ["grand_cru", "lettre_dettes", "verres_whisky", "coffret_cigares", "trophee_golf"],
     },
   },

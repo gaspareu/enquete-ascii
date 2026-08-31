@@ -10,7 +10,12 @@ import { describe, test, expect, beforeEach, afterEach, vi } from "vitest";
 // Structure DOM minimale attendue par game.js (calquée sur public/index.html).
 const MARKUP = `
   <pre id="visuel"></pre>
-  <div id="actions-zone"></div>
+  <figure id="portrait-personnage" class="cache">
+    <img id="portrait-personnage-image" alt="" />
+  </figure>
+  <figure id="illustration-zone" class="cache">
+    <img id="illustration-zone-image" alt="" />
+  </figure>
   <div id="plan"></div>
   <ul id="sac"></ul>
   <button id="btn-accuser" type="button"></button>
@@ -28,7 +33,11 @@ const VUE = {
   intro: "Vous entrez dans le bureau.",
   personnage: { nom: "Victor", visage: "[ O _ O ]" },
   zones: {
-    N: { description: "Une bibliothèque poussiéreuse.", objetsCaches: ["livre", "cle"] },
+    N: {
+      description: "Une bibliothèque poussiéreuse.",
+      illustration: "/images/nord.png",
+      objetsCaches: ["livre", "cle"],
+    },
     S: { description: "Un bureau en désordre.", objetsCaches: ["lettre"] },
   },
   objets: {
@@ -148,7 +157,7 @@ describe("init", () => {
     // Le plan a 9 cases (grille 3×3) ; le centre porte le nom du perso.
     const cases = $("plan").querySelectorAll("button.case");
     expect(cases.length).toBe(9);
-    expect(boutonParTexte($("plan"), "Victor").disabled).toBe(true);
+    expect(boutonParTexte($("plan"), "Victor").disabled).toBe(false);
     // Sac vide au départ.
     expect($("sac").textContent).toContain("(vide)");
   });
@@ -157,55 +166,68 @@ describe("init", () => {
     await charger({ scenarioErreur: true });
     expect($("visuel").textContent).toBe("Impossible de charger le scénario.");
   });
+
+  test("affiche le portrait pixel art quand le personnage en fournit un", async () => {
+    await charger({
+      scenario: {
+        ...VUE,
+        personnage: { ...VUE.personnage, portraits: { neutre: "/images/laurent-neutre.png" } },
+      },
+    });
+
+    expect($("portrait-personnage").classList.contains("cache")).toBe(false);
+    expect($("portrait-personnage-image").getAttribute("src")).toBe(
+      "/images/laurent-neutre.png",
+    );
+    expect($("portrait-personnage-image").getAttribute("alt")).toBe("Portrait de Victor");
+    expect($("visuel").classList.contains("cache")).toBe(true);
+  });
 });
 
-// Ouvre la zone "N" du plan et renvoie ses boutons d'actions.
+// Ouvre la zone "N" du plan.
 async function ouvrirZoneNord() {
   const caseN = [...$("plan").querySelectorAll("button.case")].find((b) => b.textContent === "N");
   caseN.click();
-  return $("actions-zone");
+}
+
+function envoyerMessage(message) {
+  $("message").value = message;
+  $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
 }
 
 describe("exploration d'une zone", () => {
-  test("affiche la description et les actions (examiner / ramasser)", async () => {
+  test("affiche l'illustration de la zone sans proposer d'actions", async () => {
     await charger();
-    const actions = await ouvrirZoneNord();
-    expect($("visuel").textContent).toContain("bibliothèque");
-    // Le livre n'est pas ramassable : seulement « Examiner ».
-    expect(boutonParTexte(actions, "Examiner Vieux livre")).toBeTruthy();
-    expect(boutonParTexte(actions, "Ramasser Vieux livre")).toBeFalsy();
-    // La clé est ramassable : « Examiner » + « Ramasser ».
-    expect(boutonParTexte(actions, "Examiner Petite clé")).toBeTruthy();
-    expect(boutonParTexte(actions, "Ramasser Petite clé")).toBeTruthy();
+    await ouvrirZoneNord();
+    expect($("illustration-zone").classList.contains("cache")).toBe(false);
+    expect($("illustration-zone-image").getAttribute("src")).toBe("/images/nord.png");
+    expect(document.querySelector("#description-zone")).toBeNull();
+    expect(document.querySelector("#actions-zone")).toBeNull();
   });
 
-  test("« Revenir au face-à-face » réaffiche le perso et vide les actions", async () => {
+  test("la case centrale du plan revient au face-à-face", async () => {
     await charger();
-    const actions = await ouvrirZoneNord();
-    boutonParTexte(actions, "Revenir").click();
+    await ouvrirZoneNord();
+    boutonParTexte($("plan"), "Victor").click();
     expect($("visuel").textContent).toContain("Victor");
-    expect($("actions-zone").children.length).toBe(0);
   });
 
-  test("ramasser un objet le met au sac, narre l'action et retire le bouton ramasser", async () => {
+  test("ramasser un objet dans le chat le met au sac sans appeler le personnage", async () => {
     await charger();
-    let actions = await ouvrirZoneNord();
-    boutonParTexte(actions, "Ramasser Petite clé").click();
+    await ouvrirZoneNord();
+    envoyerMessage("Je ramasse la Petite clé.");
 
     expect($("sac").textContent).toContain("Petite clé");
     expect($("dialogue").textContent).toContain("Vous ramassez : Petite clé.");
-    // La zone est rafraîchie : la clé est encore examinable mais plus à ramasser.
-    actions = $("actions-zone");
-    expect(boutonParTexte(actions, "Examiner Petite clé")).toBeTruthy();
-    expect(boutonParTexte(actions, "Ramasser Petite clé")).toBeFalsy();
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 });
 
 describe("examen d'une cible", () => {
   test("ouvre une modale avec le texte renvoyé par le serveur", async () => {
     await charger({ examiner: { texte: "Une clé ancienne, gravée d'initiales." } });
-    const actions = await ouvrirZoneNord();
-    boutonParTexte(actions, "Examiner Petite clé").click();
+    await ouvrirZoneNord();
+    envoyerMessage("J'examine la Petite clé.");
 
     await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
     expect($("modale-contenu").textContent).toContain("Une clé ancienne");
@@ -214,22 +236,20 @@ describe("examen d'une cible", () => {
     expect($("modale").classList.contains("cache")).toBe(true);
   });
 
-  test("« Examiner » depuis le menu du sac ouvre aussi la modale", async () => {
+  test("permet d'examiner un objet ramassé depuis le chat", async () => {
     await charger({ examiner: { texte: "La clé porte une trace de cire." } });
-    const actions = await ouvrirZoneNord();
-    boutonParTexte(actions, "Ramasser Petite clé").click();
+    await ouvrirZoneNord();
+    envoyerMessage("Je prends la Petite clé.");
 
-    boutonParTexte($("sac"), "Petite clé").click();
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("Que faire"));
-    boutonParTexte($("modale-contenu"), "Examiner").click();
+    envoyerMessage("Je regarde la Petite clé.");
 
     await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("trace de cire"));
   });
 
   test("retombe sur un texte par défaut si l'appel réseau échoue", async () => {
     await charger({ examinerErreur: true });
-    const actions = await ouvrirZoneNord();
-    boutonParTexte(actions, "Examiner Vieux livre").click();
+    await ouvrirZoneNord();
+    envoyerMessage("J'inspecte le Vieux livre.");
     await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
     expect($("modale-contenu").textContent).toContain("Rien de particulier ici.");
   });
@@ -251,6 +271,32 @@ describe("dialogue (envoi de message)", () => {
     const corps = JSON.parse(appel[1].body);
     expect(corps.message).toBe("Salut Victor");
     expect(corps.historique.some((t) => t.role === "systeme")).toBe(false);
+  });
+
+  test("adapte le portrait au ton de la réponse de Laurent", async () => {
+    await charger({
+      chatTexte: "Cette accusation est injuste. Laissez-moi tranquille.",
+      scenario: {
+        ...VUE,
+        personnage: {
+          ...VUE.personnage,
+          portraits: {
+            neutre: "/images/laurent-neutre.png",
+            mefiant: "/images/laurent-mefiant.png",
+            irrite: "/images/laurent-irrite.png",
+            inquiet: "/images/laurent-inquiet.png",
+          },
+        },
+      },
+    });
+
+    envoyerMessage("Vous avez quelque chose à cacher ?");
+
+    await vi.waitFor(() =>
+      expect($("portrait-personnage-image").getAttribute("src")).toBe(
+        "/images/laurent-irrite.png",
+      ),
+    );
   });
 
   test("ignore un message vide (pas d'appel au serveur)", async () => {
@@ -293,20 +339,14 @@ describe("dialogue (envoi de message)", () => {
 describe("donner un objet", () => {
   test("le geste narré ajoute une note transmise au message suivant", async () => {
     await charger();
-    const actions = await ouvrirZoneNord();
-    boutonParTexte(actions, "Ramasser Petite clé").click();
-
-    // Ouvre le menu de l'objet depuis le sac, puis « Donner ».
-    boutonParTexte($("sac"), "Petite clé").click();
-    await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
-    boutonParTexte($("modale-contenu"), "Donner à Victor").click();
+    await ouvrirZoneNord();
+    envoyerMessage("Je ramasse la Petite clé.");
+    envoyerMessage("Je donne la Petite clé à Victor.");
 
     expect($("dialogue").textContent).toContain("Vous tendez Petite clé à Victor.");
-    expect($("modale").classList.contains("cache")).toBe(true);
 
     // Le prochain message porte la note de remise.
-    $("message").value = "Tenez.";
-    $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
+    envoyerMessage("Tenez.");
     await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(true));
     const appel = global.fetch.mock.calls.find(([u]) => u === "/api/chat");
     expect(JSON.parse(appel[1].body).note).toContain("Petite clé");

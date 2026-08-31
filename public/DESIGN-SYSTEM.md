@@ -48,9 +48,17 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
 - **Bouton d'action** : fond `--c-bouton`, contour `--c-ambre-faible`. Variante
   danger (« Accuser ») : texte et contour `--c-erreur`.
 - **Case du plan / objet du sac** : fond `--c-surface`, survol `--c-surface-survol` ;
-  centre du plan (l'interlocuteur) en `--c-vert`, non cliquable.
+  centre du plan (l'interlocuteur) en `--c-vert`, cliquable pour revenir au face-à-face.
 - **Modale** : voile sombre + boîte `--c-fond-panneau` contour `--c-ambre`.
 - **Invite de saisie** : caret `>` en `--c-vert`, champ sans bordure ni fond.
+- **Illustration de zone** : les scènes fournies par le scénario remplacent l'art
+  ASCII dans le panneau principal. Elles remplissent toute la zone de scène, sans
+  marge ni bordure interne, et sont affichées sans lissage (`image-rendering:
+  pixelated`).
+- **Portrait de l'interlocuteur** : un portrait pixel art peut remplacer le visage
+  ASCII lors du face-à-face. Son expression évolue après les réponses du chat;
+  ses dimensions maximales passent par
+  `--largeur-portrait-max` et `--hauteur-portrait-max`.
 - **Formulaire de débrief & écran de score (T-06)** : dans la modale, l'accusation
   ouvre un **formulaire de débrief** — un `<textarea>` par question (fond `--c-surface`,
   contour `--c-bordure`, focus → `--c-ambre`), libellés en `--c-ambre-faible` /
