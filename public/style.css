@@ -82,6 +82,9 @@ h2 {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  border: none;
+  padding: 0;
+  overflow: hidden;
 }
 #visuel {
   margin: 0;
@@ -90,14 +93,38 @@ h2 {
   text-align: left;
   text-shadow: var(--crt-lueur) currentColor; /* lueur phosphore */
 }
-#actions-zone {
-  margin-top: var(--esp-2xl);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--esp-sm);
-  justify-content: center;
+#visuel.cache,
+#portrait-personnage.cache,
+#illustration-zone.cache {
+  display: none;
 }
-
+#portrait-personnage {
+  width: var(--largeur-plein);
+  max-width: var(--largeur-portrait-max);
+  margin: 0;
+}
+#portrait-personnage-image {
+  display: block;
+  width: var(--largeur-plein);
+  max-height: var(--hauteur-portrait-max);
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+#illustration-zone {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: var(--largeur-plein);
+  min-height: 0;
+  margin: 0;
+}
+#illustration-zone-image {
+  display: block;
+  width: var(--largeur-plein);
+  height: var(--hauteur-plein);
+  object-fit: cover;
+  image-rendering: pixelated;
+}
 /* --- Colonne de droite : plan + sac --- */
 #cote {
   grid-area: cote;
@@ -145,7 +172,7 @@ h2 {
 .case.centre {
   color: var(--c-vert);
   border-color: var(--c-vert);
-  cursor: default;
+  cursor: pointer;
 }
 
 #sac {
@@ -160,17 +187,11 @@ h2 {
 #sac .objet {
   width: 100%;
   text-align: left;
-  font-family: inherit;
   color: var(--c-ambre);
   background: var(--c-surface);
   border: var(--trait) solid var(--c-bordure);
   border-radius: var(--rayon);
   padding: var(--esp-sm) var(--esp-md);
-  cursor: pointer;
-  transition: background var(--duree-survol) ease;
-}
-#sac .objet:hover {
-  background: var(--c-surface-survol);
 }
 #sac .vide {
   color: var(--c-ambre-faible);

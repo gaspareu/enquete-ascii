@@ -11,7 +11,12 @@
     <div id="jeu">
       <section id="scene" aria-label="Scène">
         <pre id="visuel"></pre>
-        <div id="actions-zone"></div>
+        <figure id="portrait-personnage" class="cache">
+          <img id="portrait-personnage-image" alt="" />
+        </figure>
+        <figure id="illustration-zone" class="cache">
+          <img id="illustration-zone-image" alt="" />
+        </figure>
       </section>
 
       <aside id="cote">
@@ -34,7 +39,7 @@
             id="message"
             type="text"
             maxlength="500"
-            placeholder="Parlez à l'interlocuteur…"
+            placeholder="Parlez à Laurent, ou décrivez une action…"
           />
           <button
             id="btn-micro"

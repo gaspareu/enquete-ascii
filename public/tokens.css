@@ -27,6 +27,12 @@
   --taille-petite: 13px;
   --interligne: 1.4;
   --interlettre-titre: 1px;
+  --largeur-plein: 100%;
+  --hauteur-plein: 100%;
+  --largeur-illustration-max: 52rem;
+  --hauteur-illustration-max: 48vh;
+  --largeur-portrait-max: 38rem;
+  --hauteur-portrait-max: 48vh;
 
   /* --- Échelle d'espacement (multiples cohérents) ----------------------- */
   --esp-xs: 4px;
