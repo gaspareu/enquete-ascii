@@ -3,10 +3,15 @@
 // state.js et render.js (testés) ; ici, c'est le câblage DOM.
 
 import { etatInitial, ramasser, donner, examiner, ajouterDialogue } from "./state.js";
-import { artInterlocuteur, rendreDialogue, rendreDebrief } from "./render.js";
+import { artInterlocuteur, decouperReplique, rendreDebrief } from "./render.js";
 import { decoupeTrames } from "./sse.js";
 import { creerModeVocal } from "./voix.js";
 import { microDisponible, creerMicro } from "./micro.js";
+import {
+  EMOTION_LAURENT_PAR_DEFAUT,
+  emotionDepuisReplique,
+  imagePourEmotionLaurent,
+} from "./emotion.js";
 
 const $ = (id) => document.getElementById(id);
 const elVisuel = $("visuel");
@@ -29,7 +34,7 @@ let vue = null;
 let etat = etatInitial();
 let noteEnAttente = "";
 let minuteurAttente = null; // intervalle de l'indicateur « …réfléchit »
-let attitudeLaurent = "neutre";
+let emotionLaurent = EMOTION_LAURENT_PAR_DEFAUT;
 
 // Mode vocal : le play audio (side-effect) est injecté ici ; la logique vit dans voix.js.
 const modeVocal = creerModeVocal({
@@ -77,8 +82,8 @@ function bouton(label, onClick) {
 function rendrePerso() {
   elIllustration.classList.add("cache");
   elIllustrationImage.removeAttribute("src");
-  const portraits = vue.personnage.portraits ?? [];
-  const portrait = portraits[attitudeLaurent] ?? portraits.neutre;
+  const portraits = vue.personnage.portraits ?? {};
+  const portrait = imagePourEmotionLaurent(portraits, emotionLaurent);
   if (!portrait) {
     elPortrait.classList.add("cache");
     elPortraitImage.removeAttribute("src");
@@ -107,27 +112,41 @@ function rendreZone(zone) {
   elIllustration.classList.remove("cache");
 }
 
-function adapterAttitude(texte) {
+function mettreAJourEmotionLaurent(texte) {
   const portraits = vue.personnage.portraits;
-  if (!portraits?.neutre) return;
-  const reponse = normaliser(texte);
-  if (/\b(accusation|laissez|ca suffit|mensonge|ridicule|aucun droit)\b/.test(reponse)) {
-    attitudeLaurent = "irrite";
-  } else if (/\b(helene|mort|suicide|desole|peur|triste|deuil)\b/.test(reponse)) {
-    attitudeLaurent = "inquiet";
-  } else if (/\b(rien a dire|je ne sais|aucune idee|pas compris|mefie)\b/.test(reponse)) {
-    attitudeLaurent = "mefiant";
-  } else {
-    attitudeLaurent = "neutre";
-  }
+  emotionLaurent = emotionDepuisReplique(texte);
   if (!elPortrait.classList.contains("cache")) {
-    elPortraitImage.src = portraits[attitudeLaurent] ?? portraits.neutre;
+    const portrait = imagePourEmotionLaurent(portraits, emotionLaurent);
+    if (portrait) elPortraitImage.src = portrait;
   }
 }
 
-// Affiche l'historique complet du dialogue.
-function rendreDialogueDOM() {
-  elDialogue.textContent = rendreDialogue(etat.historique, vue.personnage.nom);
+function ajouterTourDialogue(tour) {
+  if (tour.role === "systeme") {
+    elDialogue.append(`— ${tour.texte}`);
+    return;
+  }
+  if (tour.role === "joueur") {
+    elDialogue.append(`Vous : ${tour.texte}`);
+    return;
+  }
+  const { reaction, parole } = decouperReplique(tour.texte);
+  if (reaction) {
+    const didascalie = document.createElement("em");
+    didascalie.textContent = reaction;
+    elDialogue.append(didascalie, "\n");
+  }
+  elDialogue.append(`${vue.personnage.nom} : ${parole}`);
+}
+
+// Affiche l'historique complet du dialogue sans injecter le texte du modèle comme
+// du HTML. Les didascalies sont ainsi les seules portions mises en italique.
+function rendreDialogueDOM(historique = etat.historique) {
+  elDialogue.replaceChildren();
+  historique.forEach((tour, index) => {
+    if (index > 0) elDialogue.append("\n\n");
+    ajouterTourDialogue(tour);
+  });
   elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
@@ -151,21 +170,22 @@ function arreterAttente() {
 function demarrerAttente() {
   arreterAttente(); // évite d'empiler deux intervalles si on resoumet pendant l'attente
   const nom = vue.personnage.nom;
-  const base = rendreDialogue(etat.historique, nom);
-  const ligne = (points) => `${base}\n\n— ${nom} réfléchit${points}`;
-  if (mouvementReduit()) {
-    elDialogue.textContent = ligne("…");
+  const peindre = (points) => {
+    rendreDialogueDOM();
+    elDialogue.append(`\n\n— ${nom} réfléchit${points}`);
     elDialogue.scrollTop = elDialogue.scrollHeight;
+  };
+  if (mouvementReduit()) {
+    peindre("…");
     return;
   }
   let i = 0;
-  const peindre = () => {
-    elDialogue.textContent = ligne(".".repeat((i % 3) + 1));
-    elDialogue.scrollTop = elDialogue.scrollHeight;
+  const animer = () => {
+    peindre(".".repeat((i % 3) + 1));
     i += 1;
   };
-  peindre();
-  minuteurAttente = setInterval(peindre, 350);
+  animer();
+  minuteurAttente = setInterval(animer, 350);
 }
 
 function narration(texte) {
@@ -203,6 +223,14 @@ function ouvrirZone(dir) {
 async function examinerCible(cible) {
   // On journalise l'examen AVANT l'appel : la révélation dépend du journal dérivé
   // côté serveur (un texte secret n'est servi que si son flag d'examen est posé).
+  const texte = await decrireCible(cible);
+  ouvrirModale(texte, [["Fermer", fermerModale]]);
+}
+
+// Lit une cible par le canal serveur, puis renvoie le texte autorisé. Cette même
+// primitive sert à l'examen d'un objet et à la fouille d'une zone complète : les
+// révélations conditionnelles restent donc protégées par /api/examiner.
+async function decrireCible(cible) {
   etat = examiner(etat, cible);
   let texte = "Rien de particulier ici.";
   try {
@@ -216,7 +244,7 @@ async function examinerCible(cible) {
   } catch {
     // On garde le texte par défaut.
   }
-  ouvrirModale(texte, [["Fermer", fermerModale]]);
+  return texte;
 }
 
 function ramasserObjet(id) {
@@ -258,6 +286,17 @@ function normaliser(texte) {
 
 function gesteDemande(message) {
   const texte = normaliser(message);
+  const estUneFouille = /\b(fouille|fouiller)\b/.test(texte);
+  if (estUneFouille) {
+    const zone = Object.entries(vue.zones)
+      .sort(([, a], [, b]) => normaliser(b.nom ?? "").length - normaliser(a.nom ?? "").length)
+      .find(([, candidate]) =>
+        [candidate.nom, ...(candidate.aliases ?? [])]
+          .filter(Boolean)
+          .some((nom) => texte.includes(normaliser(nom))),
+      )?.[0];
+    if (zone) return { type: "fouiller", zone };
+  }
   const cible = Object.entries(vue.objets)
     .sort(([, a], [, b]) => normaliser(b.nom).length - normaliser(a.nom).length)
     .find(([, objet]) => texte.includes(normaliser(objet.nom)))?.[0];
@@ -274,12 +313,32 @@ function gesteDemande(message) {
   return null;
 }
 
+async function fouillerZone(zoneId) {
+  const zone = vue.zones[zoneId];
+  const cibles = zone.objetsCaches.filter((id) => vue.objets[id]);
+  // Une fouille est une action unique : tous les examens sont journalisés avant
+  // les appels, pour que leurs préconditions soient évaluées sur la fouille entière.
+  for (const cible of cibles) etat = examiner(etat, cible);
+  const trouvailles = await Promise.all(
+    cibles.map(async (id) => ({ id, texte: await decrireCible(id) })),
+  );
+  const nomZone = zone.nom ? `${zone.article ?? "la"} ${zone.nom}` : "cette zone";
+  const liste = trouvailles
+    .map(({ id, texte }) => `• ${vue.objets[id].nom} — ${texte}`)
+    .join("\n");
+  narration(`En cherchant dans ${nomZone}, vous trouvez :\n${liste}`);
+}
+
 async function executerGesteDialogue(message) {
   const geste = gesteDemande(message);
   if (!geste) return false;
 
   etat = ajouterDialogue(etat, "joueur", message);
   rendreDialogueDOM();
+  if (geste.type === "fouiller") {
+    await fouillerZone(geste.zone);
+    return true;
+  }
   const objet = vue.objets[geste.cible];
   if (geste.type === "examiner") {
     await examinerCible(geste.cible);
@@ -307,7 +366,8 @@ async function executerGesteDialogue(message) {
 // la committer dans l'état (immutabilité : le commit a lieu sur la trame « fin »).
 function peindreFlux(texte) {
   const histo = [...etat.historique, { role: "personnage", texte }];
-  elDialogue.textContent = `${rendreDialogue(histo, vue.personnage.nom)}▌`;
+  rendreDialogueDOM(histo);
+  elDialogue.append("▌");
   elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
@@ -341,9 +401,9 @@ async function consommerFlux(rep) {
         } else if (event === "fin") {
           arreterAttente();
           etat = ajouterDialogue(etat, "personnage", texte);
-          adapterAttitude(texte);
+          mettreAJourEmotionLaurent(texte);
           rendreDialogueDOM();
-          modeVocal.dire(texte); // no-op si la voix est désactivée
+          modeVocal.dire(decouperReplique(texte).parole); // no-op si la voix est désactivée
           return;
         }
       }
@@ -352,14 +412,14 @@ async function consommerFlux(rep) {
     arreterAttente();
     if (texte) {
       etat = ajouterDialogue(etat, "personnage", texte);
-      adapterAttitude(texte);
+      mettreAJourEmotionLaurent(texte);
       rendreDialogueDOM();
     }
   } catch {
     arreterAttente();
     if (texte) {
       etat = ajouterDialogue(etat, "personnage", texte);
-      adapterAttitude(texte);
+      mettreAJourEmotionLaurent(texte);
       rendreDialogueDOM();
     }
     narration("Le personnage est injoignable (réseau).");

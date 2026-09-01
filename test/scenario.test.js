@@ -37,3 +37,14 @@ describe("illustrations de zones", () => {
     ]);
   });
 });
+
+describe("fouille de la corbeille", () => {
+  test("propose les nouveaux documents parmi les trouvailles de la zone sud-est", () => {
+    expect(scenario.zones.SE.nom).toBe("corbeille à papier");
+    expect(scenario.zones.SE.objetsCaches).toEqual(
+      expect.arrayContaining(["brochure_vente_appartement", "courrier_syndic_dechire"]),
+    );
+    expect(scenario.objets.brochure_vente_appartement.nom).toContain("vente de l'appartement");
+    expect(scenario.objets.courrier_syndic_dechire.nom).toContain("syndic");
+  });
+});

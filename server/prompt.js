@@ -17,7 +17,10 @@ export function construitPrompt(scenario, flags = [], note = "") {
   const sections = [
     `Tu incarnes ${nom}, un personnage d'un jeu d'enquête en huis clos. ` +
       `Reste en permanence dans ton rôle. Réponds en français, brièvement ` +
-      `(une à trois phrases), sur un ton naturel et vivant.`,
+      `(une à trois phrases), sur un ton naturel et vivant. Quand une réaction ` +
+      `est utile, commence par une courte didascalie au format *…*, sur sa propre ` +
+      `ligne, puis écris ta parole entre guillemets. N'écris jamais ton nom : ` +
+      `l'interface l'ajoute elle-même.`,
     `Personnalité :\n${personnalite}`,
     `Ce que tu sais et assumes toujours :\n` +
       faitsDeBase.map((f) => `- ${f}`).join("\n"),

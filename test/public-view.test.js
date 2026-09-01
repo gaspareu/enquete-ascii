@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { vuePublique } from "../server/chat.js";
 import { scenario } from "../data/scenario.js";
+import { EmotionLaurent } from "../public/emotion.js";
 
 describe("vuePublique", () => {
   const vue = vuePublique(scenario);
@@ -20,12 +21,8 @@ describe("vuePublique", () => {
   });
 
   test("expose les portraits publics du personnage pour l'animation", () => {
-    expect(vue.personnage.portraits).toEqual({
-      neutre: "/images/laurent-neutre.png",
-      mefiant: "/images/laurent-mefiant.png",
-      irrite: "/images/laurent-irrite.png",
-      inquiet: "/images/laurent-inquiet.png",
-    });
+    expect(Object.keys(vue.personnage.portraits)).toEqual(Object.values(EmotionLaurent));
+    expect(vue.personnage.portraits[EmotionLaurent.NEUTRE]).toBe("/images/laurent-neutre.png");
   });
 
   test("n'expose ni description ni aperçu des objets (servis à l'examen)", () => {

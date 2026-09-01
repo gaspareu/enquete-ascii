@@ -58,42 +58,66 @@ export const scenario = {
   // objet utile et environ trois objets d'ambiance sans valeur d'enquête.
   zones: {
     N: {
+      nom: "table à dessin",
+      article: "la",
       description:
         "La grande table à dessin d'Hélène. Au mur, une distinction encadrée et des plans.",
       illustration: "/images/nord.jpeg",
       objetsCaches: ["distinction", "maquette", "crayons_plans", "plante_fanee"],
     },
     NE: {
+      nom: "bibliothèque",
+      article: "la",
       description: "Une bibliothèque d'architecture et des classeurs bien rangés.",
       illustration: "/images/nord-est.jpeg",
       objetsCaches: ["agenda", "monographies", "revues_deco", "presse_papier"],
     },
     E: {
+      nom: "plateau à tisane",
+      article: "le",
       description: "Un guéridon où repose le plateau à tisane du soir.",
       illustration: "/images/est.jpeg",
       objetsCaches: ["theiere", "boite_tisanes", "napperon", "cuillere_argent"],
     },
     SE: {
+      nom: "corbeille à papier",
+      article: "la",
+      aliases: ["corbeille", "poubelle"],
       description: "Une corbeille à papier près du bureau.",
       illustration: "/images/sud-est.jpeg",
-      objetsCaches: ["plaquette_somniferes", "brouillons_froisses", "enveloppe_pub", "trognon_pomme"],
+      objetsCaches: [
+        "brochure_vente_appartement",
+        "courrier_syndic_dechire",
+        "plaquette_somniferes",
+        "brouillons_froisses",
+        "enveloppe_pub",
+        "trognon_pomme",
+      ],
     },
     S: {
+      nom: "coin salon",
+      article: "le",
       description: "Un coin salon : un canapé, une table basse, quelques souvenirs.",
       illustration: "/images/sud.jpeg",
       objetsCaches: ["mot_manuscrit", "photos_mariage", "plaid", "roman_corne"],
     },
     SO: {
+      nom: "placard",
+      article: "le",
       description: "Un placard fermé, au fond de l'atelier.",
       illustration: "/images/sud-ouest.jpeg",
       objetsCaches: ["cadeau_cache", "manteaux", "cartons_archives", "raquette_tennis"],
     },
     O: {
+      nom: "secrétaire",
+      article: "le",
       description: "Un secrétaire près de la fenêtre qui donne sur la rue.",
       illustration: "/images/ouest.jpeg",
       objetsCaches: ["telephone", "courrier", "stylo_plume", "cartes_postales", "cactus"],
     },
     NO: {
+      nom: "meuble-bar",
+      article: "le",
       description: "Un meuble-bar cossu — l'espace de Laurent, qui détonne dans l'atelier.",
       illustration: "/images/nord-ouest.jpeg",
       objetsCaches: ["grand_cru", "lettre_dettes", "verres_whisky", "coffret_cigares", "trophee_golf"],
@@ -240,6 +264,20 @@ export const scenario = {
     brouillons_froisses: {
       nom: "Brouillons froissés",
       description: "Des brouillons de plans raturés puis abandonnés. Le rebut ordinaire d'un atelier.",
+      ramassable: false,
+    },
+    brochure_vente_appartement: {
+      nom: "Brochure de vente de l'appartement",
+      description:
+        "Une brochure d'agence immobilière, froissée au coin. Le bien présenté est " +
+        "l'appartement des Vasseur ; les annotations au crayon parlent d'une mise en vente rapide.",
+      ramassable: false,
+    },
+    courrier_syndic_dechire: {
+      nom: "Courrier du syndic déchiré",
+      description:
+        "Les morceaux d'un courrier du syndic évoquent des travaux de copropriété à venir. " +
+        "Une note rageuse de Laurent barre le montant estimé.",
       ramassable: false,
     },
     enveloppe_pub: {
