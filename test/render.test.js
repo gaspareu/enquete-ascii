@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { artInterlocuteur, rendreDialogue, rendreDebrief } from "../public/render.js";
+import { artInterlocuteur, decouperReplique, rendreDialogue, rendreDebrief } from "../public/render.js";
 
 describe("artInterlocuteur", () => {
   test("avec un visage personnalisé, l'affiche et inclut le nom", () => {
@@ -43,6 +43,21 @@ describe("rendreDialogue", () => {
     );
     expect(txt).toContain("Vous ramassez les chocolats.");
     expect(txt).not.toContain("Victor :");
+  });
+
+  test("sépare la réaction initiale de la parole du personnage", () => {
+    expect(decouperReplique('*Il fronce les sourcils*\n"Pourquoi tu me dis ça ?"')).toEqual({
+      reaction: "Il fronce les sourcils",
+      parole: '"Pourquoi tu me dis ça ?"',
+    });
+  });
+
+  test("retire les astérisques de la réaction dans la représentation texte", () => {
+    const txt = rendreDialogue(
+      [{ role: "personnage", texte: '*Il fronce les sourcils*\n"Pourquoi tu me dis ça ?"' }],
+      "Laurent",
+    );
+    expect(txt).toBe('Il fronce les sourcils\nLaurent : "Pourquoi tu me dis ça ?"');
   });
 });
 

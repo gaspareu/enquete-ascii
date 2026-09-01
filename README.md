@@ -78,9 +78,11 @@ transcription : vérifiez leur politique avant de l'utiliser.
 
 ## Jouer
 
-- Cliquez une direction du plan pour fouiller une zone, examiner ou ramasser un
-  objet.
-- Dans le sac, examinez un indice ou donnez un objet à Laurent.
+- Cliquez une direction du plan pour observer une zone. Pour agir, décrivez votre
+  geste dans le chat, par exemple : « Je fouille dans la corbeille à papier »,
+  « J'examine la plaquette de somnifères » ou « Je ramasse le grand cru ».
+- Donnez aussi les objets à Laurent dans le chat, par exemple : « Je lui tends le
+  grand cru. »
 - Posez vos questions dans le dialogue ; les réponses apparaissent au fil de leur
   génération.
 - Prenez vos notes au fur et à mesure, puis choisissez `⚖ ACCUSER` pour répondre

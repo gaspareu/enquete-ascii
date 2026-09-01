@@ -45,6 +45,12 @@ describe("construitPrompt", () => {
     expect(p).toContain("Le joueur t'a donné : Chocolats");
   });
 
+  test("demande une réaction balisée et une parole entre guillemets", () => {
+    const p = construitPrompt(fixture, []);
+    expect(p).toContain("*…*");
+    expect(p).toContain("guillemets");
+  });
+
   test("scénario réel : l'aveu du mobile ne fuite pas sans flag", () => {
     const p = construitPrompt(scenario, []);
     expect(p.toLowerCase()).not.toContain("infidèle");

@@ -34,16 +34,26 @@ const VUE = {
   personnage: { nom: "Victor", visage: "[ O _ O ]" },
   zones: {
     N: {
+      nom: "bibliothèque",
       description: "Une bibliothèque poussiéreuse.",
       illustration: "/images/nord.png",
       objetsCaches: ["livre", "cle"],
     },
-    S: { description: "Un bureau en désordre.", objetsCaches: ["lettre"] },
+    S: { nom: "bureau", description: "Un bureau en désordre.", objetsCaches: ["lettre"] },
+    SE: {
+      nom: "corbeille à papier",
+      article: "la",
+      aliases: ["corbeille", "poubelle"],
+      description: "Une corbeille à papier près du bureau.",
+      objetsCaches: ["brochure", "courrier_syndic"],
+    },
   },
   objets: {
     livre: { nom: "Vieux livre", ramassable: false },
     cle: { nom: "Petite clé", ramassable: true },
     lettre: { nom: "Lettre froissée", ramassable: true },
+    brochure: { nom: "Brochure de vente de l'appartement", ramassable: false },
+    courrier_syndic: { nom: "Courrier du syndic déchiré", ramassable: false },
   },
   debrief: {
     questions: [
@@ -221,6 +231,20 @@ describe("exploration d'une zone", () => {
     expect($("dialogue").textContent).toContain("Vous ramassez : Petite clé.");
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
+
+  test("fouille la corbeille à papier dans le chat et y liste les documents trouvés", async () => {
+    await charger({ examiner: { texte: "Un détail à noter." } });
+
+    envoyerMessage("Je fouille dans la corbeille.");
+
+    await vi.waitFor(() =>
+      expect($("dialogue").textContent).toContain("En cherchant dans la corbeille à papier"),
+    );
+    expect($("dialogue").textContent).toContain("Brochure de vente de l'appartement");
+    expect($("dialogue").textContent).toContain("Courrier du syndic déchiré");
+    expect(global.fetch.mock.calls.filter(([u]) => u === "/api/examiner")).toHaveLength(2);
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
+  });
 });
 
 describe("examen d'une cible", () => {
@@ -297,6 +321,19 @@ describe("dialogue (envoi de message)", () => {
         "/images/laurent-irrite.png",
       ),
     );
+  });
+
+  test("affiche la réaction initiale en italique, distincte de la parole", async () => {
+    await charger({ chatTexte: '*Il fronce les sourcils*\n"Pourquoi tu me dis ça ?"' });
+
+    envoyerMessage("Vous m'évitez ?");
+
+    await vi.waitFor(() =>
+      expect($("dialogue").textContent).toContain('Victor : "Pourquoi tu me dis ça ?"'),
+    );
+    const reaction = $("dialogue").querySelector("em");
+    expect(reaction?.textContent).toBe("Il fronce les sourcils");
+    expect($("dialogue").textContent).not.toContain("*Il fronce les sourcils*");
   });
 
   test("ignore un message vide (pas d'appel au serveur)", async () => {

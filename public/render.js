@@ -21,6 +21,16 @@ export function artInterlocuteur(personnage) {
   return `${corps}\n         « ${nom} »`;
 }
 
+// Une réponse de personnage peut commencer par une courte didascalie balisée par
+// des astérisques. On la sépare de la parole sans jamais interpréter du HTML : le
+// DOM décidera ensuite de l'afficher en italique.
+export function decouperReplique(texte) {
+  const brut = typeof texte === "string" ? texte : "";
+  const match = brut.match(/^\s*\*([^*\n]+)\*\s*(?:\r?\n)?([\s\S]*)$/);
+  if (!match) return { reaction: "", parole: brut };
+  return { reaction: match[1].trim(), parole: match[2].trim() };
+}
+
 // Met en forme l'historique du dialogue. "joueur" → "Vous", narration système
 // sans préfixe, sinon le nom du personnage.
 export function rendreDialogue(historique, nomPerso) {
@@ -28,7 +38,9 @@ export function rendreDialogue(historique, nomPerso) {
     .map((tour) => {
       if (tour.role === "systeme") return `— ${tour.texte}`;
       const qui = tour.role === "joueur" ? "Vous" : nomPerso;
-      return `${qui} : ${tour.texte}`;
+      if (tour.role === "joueur") return `${qui} : ${tour.texte}`;
+      const { reaction, parole } = decouperReplique(tour.texte);
+      return [reaction, `${qui} : ${parole}`].filter(Boolean).join("\n");
     })
     .join("\n\n");
 }
