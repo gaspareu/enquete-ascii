@@ -23,19 +23,38 @@ function construireMessages(historique, message) {
 // attend finalMessage() (clôt le flux et fait remonter une éventuelle erreur).
 export async function repondreEnFlux(
   client,
-  { system, historique = [], message, model, maxTokens = 512 },
+  { system, historique = [], message, model, maxTokens = 512, evenementsAutorises = [] },
   onTexte,
 ) {
-  const stream = client.messages.stream({
+  const autorises = [...new Set(evenementsAutorises.filter((evenement) => typeof evenement === "string"))];
+  const options = {
     model,
     max_tokens: maxTokens,
     system,
     messages: construireMessages(historique, message),
-  });
+  };
+  if (autorises.length > 0) {
+    options.tools = [{
+      name: "signaler_evenement",
+      description: "Signale uniquement un fait que tu viens effectivement d'exprimer.",
+      input_schema: {
+        type: "object",
+        properties: { evenement: { type: "string", enum: autorises } },
+        required: ["evenement"],
+        additionalProperties: false,
+      },
+    }];
+  }
+  const stream = client.messages.stream(options);
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
       onTexte(event.delta.text);
     }
   }
-  await stream.finalMessage();
+  const final = await stream.finalMessage();
+  const evenementsExprimes = (final.content ?? [])
+    .filter((bloc) => bloc.type === "tool_use" && bloc.name === "signaler_evenement")
+    .map((bloc) => bloc.input?.evenement)
+    .filter((evenement) => autorises.includes(evenement));
+  return { evenementsExprimes: [...new Set(evenementsExprimes)] };
 }

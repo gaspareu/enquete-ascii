@@ -1,7 +1,8 @@
 import express from "express";
+import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { scenario, ciblesConnues } from "../data/scenario.js";
+import { scenario } from "../data/scenario.js";
 import { creerRouteur } from "./chat.js";
 import { creerClient } from "./claude.js";
 
@@ -43,13 +44,16 @@ if (process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID) {
 }
 
 const app = express();
+// La clé est volontairement éphémère : la partie reste côté navigateur et ne
+// survit pas à un redémarrage du serveur. Elle ne doit jamais être journalisée.
+const secretProgression = randomBytes(32);
 app.use(express.json({ limit: "256kb" }));
 app.use(express.static(publicDir));
 app.use(
   "/api",
   creerRouteur({
     scenario,
-    ciblesConnues: ciblesConnues(),
+    secret: secretProgression,
     client,
     model: process.env.MODEL || "claude-sonnet-4-6",
     voix,

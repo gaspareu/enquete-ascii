@@ -1,85 +1,104 @@
 import { describe, test, expect } from "vitest";
 import {
   etatInitial,
-  ramasser,
-  donner,
-  examiner,
+  observerZone,
+  observerPersonnage,
   ajouterDialogue,
+  historiquePourLaurent,
+  ajouterRecus,
+  remplacerSac,
+  recanaliserDernierTour,
 } from "../public/state.js";
 
-// Fixtures minimales — on teste la logique pure, indépendamment du vrai scénario.
-// Le front ne dérive plus de flags : il tient le sac (affichage) et le JOURNAL DE
-// GESTES envoyé au serveur (qui, lui, dérive les flags).
-const objets = {
-  chocolats: { nom: "Chocolats", ramassable: true },
-  cle: { nom: "Clé", ramassable: true },
-  tableau: { nom: "Tableau", ramassable: false },
-};
-
 describe("etatInitial", () => {
-  test("démarre avec sac, historique et gestes vides", () => {
-    expect(etatInitial()).toEqual({ sac: [], historique: [], gestes: [] });
+  test("démarre face à Laurent avec un sac, un historique et des reçus vides", () => {
+    expect(etatInitial()).toEqual({
+      contexte: { type: "personnage", id: "laurent" },
+      sac: [],
+      historique: [],
+      recus: [],
+    });
   });
 });
 
-describe("ramasser", () => {
-  test("ajoute un objet ramassable au sac et journalise le geste", () => {
-    const apres = ramasser(etatInitial(), "chocolats", objets);
-    expect(apres.sac).toEqual(["chocolats"]);
-    expect(apres.gestes).toEqual([{ geste: "ramasser", cible: "chocolats" }]);
-  });
-
-  test("ne mute pas l'état d'origine (immutabilité)", () => {
+describe("observation", () => {
+  test("observerZone crée un état sans muter son origine", () => {
     const avant = etatInitial();
-    ramasser(avant, "chocolats", objets);
-    expect(avant).toEqual({ sac: [], historique: [], gestes: [] });
+    const apres = observerZone(avant, "N");
+
+    expect(apres).toEqual({ ...avant, contexte: { type: "zone", id: "N" } });
+    expect(avant.contexte).toEqual({ type: "personnage", id: "laurent" });
   });
 
-  test("ignore un objet non ramassable (ni sac, ni geste)", () => {
-    const apres = ramasser(etatInitial(), "tableau", objets);
-    expect(apres.sac).toEqual([]);
-    expect(apres.gestes).toEqual([]);
-  });
+  test("observerPersonnage revient au face-à-face sans effacer l'état", () => {
+    const enZone = observerZone(etatInitial(), "S");
+    const apres = observerPersonnage(enZone);
 
-  test("ne duplique ni l'objet dans le sac ni le geste", () => {
-    const une = ramasser(etatInitial(), "chocolats", objets);
-    const deux = ramasser(une, "chocolats", objets);
-    expect(deux.sac).toEqual(["chocolats"]);
-    expect(deux.gestes).toEqual([{ geste: "ramasser", cible: "chocolats" }]);
+    expect(apres.contexte).toEqual({ type: "personnage", id: "laurent" });
+    expect(enZone.contexte).toEqual({ type: "zone", id: "S" });
   });
 });
 
-describe("donner", () => {
-  test("journalise le geste si l'objet est dans le sac", () => {
-    const avecSac = ramasser(etatInitial(), "chocolats", objets);
-    const apres = donner(avecSac, "chocolats");
-    expect(apres.gestes).toContainEqual({ geste: "donner", cible: "chocolats" });
-  });
+describe("historique canalisé", () => {
+  test("enregistre canal et contexte sans muter l'historique d'origine", () => {
+    const avant = observerZone(etatInitial(), "N");
+    const apres = ajouterDialogue(avant, "joueur", "J'examine le livre.", "scene");
 
-  test("ne journalise rien si l'objet n'est pas dans le sac", () => {
-    const apres = donner(etatInitial(), "chocolats");
-    expect(apres.gestes).toEqual([]);
-  });
-});
-
-describe("examiner", () => {
-  test("journalise le geste examiner:cible", () => {
-    const apres = examiner(etatInitial(), "tableau");
-    expect(apres.gestes).toEqual([{ geste: "examiner", cible: "tableau" }]);
-  });
-
-  test("ne duplique pas un examen répété", () => {
-    const une = examiner(etatInitial(), "tableau");
-    const deux = examiner(une, "tableau");
-    expect(deux.gestes).toEqual([{ geste: "examiner", cible: "tableau" }]);
-  });
-});
-
-describe("ajouterDialogue", () => {
-  test("ajoute une réplique à l'historique sans muter l'origine", () => {
-    const avant = etatInitial();
-    const apres = ajouterDialogue(avant, "joueur", "Bonjour");
-    expect(apres.historique).toEqual([{ role: "joueur", texte: "Bonjour" }]);
+    expect(apres.historique).toEqual([
+      {
+        role: "joueur",
+        texte: "J'examine le livre.",
+        canal: "scene",
+        contexte: { type: "zone", id: "N" },
+      },
+    ]);
     expect(avant.historique).toEqual([]);
+  });
+
+  test("historiquePourLaurent ne garde que son canal, sans modifier le journal visible", () => {
+    let etat = observerZone(etatInitial(), "N");
+    etat = ajouterDialogue(etat, "systeme", "Vous fouillez.", "scene");
+    etat = observerPersonnage(etat);
+    etat = ajouterDialogue(etat, "joueur", "Bonjour Laurent.", "laurent");
+    etat = ajouterDialogue(etat, "personnage", "Bonjour.", "laurent");
+    etat = observerZone(etat, "S");
+    etat = ajouterDialogue(etat, "systeme", "Rien à signaler.", "scene");
+
+    expect(historiquePourLaurent(etat)).toEqual([
+      { role: "joueur", texte: "Bonjour Laurent.", canal: "laurent", contexte: { type: "personnage", id: "laurent" } },
+      { role: "personnage", texte: "Bonjour.", canal: "laurent", contexte: { type: "personnage", id: "laurent" } },
+    ]);
+    expect(etat.historique).toHaveLength(4);
+  });
+});
+
+describe("reçus et inventaire publics", () => {
+  test("ajouterRecus déduplique des valeurs opaques de manière immutable", () => {
+    const avant = etatInitial();
+    const un = ajouterRecus(avant, ["recu-a", "recu-a"]);
+    const deux = ajouterRecus(un, ["recu-a", "recu-b"]);
+
+    expect(un.recus).toEqual(["recu-a"]);
+    expect(deux.recus).toEqual(["recu-a", "recu-b"]);
+    expect(avant.recus).toEqual([]);
+  });
+
+  test("remplacerSac applique seulement le sac dérivé par le serveur", () => {
+    const avant = etatInitial();
+    const apres = remplacerSac(avant, ["cle", "grand_cru"]);
+
+    expect(apres.sac).toEqual(["cle", "grand_cru"]);
+    expect(avant.sac).toEqual([]);
+  });
+});
+
+describe("échecs de dialogue", () => {
+  test("recanalise sans mutation une tentative non aboutie hors de la mémoire Laurent", () => {
+    const avant = ajouterDialogue(etatInitial(), "joueur", "Vous m'entendez ?", "laurent");
+    const apres = recanaliserDernierTour(avant, "scene");
+
+    expect(avant.historique[0].canal).toBe("laurent");
+    expect(apres.historique[0].canal).toBe("scene");
+    expect(historiquePourLaurent(apres)).toEqual([]);
   });
 });

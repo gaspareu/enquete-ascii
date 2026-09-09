@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { construitPrompt } from "../server/prompt.js";
+import { construitPrompt, construitProjectionPrompt } from "../server/prompt.js";
 import { scenario } from "../data/scenario.js";
 
 const fixture = {
@@ -13,46 +13,44 @@ const fixture = {
       id: "secret",
       texte: "Le code du coffre est derrière le tableau.",
       requiert: ["chocolats_donnes"],
+      evenementQuandExprime: "victor_evoque_coffre",
+    },
+    {
+      id: "futur",
+      texte: "Le faux alibi est démonté.",
+      requiert: ["preuve_future"],
+      evenementQuandExprime: "victor_evoque_alibi",
     },
   ],
 };
 
 describe("construitPrompt", () => {
-  test("inclut le nom et la personnalité du personnage", () => {
+  test("inclut le nom, la personnalité et les faits de base", () => {
     const p = construitPrompt(fixture, []);
     expect(p).toContain("Victor");
     expect(p).toContain("Nerveux et évasif.");
-  });
-
-  test("inclut chaque fait de base", () => {
-    const p = construitPrompt(fixture, []);
     expect(p).toContain("Tu es le neveu du défunt.");
-    expect(p).toContain("Tu prétends être innocent.");
   });
 
-  test("N'INCLUT PAS une connaissance dont le flag requis est absent", () => {
-    const p = construitPrompt(fixture, []);
-    expect(p).not.toContain("Le code du coffre est derrière le tableau.");
+  test("n'inclut pas une connaissance ni son événement tant que son flag manque", () => {
+    const projection = construitProjectionPrompt(fixture, []);
+    expect(projection.system).not.toContain("Le code du coffre est derrière le tableau.");
+    expect(projection.system).not.toContain("victor_evoque_coffre");
+    expect(projection.evenementsAutorises).toEqual([]);
   });
 
-  test("inclut la connaissance une fois le flag requis présent", () => {
-    const p = construitPrompt(fixture, ["chocolats_donnes"]);
-    expect(p).toContain("Le code du coffre est derrière le tableau.");
+  test("expose seulement l'événement de la connaissance actuellement exprimable", () => {
+    const projection = construitProjectionPrompt(fixture, ["chocolats_donnes"]);
+    expect(projection.system).toContain("Le code du coffre est derrière le tableau.");
+    expect(projection.system).not.toContain("preuve_future");
+    expect(projection.evenementsAutorises).toEqual(["victor_evoque_coffre"]);
   });
 
-  test("inclut la note d'action quand elle est fournie", () => {
-    const p = construitPrompt(fixture, [], "Le joueur t'a donné : Chocolats");
-    expect(p).toContain("Le joueur t'a donné : Chocolats");
-  });
-
-  test("demande une réaction balisée et une parole entre guillemets", () => {
-    const p = construitPrompt(fixture, []);
+  test("conserve un prompt texte pour le scénario réel sans fuite", () => {
+    const p = construitPrompt(scenario, []);
     expect(p).toContain("*…*");
     expect(p).toContain("guillemets");
-  });
-
-  test("scénario réel : l'aveu du mobile ne fuite pas sans flag", () => {
-    const p = construitPrompt(scenario, []);
     expect(p.toLowerCase()).not.toContain("infidèle");
+    expect(p).not.toContain("conditionsActions");
   });
 });

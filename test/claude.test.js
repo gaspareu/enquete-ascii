@@ -1,9 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { repondreEnFlux } from "../server/claude.js";
 
-// Faux client de flux : `messages.stream` renvoie un itérable async d'événements
-// content_block_delta + un finalMessage(). Si `erreur` est fourni, le flux lève.
-function fauxClientFlux(morceaux, { erreur } = {}) {
+function fauxClientFlux(morceaux, { erreur, outils = [] } = {}) {
   const appels = [];
   return {
     appels,
@@ -17,7 +15,9 @@ function fauxClientFlux(morceaux, { erreur } = {}) {
             }
             if (erreur) throw erreur;
           },
-          finalMessage: async () => ({ content: [{ type: "text", text: morceaux.join("") }] }),
+          finalMessage: async () => ({
+            content: [{ type: "text", text: morceaux.join("") }, ...outils],
+          }),
         };
       },
     },
@@ -36,7 +36,7 @@ describe("repondreEnFlux", () => {
     expect(recus).toEqual(["Bon", "jour", "."]);
   });
 
-  test("mappe l'historique en rôles user/assistant et ajoute le message courant", async () => {
+  test("mappe uniquement l'historique Laurent en rôles user/assistant puis ajoute le message", async () => {
     const client = fauxClientFlux(["ok"]);
     await repondreEnFlux(
       client,
@@ -51,13 +51,48 @@ describe("repondreEnFlux", () => {
       },
       () => {},
     );
-    const params = client.appels[0];
-    expect(params.system).toBe("S");
-    expect(params.messages).toEqual([
+    expect(client.appels[0].messages).toEqual([
       { role: "user", content: "Qui es-tu ?" },
       { role: "assistant", content: "Victor." },
       { role: "user", content: "Où étais-tu ?" },
     ]);
+  });
+
+  test("ne propose que les événements actuellement autorisés et collecte les appels valides", async () => {
+    const client = fauxClientFlux(["Je vois."], {
+      outils: [
+        { type: "tool_use", name: "signaler_evenement", input: { evenement: "fait_present" } },
+        { type: "tool_use", name: "signaler_evenement", input: { evenement: "fait_futur" } },
+      ],
+    });
+    const resultat = await repondreEnFlux(
+      client,
+      { system: "S", historique: [], message: "Parlez.", model: "m", evenementsAutorises: ["fait_present"] },
+      () => {},
+    );
+
+    expect(client.appels[0].tools).toEqual([
+      expect.objectContaining({
+        name: "signaler_evenement",
+        input_schema: expect.objectContaining({
+          properties: expect.objectContaining({
+            evenement: expect.objectContaining({ enum: ["fait_present"] }),
+          }),
+        }),
+      }),
+    ]);
+    expect(resultat.evenementsExprimes).toEqual(["fait_present"]);
+  });
+
+  test("n'envoie aucune définition d'outil quand aucun événement n'est exprimable", async () => {
+    const client = fauxClientFlux(["ok"]);
+    const resultat = await repondreEnFlux(
+      client,
+      { system: "S", message: "x", model: "m", evenementsAutorises: [] },
+      () => {},
+    );
+    expect(client.appels[0].tools).toBeUndefined();
+    expect(resultat.evenementsExprimes).toEqual([]);
   });
 
   test("propage une erreur survenue pendant le flux", async () => {

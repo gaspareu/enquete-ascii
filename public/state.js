@@ -1,39 +1,58 @@
-// Logique d'état du jeu côté front, pure et immutable (jamais de mutation en place).
-// Le navigateur ne dérive plus de flags : il tient le sac (pour l'affichage) et un
-// JOURNAL DE GESTES (ramasser/donner/examiner) envoyé au serveur, qui en dérive seul
-// les flags (cf. server/etat.js). Aucun secret du scénario ne transite donc ici.
+// État purement client : le navigateur mémorise ce qu'il observe, le journal
+// visible et les reçus opaques fournis par le serveur. Il ne déduit jamais de
+// flags ni d'inventaire à partir d'une action locale.
+
+const CONTEXTE_LAURENT = Object.freeze({ type: "personnage", id: "laurent" });
 
 export function etatInitial() {
-  return { sac: [], historique: [], gestes: [] };
+  return { contexte: { ...CONTEXTE_LAURENT }, sac: [], historique: [], recus: [] };
 }
 
-// Renvoie un nouvel état avec le geste `{geste, cible}` journalisé, sans doublon.
-// Le journal est idempotent : un même geste répété ne s'ajoute qu'une fois.
-function avecGeste(etat, geste, cible) {
-  if (etat.gestes.some((g) => g.geste === geste && g.cible === cible)) return etat;
-  return { ...etat, gestes: [...etat.gestes, { geste, cible }] };
+export function observerZone(etat, id) {
+  return { ...etat, contexte: { type: "zone", id } };
 }
 
-export function ramasser(etat, objetId, objets) {
-  const objet = objets[objetId];
-  if (!objet || !objet.ramassable) return etat;
-
-  const apresSac = etat.sac.includes(objetId)
-    ? etat
-    : { ...etat, sac: [...etat.sac, objetId] };
-
-  return avecGeste(apresSac, "ramasser", objetId);
+export function observerPersonnage(etat) {
+  return { ...etat, contexte: { ...CONTEXTE_LAURENT } };
 }
 
-export function donner(etat, objetId) {
-  if (!etat.sac.includes(objetId)) return etat;
-  return avecGeste(etat, "donner", objetId);
+export function ajouterDialogue(etat, role, texte, canal = "scene") {
+  const tour = { role, texte, canal, contexte: { ...etat.contexte } };
+  return { ...etat, historique: [...etat.historique, tour] };
 }
 
-export function examiner(etat, cible) {
-  return avecGeste(etat, "examiner", cible);
+// Laurent ne doit entendre que les échanges tenus face à lui : le journal affiché
+// reste global, mais sa projection ne retient jamais narration, refus ou fouille.
+export function historiquePourLaurent(etat) {
+  return etat.historique.filter((tour) => tour.canal === "laurent");
 }
 
-export function ajouterDialogue(etat, role, texte) {
-  return { ...etat, historique: [...etat.historique, { role, texte }] };
+// Une tentative qui échoue avant toute réponse reste visible dans le journal mais
+// devient une entrée de scène : elle ne pollue pas le prochain échange avec Laurent.
+export function recanaliserDernierTour(etat, canal) {
+  if (etat.historique.length === 0) return etat;
+  const index = etat.historique.length - 1;
+  return {
+    ...etat,
+    historique: etat.historique.map((tour, position) =>
+      position === index ? { ...tour, canal } : tour,
+    ),
+  };
+}
+
+export function ajouterRecus(etat, recus) {
+  const connus = new Set(etat.recus);
+  const nouveaux = [];
+  for (const recu of Array.isArray(recus) ? recus : []) {
+    if (typeof recu === "string" && !connus.has(recu)) {
+      connus.add(recu);
+      nouveaux.push(recu);
+    }
+  }
+  return nouveaux.length === 0 ? etat : { ...etat, recus: [...etat.recus, ...nouveaux] };
+}
+
+// Seule une réponse d'interaction acceptée fournit le sac affiché au navigateur.
+export function remplacerSac(etat, sac) {
+  return { ...etat, sac: Array.isArray(sac) ? [...sac] : [] };
 }

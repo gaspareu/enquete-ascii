@@ -1,63 +1,75 @@
-// Dérivation autorité de l'état de jeu, côté serveur. Le client n'envoie plus ses
-// flags (qu'il pourrait forger) mais son JOURNAL DE GESTES ; on le rejoue ici avec
-// les règles du scénario pour calculer les flags réellement gagnés. Pur et sans état
-// partagé : chaque requête porte son journal complet (le backend reste sans état).
+// Dérivation pure de l'état depuis des événements déjà vérifiés par progression.js.
+// Le routeur est le boundary : aucun payload client non signé ne doit parvenir ici.
 
-const GESTES = new Set(["ramasser", "donner", "examiner"]);
+const ACTIONS_OBJET = new Set(["ramasser", "donner", "examiner"]);
 
-// Rejoue le journal de gestes et renvoie les flags légitimement obtenus (sans
-// doublon, dans l'ordre d'acquisition). Un flag n'est posé que par le geste
-// correspondant ET si ses préconditions sont remplies :
-//   - précondition de SAC (order-strict) : on ne peut « donner » qu'un objet
-//     préalablement « ramassé » dans le journal ;
-//   - préconditions de FLAGS (ensemblistes, cf. scenario.preconditions) : un flag
-//     peut exiger qu'un autre flag soit déjà acquis (ex. examiner la plaquette de
-//     somnifères ne révèle le reçu de Laurent qu'après avoir constaté la 2e tasse).
-// Un geste malformé est ignoré.
-export function deriverFlags(scenario, gestes = []) {
-  const { objets, declencheurs, preconditions = {} } = scenario;
-  const sac = new Set();
-  const declenches = []; // clés geste:cible réellement effectuées (sac order-strict), sans doublon
+function contexteValide(contexte) {
+  return (
+    contexte &&
+    typeof contexte === "object" &&
+    typeof contexte.id === "string" &&
+    (contexte.type === "zone" || (contexte.type === "personnage" && contexte.id === "laurent"))
+  );
+}
 
-  const declencher = (cle) => {
-    if (declencheurs[cle] && !declenches.includes(cle)) declenches.push(cle);
-  };
+function evenementValide(evenement) {
+  return (
+    evenement &&
+    typeof evenement === "object" &&
+    typeof evenement.type === "string" &&
+    typeof evenement.cible === "string" &&
+    contexteValide(evenement.contexte)
+  );
+}
 
-  for (const item of gestes) {
-    const geste = item?.geste;
-    const cible = item?.cible;
-    if (!GESTES.has(geste) || typeof cible !== "string") continue;
+function ajouterUnique(liste, valeur) {
+  if (!liste.includes(valeur)) liste.push(valeur);
+}
 
-    if (geste === "ramasser") {
-      if (objets[cible]?.ramassable) {
-        sac.add(cible);
-        declencher(`ramasser:${cible}`);
-      }
-    } else if (geste === "donner") {
-      if (sac.has(cible)) declencher(`donner:${cible}`);
-    } else if (geste === "examiner") {
-      declencher(`examiner:${cible}`);
+export function deriverEtat(scenario, evenementsVerifies = []) {
+  const objets = scenario.objets ?? {};
+  const declencheurs = scenario.declencheurs ?? {};
+  const preconditions = scenario.preconditions ?? {};
+  const sac = [];
+  const declenches = [];
+  const actionsEffectuees = [];
+
+  for (const evenement of evenementsVerifies) {
+    if (!evenementValide(evenement)) continue;
+    const { type, cible } = evenement;
+
+    if (type === "dialogue") {
+      ajouterUnique(actionsEffectuees, cible);
+      continue;
     }
+    if (!ACTIONS_OBJET.has(type) || !objets[cible]) continue;
+
+    if (type === "ramasser") {
+      if (!objets[cible].ramassable) continue;
+      ajouterUnique(sac, cible);
+    } else if (type === "donner" && !sac.includes(cible)) {
+      continue;
+    }
+
+    const cle = `${type}:${cible}`;
+    ajouterUnique(actionsEffectuees, cle);
+    if (declencheurs[cle]) ajouterUnique(declenches, cle);
   }
 
-  // On ne pose un flag que si toutes ses préconditions de flags sont elles-mêmes
-  // acquises. L'ordre des gestes dans le journal n'importe pas (il est idempotent) :
-  // on itère jusqu'au point fixe, pour qu'un examen « à froid » ne verrouille pas la
-  // révélation légitimement obtenue plus tard.
+  // Les préconditions de flags sont ensemblistes : une action acceptée peut être
+  // arrivée avant l'indice qui la rend révélatrice. On converge donc au point fixe.
   const flags = [];
   let progresse = true;
   while (progresse) {
     progresse = false;
     for (const cle of declenches) {
       const flag = declencheurs[cle];
-      if (flags.includes(flag)) continue;
-      const requis = preconditions[cle] ?? [];
-      if (requis.every((f) => flags.includes(f))) {
+      if (!flags.includes(flag) && (preconditions[cle] ?? []).every((f) => flags.includes(f))) {
         flags.push(flag);
         progresse = true;
       }
     }
   }
 
-  return flags;
+  return { sac, flags, actionsEffectuees };
 }

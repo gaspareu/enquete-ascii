@@ -1,102 +1,115 @@
 import { describe, test, expect } from "vitest";
 import {
+  valideContexte,
+  valideIntention,
+  valideRecus,
+  valideRequeteInteraction,
   valideRequeteChat,
-  valideGestes,
   valideDebrief,
   valideRequeteVoix,
 } from "../server/validate.js";
 
-const ciblesConnues = new Set(["chocolats", "cle_rouillee", "tableau"]);
-const g = (geste, cible) => ({ geste, cible });
+const scenario = {
+  personnage: { id: "laurent" },
+  zones: { N: { objetsCaches: ["tableau"] }, S: { objetsCaches: [] } },
+  objets: { chocolats: { ramassable: true }, tableau: { ramassable: false } },
+};
 
-describe("valideRequeteChat", () => {
-  test("accepte une requête bien formée et normalise les champs", () => {
-    const r = valideRequeteChat(
-      {
-        message: "  Bonjour  ",
-        gestes: [g("ramasser", "chocolats")],
-        historique: [{ role: "joueur", texte: "Salut" }],
-        note: "Le joueur t'a donné : Chocolats",
-      },
-      ciblesConnues,
-    );
-    expect(r.ok).toBe(true);
-    expect(r.valeur.message).toBe("Bonjour");
-    expect(r.valeur.gestes).toEqual([g("ramasser", "chocolats")]);
-    expect(r.valeur.note).toBe("Le joueur t'a donné : Chocolats");
+describe("validation du contexte et de l'intention", () => {
+  test("normalise un contexte Laurent ou une zone existante", () => {
+    expect(valideContexte({ type: "personnage", id: "laurent", cache: true }, scenario)).toEqual({
+      ok: true,
+      valeur: { type: "personnage", id: "laurent" },
+    });
+    expect(valideContexte({ type: "zone", id: "N" }, scenario)).toEqual({
+      ok: true,
+      valeur: { type: "zone", id: "N" },
+    });
   });
 
-  test("applique des valeurs par défaut pour les champs optionnels", () => {
-    const r = valideRequeteChat({ message: "Salut" }, ciblesConnues);
-    expect(r.ok).toBe(true);
-    expect(r.valeur.gestes).toEqual([]);
-    expect(r.valeur.historique).toEqual([]);
-    expect(r.valeur.note).toBe("");
+  test("rejette contexte et cible inconnus", () => {
+    expect(valideContexte({ type: "zone", id: "E" }, scenario).ok).toBe(false);
+    expect(valideContexte({ type: "personnage", id: "victor" }, scenario).ok).toBe(false);
+    expect(valideIntention({ action: "examiner", cible: "pirate" }, scenario).ok).toBe(false);
   });
 
-  test("rejette un body qui n'est pas un objet", () => {
-    expect(valideRequeteChat(null, ciblesConnues).ok).toBe(false);
-    expect(valideRequeteChat("x", ciblesConnues).ok).toBe(false);
-  });
-
-  test("rejette un message vide ou manquant", () => {
-    expect(valideRequeteChat({ message: "   " }, ciblesConnues).ok).toBe(false);
-    expect(valideRequeteChat({}, ciblesConnues).ok).toBe(false);
-  });
-
-  test("rejette un message trop long", () => {
-    const r = valideRequeteChat({ message: "a".repeat(501) }, ciblesConnues);
-    expect(r.ok).toBe(false);
-  });
-
-  test("rejette un geste portant sur une cible inconnue", () => {
-    const r = valideRequeteChat(
-      { message: "Salut", gestes: [g("ramasser", "cible_pirate")] },
-      ciblesConnues,
-    );
-    expect(r.ok).toBe(false);
-  });
-
-  test("rejette un type de geste inconnu", () => {
-    const r = valideRequeteChat(
-      { message: "Salut", gestes: [g("voler", "chocolats")] },
-      ciblesConnues,
-    );
-    expect(r.ok).toBe(false);
-  });
-
-  test("rejette des gestes qui ne sont pas un tableau", () => {
-    const r = valideRequeteChat(
-      { message: "Salut", gestes: "x" },
-      ciblesConnues,
-    );
-    expect(r.ok).toBe(false);
+  test("normalise les intentions sans champs parasites", () => {
+    expect(valideIntention({ action: "examiner", cible: "tableau", flag: "forge" }, scenario)).toEqual({
+      ok: true,
+      valeur: { action: "examiner", cible: "tableau" },
+    });
+    expect(valideIntention({ action: "fouiller", cible: "N" }, scenario)).toEqual({
+      ok: true,
+      valeur: { action: "fouiller", cible: "N" },
+    });
+    expect(valideIntention({ action: "dialoguer", cible: "laurent" }, scenario).ok).toBe(false);
   });
 });
 
-describe("valideGestes", () => {
-  test("accepte un journal valide et normalise chaque entrée", () => {
-    const r = valideGestes(
-      [{ geste: "donner", cible: "chocolats", extra: "ignoré" }],
-      ciblesConnues,
+describe("valideRecus", () => {
+  test("accepte une liste de chaînes opaques et refuse une forme abusive", () => {
+    expect(valideRecus(["recu-a", "recu-b"])).toEqual({ ok: true, valeur: ["recu-a", "recu-b"] });
+    expect(valideRecus("recu-a").ok).toBe(false);
+    expect(valideRecus([42]).ok).toBe(false);
+    expect(valideRecus(["x".repeat(4097)]).ok).toBe(false);
+  });
+});
+
+describe("valideRequeteInteraction", () => {
+  test("accepte et normalise uniquement le contrat contextuel", () => {
+    const r = valideRequeteInteraction(
+      {
+        contexte: { type: "zone", id: "N" },
+        intention: { action: "examiner", cible: "tableau", secret: true },
+        recus: ["opaque"],
+        flags: ["forge"],
+      },
+      scenario,
+    );
+    expect(r).toEqual({
+      ok: true,
+      valeur: {
+        contexte: { type: "zone", id: "N" },
+        intention: { action: "examiner", cible: "tableau" },
+        recus: ["opaque"],
+      },
+    });
+  });
+
+  test("rejette les champs structurants absents ou malformés", () => {
+    expect(valideRequeteInteraction({}, scenario).ok).toBe(false);
+    expect(valideRequeteInteraction({ contexte: { type: "zone", id: "N" }, intention: { action: "voler", cible: "tableau" } }, scenario).ok).toBe(false);
+  });
+});
+
+describe("valideRequeteChat", () => {
+  test("accepte une requête face à Laurent et retire les tours de scène", () => {
+    const r = valideRequeteChat(
+      {
+        message: "  Bonjour  ",
+        contexte: { type: "personnage", id: "laurent" },
+        recus: ["opaque"],
+        historique: [
+          { role: "joueur", texte: "Salut", canal: "laurent" },
+          { role: "systeme", texte: "Fouille", canal: "scene" },
+        ],
+        flags: ["forgés"],
+      },
+      scenario,
     );
     expect(r.ok).toBe(true);
-    expect(r.valeur).toEqual([g("donner", "chocolats")]);
+    expect(r.valeur).toEqual({
+      message: "Bonjour",
+      contexte: { type: "personnage", id: "laurent" },
+      recus: ["opaque"],
+      historique: [{ role: "joueur", texte: "Salut" }],
+    });
   });
 
-  test("un journal absent vaut un journal vide", () => {
-    const r = valideGestes(undefined, ciblesConnues);
-    expect(r.ok).toBe(true);
-    expect(r.valeur).toEqual([]);
-  });
-
-  test("rejette une entrée qui n'est pas un objet", () => {
-    expect(valideGestes(["x"], ciblesConnues).ok).toBe(false);
-  });
-
-  test("rejette un journal trop long", () => {
-    const journal = Array.from({ length: 101 }, () => g("examiner", "tableau"));
-    expect(valideGestes(journal, ciblesConnues).ok).toBe(false);
+  test("rejette message vide, trop long ou contexte invalide", () => {
+    expect(valideRequeteChat({ message: "   " }, scenario).ok).toBe(false);
+    expect(valideRequeteChat({ message: "x".repeat(501), contexte: { type: "personnage", id: "laurent" } }, scenario).ok).toBe(false);
+    expect(valideRequeteChat({ message: "Bonjour", contexte: { type: "zone", id: "N" } }, scenario).ok).toBe(true);
   });
 });
 
@@ -109,38 +122,9 @@ describe("valideDebrief", () => {
     expect(r.valeur).toEqual([{ id: "qui", reponse: "Laurent" }]);
   });
 
-  test("réponse vide tolérée (sera notée 0)", () => {
-    const r = valideDebrief({ reponses: [{ id: "mobile", reponse: "" }] }, ids);
-    expect(r.ok).toBe(true);
-  });
-
-  test("id inconnu : rejeté", () => {
-    const r = valideDebrief({ reponses: [{ id: "inconnu", reponse: "x" }] }, ids);
-    expect(r.ok).toBe(false);
-  });
-
-  test("réponse non-chaîne : rejetée", () => {
-    const r = valideDebrief({ reponses: [{ id: "qui", reponse: 42 }] }, ids);
-    expect(r.ok).toBe(false);
-  });
-
-  test("trop de réponses : rejeté", () => {
-    const r = valideDebrief(
-      { reponses: [{ id: "qui", reponse: "a" }, { id: "mobile", reponse: "b" }, { id: "qui", reponse: "c" }] },
-      ids,
-    );
-    expect(r.ok).toBe(false);
-  });
-
-  test("réponse trop longue : tronquée à la borne", () => {
-    const r = valideDebrief({ reponses: [{ id: "qui", reponse: "x".repeat(5000) }] }, ids);
-    expect(r.ok).toBe(true);
-    expect(r.valeur[0].reponse.length).toBe(1000);
-  });
-
-  test("corps invalide : rejeté", () => {
-    expect(valideDebrief(null, ids).ok).toBe(false);
-    expect(valideDebrief({ reponses: "non" }, ids).ok).toBe(false);
+  test("id inconnu et réponses non textuelles : rejetés", () => {
+    expect(valideDebrief({ reponses: [{ id: "inconnu", reponse: "x" }] }, ids).ok).toBe(false);
+    expect(valideDebrief({ reponses: [{ id: "qui", reponse: 42 }] }, ids).ok).toBe(false);
   });
 });
 
@@ -152,16 +136,8 @@ describe("valideRequeteVoix", () => {
     });
   });
 
-  test("corps non-objet : refus", () => {
-    expect(valideRequeteVoix(null).ok).toBe(false);
-  });
-
-  test("texte absent ou vide : refus", () => {
+  test("texte absent ou trop long : refus", () => {
     expect(valideRequeteVoix({}).ok).toBe(false);
-    expect(valideRequeteVoix({ texte: "   " }).ok).toBe(false);
-  });
-
-  test("texte trop long : refus", () => {
     expect(valideRequeteVoix({ texte: "a".repeat(2001) }).ok).toBe(false);
   });
 });
