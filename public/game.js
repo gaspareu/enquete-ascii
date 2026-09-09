@@ -1,12 +1,12 @@
-// Orchestration frontend : charge le scénario, gère les interactions (plan, sac,
-// examen, dialogue, accusation) et appelle le backend. La logique pure vit dans
-// state.js et render.js (testés) ; ici, c'est le câblage DOM.
+// Orchestration DOM : le serveur arbitre toujours contexte, inventaire et progression signée.
 
-import { etatInitial, ramasser, donner, examiner, ajouterDialogue } from "./state.js";
-import { artInterlocuteur, decouperReplique, rendreDebrief } from "./render.js";
+import { etatInitial, observerZone, observerPersonnage, ajouterDialogue, historiquePourLaurent, recanaliserDernierTour, ajouterRecus, remplacerSac } from "./state.js";
+import { intentionDepuisTexte } from "./intention.js";
+import { artInterlocuteur, decouperReplique } from "./render.js";
 import { decoupeTrames } from "./sse.js";
 import { creerModeVocal } from "./voix.js";
-import { microDisponible, creerMicro } from "./micro.js";
+import { creerDebrief } from "./debrief.js";
+import { brancherControlesVoix } from "./controles-voix.js";
 import {
   EMOTION_LAURENT_PAR_DEFAUT,
   emotionDepuisReplique,
@@ -30,32 +30,27 @@ const elModaleContenu = $("modale-contenu");
 const elBtnVoix = $("btn-voix");
 const elBtnMicro = $("btn-micro");
 
-let vue = null;
-let etat = etatInitial();
-let noteEnAttente = "";
-let minuteurAttente = null; // intervalle de l'indicateur « …réfléchit »
-let emotionLaurent = EMOTION_LAURENT_PAR_DEFAUT;
-
-// Mode vocal : le play audio (side-effect) est injecté ici ; la logique vit dans voix.js.
-const modeVocal = creerModeVocal({
-  jouer: (blob) => {
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    // Libère l'URL objet quoi qu'il arrive (fin normale, erreur, lecture refusée),
-    // sinon elle fuit à chaque réplique jusqu'au rechargement.
-    const liberer = () => URL.revokeObjectURL(url);
-    audio.addEventListener("ended", liberer);
-    audio.addEventListener("error", liberer);
-    audio.play().catch(liberer); // lecture refusée : on garde le texte
-  },
-});
-
-// Disposition du plan : C = centre (l'interlocuteur).
 const GRILLE = [
   ["NO", "N", "NE"],
   ["O", "C", "E"],
   ["SO", "S", "SE"],
 ];
+
+let vue = null;
+let etat = etatInitial();
+let minuteurAttente = null;
+let emotionLaurent = EMOTION_LAURENT_PAR_DEFAUT;
+let entreeEnCours = false;
+const modeVocal = creerModeVocal({
+  jouer: (blob) => {
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    const liberer = () => URL.revokeObjectURL(url);
+    audio.addEventListener("ended", liberer);
+    audio.addEventListener("error", liberer);
+    audio.play().catch(liberer);
+  },
+});
 
 async function init() {
   try {
@@ -65,7 +60,7 @@ async function init() {
     elVisuel.textContent = "Impossible de charger le scénario.";
     return;
   }
-  etat = ajouterDialogue(etat, "systeme", vue.intro);
+  etat = ajouterDialogue(etat, "systeme", vue.intro, "scene");
   rendrePerso();
   rendrePlan();
   rendreSac();
@@ -73,74 +68,94 @@ async function init() {
 }
 
 function bouton(label, onClick) {
-  const b = document.createElement("button");
-  b.textContent = label;
-  b.addEventListener("click", onClick);
-  return b;
+  const element = document.createElement("button");
+  element.textContent = label;
+  element.addEventListener("click", onClick);
+  return element;
+}
+
+function mettreAJourPlaceholder() {
+  elInput.placeholder = etat.contexte.type === "personnage"
+    ? "Interrogez Laurent ou utilisez un objet du sac…"
+    : "Fouillez cette zone ou examinez votre sac…";
 }
 
 function rendrePerso() {
+  etat = observerPersonnage(etat);
   elIllustration.classList.add("cache");
   elIllustrationImage.removeAttribute("src");
-  const portraits = vue.personnage.portraits ?? {};
-  const portrait = imagePourEmotionLaurent(portraits, emotionLaurent);
+  const portrait = imagePourEmotionLaurent(vue.personnage.portraits ?? {}, emotionLaurent);
   if (!portrait) {
     elPortrait.classList.add("cache");
     elPortraitImage.removeAttribute("src");
     elVisuel.classList.remove("cache");
     elVisuel.textContent = artInterlocuteur(vue.personnage);
-    return;
+  } else {
+    elVisuel.classList.add("cache");
+    elPortraitImage.src = portrait;
+    elPortraitImage.alt = `Portrait de ${vue.personnage.nom}`;
+    elPortrait.classList.remove("cache");
   }
-  elVisuel.classList.add("cache");
-  elPortraitImage.src = portrait;
-  elPortraitImage.alt = `Portrait de ${vue.personnage.nom}`;
-  elPortrait.classList.remove("cache");
+  mettreAJourPlaceholder();
 }
 
-function rendreZone(zone) {
+function ouvrirZone(id) {
+  const zone = vue.zones[id];
+  if (!zone) return;
+  etat = observerZone(etat, id);
   elPortrait.classList.add("cache");
   elPortraitImage.removeAttribute("src");
   if (!zone.illustration) {
     elIllustration.classList.add("cache");
     elVisuel.classList.remove("cache");
     elVisuel.textContent = zone.description;
-    return;
+  } else {
+    elVisuel.classList.add("cache");
+    elIllustrationImage.src = zone.illustration;
+    elIllustrationImage.alt = `Illustration pixel art : ${zone.description}`;
+    elIllustration.classList.remove("cache");
   }
-  elVisuel.classList.add("cache");
-  elIllustrationImage.src = zone.illustration;
-  elIllustrationImage.alt = `Illustration pixel art : ${zone.description}`;
-  elIllustration.classList.remove("cache");
+  mettreAJourPlaceholder();
 }
 
-function mettreAJourEmotionLaurent(texte) {
-  const portraits = vue.personnage.portraits;
-  emotionLaurent = emotionDepuisReplique(texte);
-  if (!elPortrait.classList.contains("cache")) {
-    const portrait = imagePourEmotionLaurent(portraits, emotionLaurent);
-    if (portrait) elPortraitImage.src = portrait;
+function rendrePlan() {
+  elPlan.replaceChildren();
+  for (const ligne of GRILLE) {
+    for (const direction of ligne) {
+      const element = document.createElement("button");
+      element.className = "case";
+      if (direction === "C") {
+        element.classList.add("centre");
+        element.textContent = vue.personnage.nom;
+        element.addEventListener("click", rendrePerso);
+      } else if (vue.zones[direction]) {
+        element.textContent = direction;
+        element.addEventListener("click", () => ouvrirZone(direction));
+      } else {
+        element.textContent = "·";
+        element.disabled = true;
+      }
+      elPlan.appendChild(element);
+    }
   }
 }
 
 function ajouterTourDialogue(tour) {
   if (tour.role === "systeme") {
     elDialogue.append(`— ${tour.texte}`);
-    return;
-  }
-  if (tour.role === "joueur") {
+  } else if (tour.role === "joueur") {
     elDialogue.append(`Vous : ${tour.texte}`);
-    return;
+  } else {
+    const { reaction, parole } = decouperReplique(tour.texte);
+    if (reaction) {
+      const didascalie = document.createElement("em");
+      didascalie.textContent = reaction;
+      elDialogue.append(didascalie, "\n");
+    }
+    elDialogue.append(`${vue.personnage.nom} : ${parole}`);
   }
-  const { reaction, parole } = decouperReplique(tour.texte);
-  if (reaction) {
-    const didascalie = document.createElement("em");
-    didascalie.textContent = reaction;
-    elDialogue.append(didascalie, "\n");
-  }
-  elDialogue.append(`${vue.personnage.nom} : ${parole}`);
 }
 
-// Affiche l'historique complet du dialogue sans injecter le texte du modèle comme
-// du HTML. Les didascalies sont ainsi les seules portions mises en italique.
 function rendreDialogueDOM(historique = etat.historique) {
   elDialogue.replaceChildren();
   historique.forEach((tour, index) => {
@@ -148,109 +163,6 @@ function rendreDialogueDOM(historique = etat.historique) {
     ajouterTourDialogue(tour);
   });
   elDialogue.scrollTop = elDialogue.scrollHeight;
-}
-
-// L'utilisateur a-t-il demandé à réduire les animations ?
-// (utilisé par demarrerAttente)
-function mouvementReduit() {
-  return (
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-function arreterAttente() {
-  if (minuteurAttente) {
-    clearInterval(minuteurAttente);
-    minuteurAttente = null;
-  }
-}
-
-// Affiche « Nom réfléchit… » pendant l'appel réseau (points animés, sauf reduced-motion).
-function demarrerAttente() {
-  arreterAttente(); // évite d'empiler deux intervalles si on resoumet pendant l'attente
-  const nom = vue.personnage.nom;
-  const peindre = (points) => {
-    rendreDialogueDOM();
-    elDialogue.append(`\n\n— ${nom} réfléchit${points}`);
-    elDialogue.scrollTop = elDialogue.scrollHeight;
-  };
-  if (mouvementReduit()) {
-    peindre("…");
-    return;
-  }
-  let i = 0;
-  const animer = () => {
-    peindre(".".repeat((i % 3) + 1));
-    i += 1;
-  };
-  animer();
-  minuteurAttente = setInterval(animer, 350);
-}
-
-function narration(texte) {
-  etat = ajouterDialogue(etat, "systeme", texte);
-  rendreDialogueDOM();
-}
-
-function rendrePlan() {
-  elPlan.replaceChildren();
-  for (const ligne of GRILLE) {
-    for (const dir of ligne) {
-      const btn = document.createElement("button");
-      btn.className = "case";
-      if (dir === "C") {
-        btn.classList.add("centre");
-        btn.textContent = vue.personnage.nom;
-        btn.addEventListener("click", rendrePerso);
-      } else if (vue.zones[dir]) {
-        btn.textContent = dir;
-        btn.addEventListener("click", () => ouvrirZone(dir));
-      } else {
-        btn.textContent = "·";
-        btn.disabled = true;
-      }
-      elPlan.appendChild(btn);
-    }
-  }
-}
-
-function ouvrirZone(dir) {
-  const zone = vue.zones[dir];
-  rendreZone(zone);
-}
-
-async function examinerCible(cible) {
-  // On journalise l'examen AVANT l'appel : la révélation dépend du journal dérivé
-  // côté serveur (un texte secret n'est servi que si son flag d'examen est posé).
-  const texte = await decrireCible(cible);
-  ouvrirModale(texte, [["Fermer", fermerModale]]);
-}
-
-// Lit une cible par le canal serveur, puis renvoie le texte autorisé. Cette même
-// primitive sert à l'examen d'un objet et à la fouille d'une zone complète : les
-// révélations conditionnelles restent donc protégées par /api/examiner.
-async function decrireCible(cible) {
-  etat = examiner(etat, cible);
-  let texte = "Rien de particulier ici.";
-  try {
-    const rep = await fetch("/api/examiner", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cible, gestes: etat.gestes }),
-    });
-    const data = await rep.json();
-    if (data?.texte) texte = data.texte;
-  } catch {
-    // On garde le texte par défaut.
-  }
-  return texte;
-}
-
-function ramasserObjet(id) {
-  etat = ramasser(etat, id, vue.objets);
-  narration(`Vous ramassez : ${vue.objets[id].nom}.`);
-  rendreSac();
 }
 
 function rendreSac() {
@@ -265,127 +177,72 @@ function rendreSac() {
   for (const id of etat.sac) {
     const li = document.createElement("li");
     li.className = "objet";
-    li.textContent = vue.objets[id].nom;
+    li.textContent = vue.objets[id]?.nom ?? id;
     elSac.appendChild(li);
   }
 }
 
-function donnerObjet(id) {
-  if (!etat.sac.includes(id)) return;
-  etat = donner(etat, id);
-  noteEnAttente = `Le joueur vient de te tendre : ${vue.objets[id].nom}`;
-  narration(`Vous tendez ${vue.objets[id].nom} à ${vue.personnage.nom}.`);
-}
-
-function normaliser(texte) {
-  return texte
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("fr-FR");
-}
-
-function gesteDemande(message) {
-  const texte = normaliser(message);
-  const estUneFouille = /\b(fouille|fouiller)\b/.test(texte);
-  if (estUneFouille) {
-    const zone = Object.entries(vue.zones)
-      .sort(([, a], [, b]) => normaliser(b.nom ?? "").length - normaliser(a.nom ?? "").length)
-      .find(([, candidate]) =>
-        [candidate.nom, ...(candidate.aliases ?? [])]
-          .filter(Boolean)
-          .some((nom) => texte.includes(normaliser(nom))),
-      )?.[0];
-    if (zone) return { type: "fouiller", zone };
-  }
-  const cible = Object.entries(vue.objets)
-    .sort(([, a], [, b]) => normaliser(b.nom).length - normaliser(a.nom).length)
-    .find(([, objet]) => texte.includes(normaliser(objet.nom)))?.[0];
-  if (!cible) return null;
-  if (/\b(examine|examiner|inspecte|inspecter|regarde|regarder|observe|observer|fouille|fouiller)\b/.test(texte)) {
-    return { type: "examiner", cible };
-  }
-  if (/\b(ramasse|ramasser|prends|prendre|recupere|recuperer)\b/.test(texte)) {
-    return { type: "ramasser", cible };
-  }
-  if (/\b(donne|donner|tends|tendre|presente|presenter)\b/.test(texte)) {
-    return { type: "donner", cible };
-  }
-  return null;
-}
-
-async function fouillerZone(zoneId) {
-  const zone = vue.zones[zoneId];
-  const cibles = zone.objetsCaches.filter((id) => vue.objets[id]);
-  // Une fouille est une action unique : tous les examens sont journalisés avant
-  // les appels, pour que leurs préconditions soient évaluées sur la fouille entière.
-  for (const cible of cibles) etat = examiner(etat, cible);
-  const trouvailles = await Promise.all(
-    cibles.map(async (id) => ({ id, texte: await decrireCible(id) })),
-  );
-  const nomZone = zone.nom ? `${zone.article ?? "la"} ${zone.nom}` : "cette zone";
-  const liste = trouvailles
-    .map(({ id, texte }) => `• ${vue.objets[id].nom} — ${texte}`)
-    .join("\n");
-  narration(`En cherchant dans ${nomZone}, vous trouvez :\n${liste}`);
-}
-
-async function executerGesteDialogue(message) {
-  const geste = gesteDemande(message);
-  if (!geste) return false;
-
-  etat = ajouterDialogue(etat, "joueur", message);
+function narration(texte) {
+  etat = ajouterDialogue(etat, "systeme", texte, "scene");
   rendreDialogueDOM();
-  if (geste.type === "fouiller") {
-    await fouillerZone(geste.zone);
-    return true;
-  }
-  const objet = vue.objets[geste.cible];
-  if (geste.type === "examiner") {
-    await examinerCible(geste.cible);
-    return true;
-  }
-  if (geste.type === "ramasser") {
-    if (!objet.ramassable) {
-      narration(`Vous ne pouvez pas ramasser : ${objet.nom}.`);
-    } else if (etat.sac.includes(geste.cible)) {
-      narration(`Vous avez déjà : ${objet.nom}.`);
-    } else {
-      ramasserObjet(geste.cible);
-    }
-    return true;
-  }
-  if (!etat.sac.includes(geste.cible)) {
-    narration(`Vous devez d'abord ramasser : ${objet.nom}.`);
-  } else {
-    donnerObjet(geste.cible);
-  }
-  return true;
 }
 
-// Peint l'historique + la réplique en cours de réception (avec caret), sans encore
-// la committer dans l'état (immutabilité : le commit a lieu sur la trame « fin »).
+function mouvementReduit() {
+  return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function arreterAttente() {
+  if (minuteurAttente) {
+    clearInterval(minuteurAttente);
+    minuteurAttente = null;
+  }
+}
+
+function demarrerAttente() {
+  arreterAttente();
+  const peindre = (points) => {
+    rendreDialogueDOM();
+    elDialogue.append(`\n\n— ${vue.personnage.nom} réfléchit${points}`);
+    elDialogue.scrollTop = elDialogue.scrollHeight;
+  };
+  if (mouvementReduit()) return peindre("…");
+  let i = 0;
+  const animer = () => peindre(".".repeat((i++ % 3) + 1));
+  animer();
+  minuteurAttente = setInterval(animer, 350);
+}
+
 function peindreFlux(texte) {
-  const histo = [...etat.historique, { role: "personnage", texte }];
-  rendreDialogueDOM(histo);
+  rendreDialogueDOM([...etat.historique, { role: "personnage", texte, canal: "laurent" }]);
   elDialogue.append("▌");
   elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
-// Lit le flux SSE de /api/chat et peint la réponse au fil de l'eau.
+function finaliserReplique(texte) {
+  etat = ajouterDialogue(etat, "personnage", texte, "laurent");
+  emotionLaurent = emotionDepuisReplique(texte);
+  if (!elPortrait.classList.contains("cache")) {
+    const portrait = imagePourEmotionLaurent(vue.personnage.portraits ?? {}, emotionLaurent);
+    if (portrait) elPortraitImage.src = portrait;
+  }
+  rendreDialogueDOM();
+  modeVocal.dire(decouperReplique(texte).parole);
+}
+
 async function consommerFlux(rep) {
   const lecteur = rep.body.getReader();
   const decodeur = new TextDecoder();
-  let tampon = ""; // trames SSE non terminées
-  let texte = ""; // réplique accumulée
+  let tampon = "";
+  let texte = "";
   let demarre = false;
   try {
     for (;;) {
       const { value, done } = await lecteur.read();
       if (done) break;
       tampon += decodeur.decode(value, { stream: true });
-      const { trames, reste } = decoupeTrames(tampon);
-      tampon = reste;
-      for (const { event, data } of trames) {
+      const decoupe = decoupeTrames(tampon);
+      tampon = decoupe.reste;
+      for (const { event, data } of decoupe.trames) {
         if (event === "delta") {
           if (!demarre) {
             arreterAttente();
@@ -393,154 +250,43 @@ async function consommerFlux(rep) {
           }
           texte += JSON.parse(data).texte;
           peindreFlux(texte);
+        } else if (event === "progression") {
+          etat = ajouterRecus(etat, JSON.parse(data).recus);
         } else if (event === "erreur") {
           arreterAttente();
-          if (texte) etat = ajouterDialogue(etat, "personnage", texte);
+          if (texte) etat = ajouterDialogue(etat, "personnage", texte, "laurent");
           narration("(communication interrompue)");
           return;
         } else if (event === "fin") {
           arreterAttente();
-          etat = ajouterDialogue(etat, "personnage", texte);
-          mettreAJourEmotionLaurent(texte);
-          rendreDialogueDOM();
-          modeVocal.dire(decouperReplique(texte).parole); // no-op si la voix est désactivée
+          finaliserReplique(texte);
           return;
         }
       }
     }
-    // Flux clos sans trame « fin » : on commit ce qu'on a reçu.
     arreterAttente();
     if (texte) {
-      etat = ajouterDialogue(etat, "personnage", texte);
-      mettreAJourEmotionLaurent(texte);
+      etat = ajouterDialogue(etat, "personnage", texte, "laurent");
       rendreDialogueDOM();
     }
   } catch {
     arreterAttente();
     if (texte) {
-      etat = ajouterDialogue(etat, "personnage", texte);
-      mettreAJourEmotionLaurent(texte);
+      etat = ajouterDialogue(etat, "personnage", texte, "laurent");
       rendreDialogueDOM();
     }
     narration("Le personnage est injoignable (réseau).");
-  }
-}
-
-elForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const message = elInput.value.trim();
-  if (!message || !vue) return;
-  elInput.value = "";
-  if (await executerGesteDialogue(message)) return;
-
-  // L'historique envoyé au LLM ne contient que les échanges (pas la narration),
-  // et pas le message courant (que le serveur ajoute lui-même).
-  const historiqueLLM = etat.historique.filter((t) => t.role !== "systeme");
-  etat = ajouterDialogue(etat, "joueur", message);
-  rendreDialogueDOM();
-
-  const note = noteEnAttente;
-  noteEnAttente = "";
-  demarrerAttente();
-
-  let rep;
-  try {
-    rep = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, gestes: etat.gestes, historique: historiqueLLM, note }),
-    });
-  } catch {
-    arreterAttente();
-    narration("Le personnage est injoignable (réseau).");
-    return;
-  }
-
-  if (!rep.ok) {
-    arreterAttente();
-    const data = await rep.json().catch(() => ({}));
-    narration(data.erreur ?? "Erreur de communication.");
-    return;
-  }
-
-  await consommerFlux(rep);
-});
-
-elAccuser.addEventListener("click", () => {
-  if (!vue) return;
-  ouvrirDebrief();
-});
-
-// Formulaire de débrief : un champ de réponse libre par question.
-function ouvrirDebrief() {
-  elModaleContenu.replaceChildren();
-
-  const titre = document.createElement("div");
-  titre.textContent = "DÉBRIEF — exposez vos conclusions, le plus précisément possible :";
-  elModaleContenu.appendChild(titre);
-
-  const form = document.createElement("form");
-  form.id = "form-debrief";
-  const champs = new Map();
-  for (const q of vue.debrief.questions) {
-    const label = document.createElement("label");
-    label.append(document.createTextNode(q.question));
-    const ta = document.createElement("textarea");
-    ta.rows = 2;
-    ta.maxLength = 1000;
-    label.appendChild(ta);
-    form.appendChild(label);
-    champs.set(q.id, ta);
-  }
-
-  const box = document.createElement("div");
-  box.className = "boutons";
-  const valider = bouton("Rendre mon verdict", () => {});
-  valider.type = "submit";
-  box.appendChild(valider);
-  box.appendChild(bouton("Annuler", fermerModale));
-  form.appendChild(box);
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const reponses = [...champs.entries()].map(([id, ta]) => ({ id, reponse: ta.value }));
-    soumettreDebrief(reponses);
-  });
-
-  elModaleContenu.appendChild(form);
-  elModale.classList.remove("cache");
-}
-
-async function soumettreDebrief(reponses) {
-  try {
-    const rep = await fetch("/api/debrief", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reponses }),
-    });
-    if (!rep.ok) {
-      const data = await rep.json().catch(() => ({}));
-      ouvrirModale(data.erreur ?? "Impossible de rendre le verdict.", [["Fermer", fermerModale]]);
-      return;
-    }
-    const data = await rep.json();
-    ouvrirModale(rendreDebrief(data), [["Rejouer", () => location.reload()]]);
-  } catch {
-    ouvrirModale("Impossible de soumettre le débrief (réseau).", [["Fermer", fermerModale]]);
   }
 }
 
 function ouvrirModale(texte, actions) {
   elModaleContenu.replaceChildren();
-  const p = document.createElement("div");
-  p.textContent = texte;
-  elModaleContenu.appendChild(p);
-
+  const contenu = document.createElement("div");
+  contenu.textContent = texte;
+  elModaleContenu.appendChild(contenu);
   const box = document.createElement("div");
   box.className = "boutons";
-  for (const [label, onClick] of actions) {
-    box.appendChild(bouton(label, onClick));
-  }
+  for (const [label, onClick] of actions) box.appendChild(bouton(label, onClick));
   elModaleContenu.appendChild(box);
   elModale.classList.remove("cache");
 }
@@ -550,36 +296,103 @@ function fermerModale() {
   elModaleContenu.replaceChildren();
 }
 
-// --- Mode vocal (T-07) : toggle voix + micro (dégradation gracieuse) ---
-if (elBtnVoix) {
-  elBtnVoix.addEventListener("click", () => {
-    const actif = modeVocal.basculer();
-    elBtnVoix.setAttribute("aria-pressed", String(actif));
-    elBtnVoix.classList.toggle("actif", actif);
-  });
-}
-if (elBtnMicro) {
-  if (microDisponible()) {
-    const micro = creerMicro({
-      onTexte: (texte) => {
-        elInput.value = texte;
-        elInput.focus();
-      },
-      onFin: () => elBtnMicro.classList.remove("ecoute"),
+async function traiterInteraction(message, intention) {
+  etat = ajouterDialogue(etat, "joueur", message, "scene");
+  rendreDialogueDOM();
+  let rep;
+  try {
+    rep = await fetch("/api/interagir", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ contexte: etat.contexte, intention, recus: etat.recus }),
     });
-    elBtnMicro.addEventListener("click", () => {
-      elBtnMicro.classList.add("ecoute");
-      try {
-        micro.demarrer();
-      } catch {
-        // Reconnaissance déjà active (double-clic) ou refusée : on ne bloque pas
-        // le bouton en pulsation « écoute ».
-        elBtnMicro.classList.remove("ecoute");
-      }
-    });
-  } else {
-    elBtnMicro.hidden = true; // navigateur sans reconnaissance vocale
+  } catch {
+    narration("Impossible d'agir (réseau).");
+    return;
   }
+  const data = await rep.json().catch(() => ({}));
+  if (!rep.ok) {
+    narration(data.erreur ?? "Cette action est impossible.");
+    return;
+  }
+  etat = ajouterRecus(etat, data.recus);
+  etat = remplacerSac(etat, data.etatPublic?.sac);
+  rendreSac();
+  narration(data.narration ?? "Rien de particulier ici.");
+  if (intention.action === "examiner") ouvrirModale(data.narration ?? "Rien de particulier ici.", [["Fermer", fermerModale]]);
 }
+
+async function traiterDialogue(message) {
+  if (etat.contexte.type !== "personnage") {
+    narration("Vous êtes loin de Laurent. Fouillez cette zone ou examinez un objet de votre sac.");
+    return;
+  }
+  const historique = historiquePourLaurent(etat);
+  etat = ajouterDialogue(etat, "joueur", message, "laurent");
+  rendreDialogueDOM();
+  demarrerAttente();
+  let rep;
+  try {
+    rep = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, contexte: etat.contexte, recus: etat.recus, historique }),
+    });
+  } catch {
+    arreterAttente();
+    etat = recanaliserDernierTour(etat, "scene");
+    narration("Le personnage est injoignable (réseau).");
+    return;
+  }
+  if (!rep.ok) {
+    arreterAttente();
+    etat = recanaliserDernierTour(etat, "scene");
+    const data = await rep.json().catch(() => ({}));
+    narration(data.erreur ?? "Erreur de communication.");
+    return;
+  }
+  await consommerFlux(rep);
+}
+
+async function traiterEntreeChat(message) {
+  const intention = intentionDepuisTexte(message, vue);
+  if (intention) return traiterInteraction(message, intention);
+  return traiterDialogue(message);
+}
+
+elForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const message = elInput.value.trim();
+  if (!message || !vue || entreeEnCours) return;
+  elInput.value = "";
+  entreeEnCours = true;
+  elInput.disabled = true;
+  try {
+    await traiterEntreeChat(message);
+  } finally {
+    entreeEnCours = false;
+    elInput.disabled = false;
+  }
+});
+
+const ouvrirDebrief = creerDebrief({
+  obtenirVue: () => vue,
+  conteneur: elModaleContenu,
+  modale: elModale,
+  creerBouton: bouton,
+  ouvrirModale,
+  fermerModale,
+});
+
+elAccuser.addEventListener("click", () => {
+  if (vue) ouvrirDebrief();
+});
+
+brancherControlesVoix({
+  modeVocal,
+  boutonVoix: elBtnVoix,
+  boutonMicro: elBtnMicro,
+  saisie: elInput,
+});
 
 init();

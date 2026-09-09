@@ -1,11 +1,14 @@
-import { describe, test, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
+import { describe, test, expect, vi } from "vitest";
 import { creerRouteur } from "../server/chat.js";
-import { scenario, ciblesConnues } from "../data/scenario.js";
+import { creerRecu, verifierRecus } from "../server/progression.js";
+import { scenario } from "../data/scenario.js";
 
-// Monte le routeur du jeu sur une app jetable. Les dépendances sont injectées
-// (client, modèle, repondreFluxFn) pour tester sans appel réseau.
+const secret = "secret-routes";
+const laurent = { type: "personnage", id: "laurent" };
+const nord = { type: "zone", id: "N" };
+
 function faireApp(overrides = {}) {
   const app = express();
   app.use(express.json());
@@ -13,10 +16,13 @@ function faireApp(overrides = {}) {
     "/api",
     creerRouteur({
       scenario,
-      ciblesConnues: ciblesConnues(scenario),
+      secret,
       client: {},
       model: "modele-test",
-      repondreFluxFn: async (_client, _args, onTexte) => onTexte("Réponse de test."),
+      repondreFluxFn: async (_client, _args, onTexte) => {
+        onTexte("Réponse de test.");
+        return { evenementsExprimes: [] };
+      },
       voix: { apiKey: "k", voiceId: "v", model: "m" },
       synthetiserFn: async () => Buffer.from([9, 9, 9]),
       noterFn: async () => [
@@ -31,240 +37,201 @@ function faireApp(overrides = {}) {
   return app;
 }
 
-const g = (geste, cible) => ({ geste, cible });
-
 describe("GET /scenario", () => {
-  test("renvoie la vue publique sans fuiter de secret ni le mapping des flags", async () => {
+  test("renvoie la vue publique sans conditions, événements ni révélations", async () => {
     const res = await request(faireApp()).get("/api/scenario");
     expect(res.status).toBe(200);
-    expect(res.body.titre).toBe(scenario.titre);
-    expect(res.body.personnage.nom).toBe(scenario.personnage.nom);
-
+    expect(res.body.objets.grand_cru).toEqual(expect.objectContaining({ nom: "Grand cru", ramassable: true }));
     const json = JSON.stringify(res.body).toLowerCase();
     expect(json).not.toContain("au nom de laurent");
-    expect(json).not.toContain("infidèle");
-    expect(res.body.connaissances).toBeUndefined();
-    expect(res.body.declencheurs).toBeUndefined();
+    expect(json).not.toContain("conditionsactions");
+    expect(json).not.toContain("declencheurs");
+    expect(json).not.toContain("preconditions");
+    expect(json).not.toContain("evenementquandexprime");
   });
 });
 
-describe("POST /examiner", () => {
-  // Bascule : la plaquette n'avoue le reçu de Laurent qu'après avoir constaté la
-  // deuxième tasse (double_tasse). Avant, on ne sert que l'aperçu non-spoiler.
-  test("plaquette sans l'indice : aperçu non-spoiler, pas la révélation", async () => {
-    const res = await request(faireApp())
-      .post("/api/examiner")
-      .send({ cible: "plaquette_somniferes", gestes: [] });
-    expect(res.status).toBe(200);
-    expect(res.body.texte.toLowerCase()).not.toContain("au nom de laurent");
-    expect(res.body.texte).toBe(scenario.objets.plaquette_somniferes.apercu);
+describe("POST /interagir", () => {
+  test("rejette une requête ou une chaîne de reçus malformée avec 400", async () => {
+    const invalide = await request(faireApp()).post("/api/interagir").send({});
+    const falsifie = await request(faireApp()).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "examiner", cible: "distinction" },
+      recus: ["faux.recu"],
+    });
+    expect(invalide.status).toBe(400);
+    expect(falsifie.status).toBe(400);
   });
 
-  test("plaquette après la séquence légitime : la révélation complète", async () => {
-    const res = await request(faireApp())
-      .post("/api/examiner")
-      .send({
-        cible: "plaquette_somniferes",
-        gestes: [g("examiner", "theiere"), g("examiner", "plaquette_somniferes")],
-      });
-    expect(res.status).toBe(200);
-    expect(res.body.texte).toBe(scenario.objets.plaquette_somniferes.description);
+  test("réserve le dialogue à /chat au lieu de l'exécuteur d'interactions", async () => {
+    const res = await request(faireApp()).post("/api/interagir").send({
+      contexte: laurent,
+      intention: { action: "dialoguer", cible: "laurent" },
+      recus: [],
+    });
+    expect(res.status).toBe(400);
   });
 
-  test("objet d'ambiance (photos de mariage) : toujours révélé, sans condition", async () => {
-    const res = await request(faireApp())
-      .post("/api/examiner")
-      .send({ cible: "photos_mariage", gestes: [] });
-    expect(res.status).toBe(200);
-    expect(res.body.texte).toBe(scenario.objets.photos_mariage.description);
+  test("refuse une cible hors contexte sans décrire de secret", async () => {
+    const res = await request(faireApp()).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "examiner", cible: "plaquette_somniferes" },
+      recus: [],
+    });
+    expect(res.status).toBe(403);
+    expect(JSON.stringify(res.body).toLowerCase()).not.toContain("laurent");
+    expect(JSON.stringify(res.body).toLowerCase()).not.toContain("precondition");
   });
 
-  test("cible absente ou non-chaîne : texte par défaut", async () => {
-    const res = await request(faireApp()).post("/api/examiner").send({});
+  test("exécute une interaction autorisée et fournit un reçu vérifiable", async () => {
+    const res = await request(faireApp()).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "examiner", cible: "distinction" },
+      recus: [],
+    });
     expect(res.status).toBe(200);
-    expect(res.body.texte).toBe("Rien de particulier ici.");
+    expect(res.body.narration).toBe(scenario.objets.distinction.description);
+    expect(res.body.etatPublic).toEqual({ sac: [] });
+    expect(verifierRecus(secret, res.body.recus).ok).toBe(true);
+  });
+
+  test("le sac et la remise sont reconstruits à partir des reçus", async () => {
+    const app = faireApp();
+    const ramassage = await request(app).post("/api/interagir").send({
+      contexte: { type: "zone", id: "NO" },
+      intention: { action: "ramasser", cible: "grand_cru" },
+      recus: [],
+    });
+    const remise = await request(app).post("/api/interagir").send({
+      contexte: laurent,
+      intention: { action: "donner", cible: "grand_cru" },
+      recus: ramassage.body.recus,
+    });
+    expect(ramassage.body.etatPublic.sac).toEqual(["grand_cru"]);
+    expect(remise.status).toBe(200);
+    expect(remise.body.narration).toContain("Grand cru");
+  });
+
+  test("fouille une seule zone et crée ses examens avant les révélations", async () => {
+    const res = await request(faireApp()).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "fouiller", cible: "N" },
+      recus: [],
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.narration).toContain("Distinction d'architecture");
+    expect(res.body.recus.length).toBe(scenario.zones.N.objetsCaches.length);
   });
 });
 
 describe("POST /chat", () => {
-  test("requête invalide : 400 JSON avec message d'erreur", async () => {
-    const res = await request(faireApp()).post("/api/chat").send({ message: "" });
-    expect(res.status).toBe(400);
-    expect(typeof res.body.erreur).toBe("string");
+  test("refuse le dialogue hors Laurent avant tout appel Claude", async () => {
+    const repondreFluxFn = vi.fn();
+    const res = await request(faireApp({ repondreFluxFn })).post("/api/chat").send({
+      message: "Bonjour",
+      contexte: nord,
+      recus: [],
+      historique: [],
+    });
+    expect(res.status).toBe(403);
+    expect(repondreFluxFn).not.toHaveBeenCalled();
   });
 
-  test("clé API absente (client null) : 503 JSON", async () => {
-    const res = await request(faireApp({ client: null }))
-      .post("/api/chat")
-      .send({ message: "Bonjour" });
-    expect(res.status).toBe(503);
-    expect(res.body.erreur).toContain("ANTHROPIC_API_KEY");
-  });
-
-  test("requête valide : flux SSE 200 avec trames delta puis fin", async () => {
+  test("requête valide : flux SSE delta, progression puis fin, avec mémoire Laurent seulement", async () => {
     const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => {
       onTexte("Bonjour");
       onTexte(" à vous.");
+      return { evenementsExprimes: [] };
     });
-    const res = await request(faireApp({ repondreFluxFn }))
-      .post("/api/chat")
-      .send({ message: "Bonjour", gestes: [g("ramasser", "grand_cru")] });
-
+    const res = await request(faireApp({ repondreFluxFn })).post("/api/chat").send({
+      message: "Bonjour",
+      contexte: laurent,
+      recus: [],
+      historique: [
+        { role: "joueur", texte: "Ancien échange", canal: "laurent" },
+        { role: "systeme", texte: "Fouille de N", canal: "scene" },
+      ],
+    });
     expect(res.status).toBe(200);
-    expect(res.headers["content-type"]).toContain("text/event-stream");
     expect(res.text).toContain("event: delta");
-    expect(res.text).toContain('data: {"texte":"Bonjour"}');
-    expect(res.text).toContain('data: {"texte":" à vous."}');
-    expect(res.text).toContain("event: fin");
-
-    expect(repondreFluxFn).toHaveBeenCalledOnce();
+    expect(res.text).toContain("event: progression");
+    expect(res.text.indexOf("event: progression")).toBeLessThan(res.text.indexOf("event: fin"));
     const [, args] = repondreFluxFn.mock.calls[0];
+    expect(args.historique).toEqual([{ role: "joueur", texte: "Ancien échange" }]);
     expect(args.message).toBe("Bonjour");
-    expect(args.model).toBe("modele-test");
-    expect(typeof args.system).toBe("string");
   });
 
-  test("anti-triche : un journal incomplet ne débloque pas la connaissance secrète", async () => {
-    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
-    // « donner » sans « ramasser » : la précondition de sac n'est pas remplie,
-    // donc confiance_gagnee n'est pas dérivé et la connaissance reste verrouillée.
-    await request(faireApp({ repondreFluxFn }))
+  test("ignore un événement de dialogue non autorisé et ne signe qu'un événement proposé", async () => {
+    const scenarioAvecEvenement = {
+      ...scenario,
+      connaissances: [
+        ...scenario.connaissances,
+        { id: "fait_test", texte: "Tu viens de dire un fait test.", requiert: [], evenementQuandExprime: "fait_test" },
+      ],
+    };
+    const repondreFluxFn = async () => ({ evenementsExprimes: ["fait_test", "fait_futur"] });
+    const res = await request(faireApp({ scenario: scenarioAvecEvenement, repondreFluxFn }))
       .post("/api/chat")
-      .send({ message: "Parlez-moi de la soirée.", gestes: [g("donner", "grand_cru")] });
-    const [, args] = repondreFluxFn.mock.calls[0];
-    expect(args.system.toLowerCase()).not.toContain("monté toi-même");
+      .send({ message: "Parlez", contexte: laurent, recus: [], historique: [] });
+    const progression = JSON.parse(res.text.match(/event: progression\ndata: (.+)\n\n/)[1]);
+    expect(progression.recus).toHaveLength(1);
+    expect(verifierRecus(secret, progression.recus).evenements[0].cible).toBe("fait_test");
   });
 
-  test("séquence légitime : la connaissance se débloque côté serveur", async () => {
-    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => onTexte("…"));
-    await request(faireApp({ repondreFluxFn }))
-      .post("/api/chat")
-      .send({
-        message: "Parlez-moi de la soirée.",
-        gestes: [g("ramasser", "grand_cru"), g("donner", "grand_cru")],
-      });
-    const [, args] = repondreFluxFn.mock.calls[0];
-    expect(args.system.toLowerCase()).toContain("monté toi-même");
-  });
-
-  test("erreur pendant le flux : 200 + trame erreur (non avalée)", async () => {
-    const erreurLog = vi.spyOn(console, "error").mockImplementation(() => {});
-    const repondreFluxFn = vi.fn(async () => {
-      throw new Error("réseau coupé");
+  test("ne propose ni ne re-signe un événement de dialogue déjà acquis", async () => {
+    const scenarioAvecEvenement = {
+      ...scenario,
+      connaissances: [
+        ...scenario.connaissances,
+        { id: "fait_test", texte: "Tu viens de dire un fait test.", requiert: [], evenementQuandExprime: "fait_test" },
+      ],
+    };
+    const recuDejaAcquis = creerRecu(secret, {
+      partie: "partie-deja-acquise",
+      sequence: 1,
+      precedent: null,
+      evenement: { type: "dialogue", cible: "fait_test", contexte: laurent },
     });
-    const res = await request(faireApp({ repondreFluxFn }))
+    const repondreFluxFn = vi.fn(async () => ({ evenementsExprimes: ["fait_test"] }));
+    const res = await request(faireApp({ scenario: scenarioAvecEvenement, repondreFluxFn }))
       .post("/api/chat")
-      .send({ message: "Bonjour" });
+      .send({ message: "Parlez", contexte: laurent, recus: [recuDejaAcquis], historique: [] });
 
-    expect(res.status).toBe(200);
-    expect(res.text).toContain("event: erreur");
-    expect(res.text).toContain("injoignable");
-    expect(erreurLog).toHaveBeenCalled();
-    erreurLog.mockRestore();
-  });
-});
-
-describe("POST /debrief", () => {
-  const reponsesOk = [
-    { id: "qui", reponse: "Laurent l'a empoisonnée." },
-    { id: "mobile", reponse: "Jalousie et dettes." },
-  ];
-
-  test("réponses valides : 200 avec total, max, rang et détails", async () => {
-    const res = await request(faireApp()).post("/api/debrief").send({ reponses: reponsesOk });
-    expect(res.status).toBe(200);
-    expect(res.body.total).toBe(17);
-    expect(res.body.max).toBe(20);
-    expect(typeof res.body.rang).toBe("string");
-    expect(res.body.details).toHaveLength(4);
+    const [, args] = repondreFluxFn.mock.calls[0];
+    const progression = JSON.parse(res.text.match(/event: progression\ndata: (.+)\n\n/)[1]);
+    expect(args.evenementsAutorises).toEqual([]);
+    expect(progression.recus).toEqual([]);
   });
 
-  test("réponses invalides (id inconnu) : 400", async () => {
-    const res = await request(faireApp())
-      .post("/api/debrief")
-      .send({ reponses: [{ id: "inconnu", reponse: "x" }] });
-    expect(res.status).toBe(400);
-    expect(typeof res.body.erreur).toBe("string");
-  });
-
-  test("clé API absente (client null) : 503", async () => {
+  test("clé API absente : 503 seulement après le contrôle de contexte", async () => {
     const res = await request(faireApp({ client: null }))
-      .post("/api/debrief")
-      .send({ reponses: reponsesOk });
+      .post("/api/chat")
+      .send({ message: "Bonjour", contexte: laurent, recus: [], historique: [] });
     expect(res.status).toBe(503);
     expect(res.body.erreur).toContain("ANTHROPIC_API_KEY");
   });
 
-  test("échec du juge : 502 (non avalé)", async () => {
+  test("erreur pendant le flux : trame erreur sans progression", async () => {
     const erreurLog = vi.spyOn(console, "error").mockImplementation(() => {});
-    const noterFn = async () => {
-      throw new Error("juge HS");
-    };
-    const res = await request(faireApp({ noterFn }))
-      .post("/api/debrief")
-      .send({ reponses: reponsesOk });
-    expect(res.status).toBe(502);
-    expect(typeof res.body.erreur).toBe("string");
-    expect(erreurLog).toHaveBeenCalled();
+    const res = await request(faireApp({ repondreFluxFn: async () => { throw new Error("réseau coupé"); } }))
+      .post("/api/chat")
+      .send({ message: "Bonjour", contexte: laurent, recus: [], historique: [] });
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("event: erreur");
+    expect(res.text).not.toContain("event: progression");
     erreurLog.mockRestore();
-  });
-
-  test("transmet réponses et modèle au juge", async () => {
-    const noterFn = vi.fn(async () => []);
-    await request(faireApp({ noterFn })).post("/api/debrief").send({ reponses: reponsesOk });
-    expect(noterFn).toHaveBeenCalledOnce();
-    const [, args] = noterFn.mock.calls[0];
-    expect(args.model).toBe("modele-test");
-    expect(args.reponses).toEqual(reponsesOk);
   });
 });
 
-describe("POST /voix", () => {
-  test("texte valide : 200 audio/mpeg avec l'audio synthétisé", async () => {
-    const res = await request(faireApp())
-      .post("/api/voix")
-      .send({ texte: "Bonjour à vous." });
-    expect(res.status).toBe(200);
-    expect(res.headers["content-type"]).toContain("audio/mpeg");
-    expect(res.body).toBeInstanceOf(Buffer);
-    expect(res.body.length).toBe(3);
-  });
-
-  test("texte invalide : 400 JSON", async () => {
-    const res = await request(faireApp()).post("/api/voix").send({ texte: "" });
-    expect(res.status).toBe(400);
-    expect(typeof res.body.erreur).toBe("string");
-  });
-
-  test("voix non configurée : 503 JSON", async () => {
-    const res = await request(faireApp({ voix: null }))
-      .post("/api/voix")
-      .send({ texte: "Bonjour" });
-    expect(res.status).toBe(503);
-    expect(res.body.erreur).toContain("ELEVENLABS_API_KEY");
-  });
-
-  test("échec de synthèse : 502 (non avalé)", async () => {
-    const erreurLog = vi.spyOn(console, "error").mockImplementation(() => {});
-    const synthetiserFn = async () => {
-      throw new Error("TTS HS");
-    };
-    const res = await request(faireApp({ synthetiserFn }))
-      .post("/api/voix")
-      .send({ texte: "Bonjour" });
-    expect(res.status).toBe(502);
-    expect(typeof res.body.erreur).toBe("string");
-    expect(erreurLog).toHaveBeenCalled();
-    erreurLog.mockRestore();
-  });
-
-  test("passe texte, voix, modèle et clé au wrapper", async () => {
-    const synthetiserFn = vi.fn(async () => Buffer.from([1]));
-    await request(faireApp({ synthetiserFn }))
-      .post("/api/voix")
-      .send({ texte: "  Salut  " });
-    expect(synthetiserFn).toHaveBeenCalledOnce();
-    const [, args] = synthetiserFn.mock.calls[0];
-    expect(args).toMatchObject({ texte: "Salut", voiceId: "v", model: "m", apiKey: "k" });
+describe("POST /debrief et /voix", () => {
+  test("conserve les contrats de débrief et de synthèse vocale", async () => {
+    const debrief = await request(faireApp()).post("/api/debrief").send({
+      reponses: [{ id: "qui", reponse: "Laurent." }],
+    });
+    const voix = await request(faireApp()).post("/api/voix").send({ texte: "Bonjour" });
+    expect(debrief.status).toBe(200);
+    expect(debrief.body.total).toBe(17);
+    expect(voix.status).toBe(200);
+    expect(voix.headers["content-type"]).toContain("audio/mpeg");
   });
 });

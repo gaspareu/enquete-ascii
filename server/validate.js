@@ -1,82 +1,99 @@
-// Validation des entrées au boundary HTTP. On ne fait jamais confiance au client :
-// message borné, JOURNAL DE GESTES limité aux gestes/cibles que le scénario connaît,
-// historique et note bornés. Le client n'envoie plus de flags : le serveur les dérive
-// du journal (cf. server/etat.js). Renvoie { ok, valeur } ou { ok: false, erreur }.
+// Validation au boundary HTTP : le client fournit un contexte et des reçus, jamais
+// un flag ni un journal d'actions en clair.
+
+import { MAX_RECUS, MAX_TAILLE_RECU } from "./progression.js";
 
 const MAX_MESSAGE = 500;
-const MAX_NOTE = 200;
 const MAX_REPONSE = 1000;
-const MAX_TEXTE_VOIX = 2000; // réplique bornée par max_tokens du dialogue (~512 tokens)
+const MAX_TEXTE_VOIX = 2000;
 const MAX_HISTORIQUE = 100;
-const MAX_GESTES = 100;
-const GESTES_VALIDES = new Set(["ramasser", "donner", "examiner"]);
+const ACTIONS_OBJET = new Set(["examiner", "ramasser", "donner"]);
 
 function estObjet(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-// Valide le journal de gestes envoyé par le client. Chaque entrée doit être un geste
-// connu sur une cible connue ; on normalise à { geste, cible } (champs parasites
-// écartés). Renvoie { ok, valeur } ou { ok: false, erreur }.
-export function valideGestes(brut, ciblesConnues) {
-  const gestesBruts = brut ?? [];
-  if (!Array.isArray(gestesBruts) || gestesBruts.length > MAX_GESTES) {
-    return { ok: false, erreur: "Journal de gestes invalide." };
+export function valideContexte(brut, scenario) {
+  if (!estObjet(brut) || typeof brut.id !== "string") {
+    return { ok: false, erreur: "Contexte invalide." };
   }
-  const gestes = [];
-  for (const g of gestesBruts) {
-    if (
-      !estObjet(g) ||
-      !GESTES_VALIDES.has(g.geste) ||
-      typeof g.cible !== "string" ||
-      !ciblesConnues.has(g.cible)
-    ) {
-      return { ok: false, erreur: "Geste inconnu." };
-    }
-    gestes.push({ geste: g.geste, cible: g.cible });
+  const laurent = scenario.personnage?.id ?? "laurent";
+  if (brut.type === "personnage" && brut.id === laurent) {
+    return { ok: true, valeur: { type: "personnage", id: laurent } };
   }
-  return { ok: true, valeur: gestes };
+  if (brut.type === "zone" && scenario.zones?.[brut.id]) {
+    return { ok: true, valeur: { type: "zone", id: brut.id } };
+  }
+  return { ok: false, erreur: "Contexte invalide." };
 }
 
-export function valideRequeteChat(body, ciblesConnues) {
-  if (!estObjet(body)) {
-    return { ok: false, erreur: "Requête invalide." };
+export function valideIntention(brut, scenario) {
+  if (!estObjet(brut) || typeof brut.action !== "string" || typeof brut.cible !== "string") {
+    return { ok: false, erreur: "Intention invalide." };
   }
+  if (brut.cible.length === 0 || brut.cible.length > 200) {
+    return { ok: false, erreur: "Intention invalide." };
+  }
+  if (ACTIONS_OBJET.has(brut.action) && scenario.objets?.[brut.cible]) {
+    return { ok: true, valeur: { action: brut.action, cible: brut.cible } };
+  }
+  if (brut.action === "fouiller" && scenario.zones?.[brut.cible]) {
+    return { ok: true, valeur: { action: "fouiller", cible: brut.cible } };
+  }
+  return { ok: false, erreur: "Intention inconnue." };
+}
 
+export function valideRecus(brut) {
+  const recus = brut ?? [];
+  if (!Array.isArray(recus) || recus.length > MAX_RECUS) {
+    return { ok: false, erreur: "Reçus invalides." };
+  }
+  if (recus.some((recu) => typeof recu !== "string" || recu.length === 0 || recu.length > MAX_TAILLE_RECU)) {
+    return { ok: false, erreur: "Reçus invalides." };
+  }
+  return { ok: true, valeur: [...recus] };
+}
+
+export function valideRequeteInteraction(body, scenario) {
+  if (!estObjet(body)) return { ok: false, erreur: "Requête invalide." };
+  const contexte = valideContexte(body.contexte, scenario);
+  if (!contexte.ok) return contexte;
+  const intention = valideIntention(body.intention, scenario);
+  if (!intention.ok) return intention;
+  const recus = valideRecus(body.recus);
+  if (!recus.ok) return recus;
+  return {
+    ok: true,
+    valeur: { contexte: contexte.valeur, intention: intention.valeur, recus: recus.valeur },
+  };
+}
+
+export function valideRequeteChat(body, scenario) {
+  if (!estObjet(body)) return { ok: false, erreur: "Requête invalide." };
   const message = typeof body.message === "string" ? body.message.trim() : "";
-  if (message.length === 0) {
-    return { ok: false, erreur: "Le message est vide." };
-  }
-  if (message.length > MAX_MESSAGE) {
-    return { ok: false, erreur: "Le message est trop long." };
-  }
-
-  const vg = valideGestes(body.gestes, ciblesConnues);
-  if (!vg.ok) {
-    return vg;
-  }
+  if (message.length === 0) return { ok: false, erreur: "Le message est vide." };
+  if (message.length > MAX_MESSAGE) return { ok: false, erreur: "Le message est trop long." };
+  const contexte = valideContexte(body.contexte, scenario);
+  if (!contexte.ok) return contexte;
+  const recus = valideRecus(body.recus);
+  if (!recus.ok) return recus;
 
   const historiqueBrut = body.historique ?? [];
   if (!Array.isArray(historiqueBrut) || historiqueBrut.length > MAX_HISTORIQUE) {
     return { ok: false, erreur: "Historique invalide." };
   }
-  const historique = historiqueBrut.map((tour) => ({
-    role: tour?.role === "personnage" ? "personnage" : "joueur",
-    texte: String(tour?.texte ?? "").slice(0, MAX_MESSAGE),
-  }));
+  const historique = historiqueBrut
+    .filter((tour) => estObjet(tour) && tour.canal === "laurent")
+    .map((tour) => ({
+      role: tour.role === "personnage" ? "personnage" : "joueur",
+      texte: String(tour.texte ?? "").slice(0, MAX_MESSAGE),
+    }));
 
-  const note =
-    typeof body.note === "string" ? body.note.slice(0, MAX_NOTE) : "";
-
-  return { ok: true, valeur: { message, gestes: vg.valeur, historique, note } };
+  return { ok: true, valeur: { message, contexte: contexte.valeur, recus: recus.valeur, historique } };
 }
 
-// Valide les réponses du débrief (T-06). Chaque entrée porte un id de question connu
-// et une réponse texte bornée ; nombre limité au nombre de questions. Réponse vide OK.
 export function valideDebrief(body, idsConnus) {
-  if (!estObjet(body)) {
-    return { ok: false, erreur: "Requête invalide." };
-  }
+  if (!estObjet(body)) return { ok: false, erreur: "Requête invalide." };
   const brut = body.reponses ?? [];
   if (!Array.isArray(brut) || brut.length > idsConnus.size) {
     return { ok: false, erreur: "Réponses invalides." };
@@ -86,26 +103,16 @@ export function valideDebrief(body, idsConnus) {
     if (!estObjet(r) || typeof r.id !== "string" || !idsConnus.has(r.id)) {
       return { ok: false, erreur: "Question inconnue." };
     }
-    if (typeof r.reponse !== "string") {
-      return { ok: false, erreur: "Réponse invalide." };
-    }
+    if (typeof r.reponse !== "string") return { ok: false, erreur: "Réponse invalide." };
     reponses.push({ id: r.id, reponse: r.reponse.slice(0, MAX_REPONSE) });
   }
   return { ok: true, valeur: reponses };
 }
 
-// Valide le texte à vocaliser (T-07). Le texte est la réplique du personnage
-// (déjà publique) ; on borne surtout la longueur pour éviter d'abuser du quota TTS.
 export function valideRequeteVoix(body) {
-  if (!estObjet(body)) {
-    return { ok: false, erreur: "Requête invalide." };
-  }
+  if (!estObjet(body)) return { ok: false, erreur: "Requête invalide." };
   const texte = typeof body.texte === "string" ? body.texte.trim() : "";
-  if (texte.length === 0) {
-    return { ok: false, erreur: "Le texte est vide." };
-  }
-  if (texte.length > MAX_TEXTE_VOIX) {
-    return { ok: false, erreur: "Le texte est trop long." };
-  }
+  if (texte.length === 0) return { ok: false, erreur: "Le texte est vide." };
+  if (texte.length > MAX_TEXTE_VOIX) return { ok: false, erreur: "Le texte est trop long." };
   return { ok: true, valeur: { texte } };
 }

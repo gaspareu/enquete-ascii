@@ -95,14 +95,32 @@ function fluxManuel() {
 
 // Routeur fetch par défaut, surchargeable par test via `reponses`.
 function monterFetch(reponses = {}) {
+  let sequence = 0;
+  let sac = [];
   return vi.fn(async (url, opts) => {
     if (url === "/api/scenario") {
       if (reponses.scenarioErreur) throw new Error("réseau");
       return rep(reponses.scenario ?? VUE);
     }
-    if (url === "/api/examiner") {
-      if (reponses.examinerErreur) throw new Error("réseau");
-      return rep(reponses.examiner ?? { texte: "Rien à signaler." });
+    if (url === "/api/interagir") {
+      if (reponses.interagirErreur) throw new Error("réseau");
+      const corps = JSON.parse(opts.body);
+      if (reponses.interagirOk === false) {
+        return rep(reponses.interagir ?? { erreur: "Cette action est impossible." }, false);
+      }
+      if (typeof reponses.interagirFn === "function") {
+        return rep(reponses.interagirFn(corps));
+      }
+      const { action, cible } = corps.intention;
+      if (action === "ramasser" && !sac.includes(cible)) sac = [...sac, cible];
+      const narration = action === "fouiller"
+        ? "En cherchant dans la corbeille à papier, vous trouvez :\n• Brochure de vente de l'appartement — Un détail à noter.\n• Courrier du syndic déchiré — Un détail à noter."
+        : reponses.interagir?.narration ?? `Action : ${action} ${cible}.`;
+      return rep({
+        narration,
+        recus: [`recu-${++sequence}`],
+        etatPublic: { sac },
+      });
     }
     if (url === "/api/chat") {
       if (reponses.chatErreur) throw new Error("réseau");
@@ -222,34 +240,88 @@ describe("exploration d'une zone", () => {
     expect($("visuel").textContent).toContain("Victor");
   });
 
-  test("ramasser un objet dans le chat le met au sac sans appeler le personnage", async () => {
+  test("met à jour le placeholder selon le contexte observé", async () => {
     await charger();
+    await ouvrirZoneNord();
+    expect($("message").placeholder).toContain("Fouillez cette zone");
+    boutonParTexte($("plan"), "Victor").click();
+    expect($("message").placeholder).toContain("Interrogez Laurent");
+  });
+
+  test("ramasser un objet dans le chat le met au sac sans appeler le personnage", async () => {
+    await charger({ interagir: { narration: "Vous ramassez : Petite clé." } });
     await ouvrirZoneNord();
     envoyerMessage("Je ramasse la Petite clé.");
 
-    expect($("sac").textContent).toContain("Petite clé");
+    await vi.waitFor(() => expect($("sac").textContent).toContain("Petite clé"));
     expect($("dialogue").textContent).toContain("Vous ramassez : Petite clé.");
+    const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");
+    expect(JSON.parse(appel[1].body)).toMatchObject({
+      contexte: { type: "zone", id: "N" },
+      intention: { action: "ramasser", cible: "cle" },
+      recus: [],
+    });
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 
   test("fouille la corbeille à papier dans le chat et y liste les documents trouvés", async () => {
-    await charger({ examiner: { texte: "Un détail à noter." } });
+    await charger();
+    boutonParTexte($("plan"), "SE").click();
 
     envoyerMessage("Je fouille dans la corbeille.");
 
     await vi.waitFor(() =>
-      expect($("dialogue").textContent).toContain("En cherchant dans la corbeille à papier"),
+    expect($("dialogue").textContent).toContain("En cherchant dans la corbeille à papier"),
     );
     expect($("dialogue").textContent).toContain("Brochure de vente de l'appartement");
     expect($("dialogue").textContent).toContain("Courrier du syndic déchiré");
-    expect(global.fetch.mock.calls.filter(([u]) => u === "/api/examiner")).toHaveLength(2);
+    expect(global.fetch.mock.calls.filter(([u]) => u === "/api/interagir")).toHaveLength(1);
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
+  });
+
+  test("un refus d'action reste une narration de scène et ne bascule pas vers Claude", async () => {
+    await charger({ interagirOk: false, interagir: { erreur: "Cet objet n'est pas dans la zone." } });
+    await ouvrirZoneNord();
+    envoyerMessage("J'examine la Lettre froissée.");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Cet objet n'est pas dans la zone."));
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
+  });
+
+  test("sérialise les soumissions pour ne pas créer deux reçus frères", async () => {
+    let resoudreInteraction;
+    const interagirFn = vi.fn(() => new Promise((resoudre) => {
+      resoudreInteraction = resoudre;
+    }));
+    await charger({ interagirFn });
+    await ouvrirZoneNord();
+
+    envoyerMessage("Je ramasse la Petite clé.");
+    await vi.waitFor(() => expect(interagirFn).toHaveBeenCalledOnce());
+    envoyerMessage("J'examine le Vieux livre.");
+    expect(interagirFn).toHaveBeenCalledOnce();
+
+    resoudreInteraction({
+      narration: "Vous ramassez : Petite clé.",
+      recus: ["recu-unique"],
+      etatPublic: { sac: ["cle"] },
+    });
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous ramassez : Petite clé."));
+  });
+
+  test("une phrase libre dans une zone affiche une aide locale sans appeler Claude", async () => {
+    await charger();
+    await ouvrirZoneNord();
+    envoyerMessage("Pourquoi Victor ment-il ?");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous êtes loin de Laurent."));
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 });
 
 describe("examen d'une cible", () => {
   test("ouvre une modale avec le texte renvoyé par le serveur", async () => {
-    await charger({ examiner: { texte: "Une clé ancienne, gravée d'initiales." } });
+    await charger({ interagir: { narration: "Une clé ancienne, gravée d'initiales." } });
     await ouvrirZoneNord();
     envoyerMessage("J'examine la Petite clé.");
 
@@ -261,21 +333,22 @@ describe("examen d'une cible", () => {
   });
 
   test("permet d'examiner un objet ramassé depuis le chat", async () => {
-    await charger({ examiner: { texte: "La clé porte une trace de cire." } });
+    await charger({ interagir: { narration: "La clé porte une trace de cire." } });
     await ouvrirZoneNord();
     envoyerMessage("Je prends la Petite clé.");
+    await vi.waitFor(() => expect($("sac").textContent).toContain("Petite clé"));
 
     envoyerMessage("Je regarde la Petite clé.");
 
     await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("trace de cire"));
   });
 
-  test("retombe sur un texte par défaut si l'appel réseau échoue", async () => {
-    await charger({ examinerErreur: true });
+  test("signale l'échec réseau d'une interaction sans ouvrir de modale", async () => {
+    await charger({ interagirErreur: true });
     await ouvrirZoneNord();
     envoyerMessage("J'inspecte le Vieux livre.");
-    await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
-    expect($("modale-contenu").textContent).toContain("Rien de particulier ici.");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Impossible d'agir (réseau)."));
+    expect($("modale").classList.contains("cache")).toBe(true);
   });
 });
 
@@ -371,22 +444,72 @@ describe("dialogue (envoi de message)", () => {
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("Je commence"));
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("interrompue"));
   });
+
+  test("conserve le journal global mais n'envoie à Laurent que son propre canal", async () => {
+    await charger({ interagir: { narration: "Vous examinez le livre." } });
+    await ouvrirZoneNord();
+    envoyerMessage("J'examine le Vieux livre.");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous examinez le livre."));
+
+    boutonParTexte($("plan"), "Victor").click();
+    envoyerMessage("Bonjour Victor.");
+    await vi.waitFor(() => expect(global.fetch.mock.calls.filter(([u]) => u === "/api/chat")).toHaveLength(1));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Je n'ai rien à dire."));
+
+    boutonParTexte($("plan"), "S").click();
+    envoyerMessage("Que vois-je ici ?");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous êtes loin de Laurent."));
+    await vi.waitFor(() => expect($("message").disabled).toBe(false));
+
+    boutonParTexte($("plan"), "Victor").click();
+    envoyerMessage("Vous vous souvenez de moi ?");
+    await vi.waitFor(() => expect(global.fetch.mock.calls.filter(([u]) => u === "/api/chat")).toHaveLength(2));
+
+    const appels = global.fetch.mock.calls.filter(([u]) => u === "/api/chat");
+    const second = JSON.parse(appels[1][1].body);
+    expect(second.historique.map((tour) => tour.texte)).toEqual([
+      "Bonjour Victor.",
+      "Je n'ai rien à dire.",
+    ]);
+    expect($("dialogue").textContent).toContain("Vous examinez le livre.");
+    expect($("dialogue").textContent).toContain("Vous êtes loin de Laurent.");
+  });
+
+  test("absorbe la trame progression avant de réutiliser les reçus", async () => {
+    await charger({
+      chatTrames: [
+        `event: delta\ndata: ${JSON.stringify({ texte: "D'accord." })}\n\n`,
+        `event: progression\ndata: ${JSON.stringify({ recus: ["recu-laurent"] })}\n\n`,
+        "event: fin\ndata: {}\n\n",
+      ],
+    });
+    envoyerMessage("Bonjour Victor.");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("D'accord."));
+
+    await ouvrirZoneNord();
+    envoyerMessage("J'examine le Vieux livre.");
+    await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/interagir")).toBe(true));
+    const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");
+    expect(JSON.parse(appel[1].body).recus).toEqual(["recu-laurent"]);
+  });
 });
 
 describe("donner un objet", () => {
-  test("le geste narré ajoute une note transmise au message suivant", async () => {
-    await charger();
+  test("la remise passe par l'interaction signée, sans note libre au chat", async () => {
+    await charger({ interagir: { narration: "Vous tendez Petite clé à Victor." } });
     await ouvrirZoneNord();
     envoyerMessage("Je ramasse la Petite clé.");
+    await vi.waitFor(() => expect($("sac").textContent).toContain("Petite clé"));
+    boutonParTexte($("plan"), "Victor").click();
     envoyerMessage("Je donne la Petite clé à Victor.");
 
-    expect($("dialogue").textContent).toContain("Vous tendez Petite clé à Victor.");
-
-    // Le prochain message porte la note de remise.
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous tendez Petite clé à Victor."));
+    await vi.waitFor(() => expect($("message").disabled).toBe(false));
     envoyerMessage("Tenez.");
     await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(true));
     const appel = global.fetch.mock.calls.find(([u]) => u === "/api/chat");
-    expect(JSON.parse(appel[1].body).note).toContain("Petite clé");
+    const corps = JSON.parse(appel[1].body);
+    expect(Object.keys(corps).sort()).toEqual(["contexte", "historique", "message", "recus"]);
   });
 });
 

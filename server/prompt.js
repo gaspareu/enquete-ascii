@@ -5,12 +5,12 @@
 
 function connaissancesDebloquees(scenario, flags) {
   const acquis = new Set(flags);
-  return scenario.connaissances
+  return (scenario.connaissances ?? [])
     .filter((c) => c.requiert.every((f) => acquis.has(f)))
-    .map((c) => c.texte);
+    .map((c) => ({ texte: c.texte, evenementQuandExprime: c.evenementQuandExprime }));
 }
 
-export function construitPrompt(scenario, flags = [], note = "") {
+export function construitProjectionPrompt(scenario, flags = []) {
   const { nom, personnalite, faitsDeBase } = scenario.personnage;
   const debloquees = connaissancesDebloquees(scenario, flags);
 
@@ -29,7 +29,7 @@ export function construitPrompt(scenario, flags = [], note = "") {
   if (debloquees.length > 0) {
     sections.push(
       `Informations que tu peux désormais évoquer si la conversation s'y prête :\n` +
-        debloquees.map((t) => `- ${t}`).join("\n"),
+        debloquees.map((connaissance) => `- ${connaissance.texte}`).join("\n"),
     );
   }
 
@@ -38,9 +38,15 @@ export function construitPrompt(scenario, flags = [], note = "") {
       `N'invente pas de faits. Tu n'es pas un assistant : tu es ${nom}.`,
   );
 
-  if (note) {
-    sections.push(`[Action du joueur à l'instant : ${note}]`);
-  }
+  return {
+    system: sections.join("\n\n"),
+    evenementsAutorises: debloquees
+      .map((connaissance) => connaissance.evenementQuandExprime)
+      .filter((evenement) => typeof evenement === "string"),
+  };
+}
 
-  return sections.join("\n\n");
+// API conservée pour les usages qui ne demandent que le texte système.
+export function construitPrompt(scenario, flags = []) {
+  return construitProjectionPrompt(scenario, flags).system;
 }

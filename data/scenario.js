@@ -434,6 +434,11 @@ export const scenario = {
     "donner:mot_manuscrit": ["invitation_lue"],
   },
 
+  // Verrous d'action facultatifs. Ils portent des événements canoniques déjà
+  // signés, pas des flags envoyés par le navigateur. Le scénario courant n'ajoute
+  // volontairement aucun exemple fictif (stylo/encre, etc.).
+  conditionsActions: {},
+
   solution: {
     coupable: true, // Laurent est bien le meurtrier.
     preuvesRequises: ["recu_laurent_vu", "fete_decouverte", "mobile_dettes"],
@@ -489,14 +494,3 @@ export const scenario = {
     ],
   },
 };
-
-// Ensemble des cibles que le scénario reconnaît (ids d'objets + cibles des
-// déclencheurs) — sert à valider le journal de gestes reçu du client.
-export function ciblesConnues(s = scenario) {
-  const cibles = new Set(Object.keys(s.objets));
-  for (const cle of Object.keys(s.declencheurs)) {
-    const sep = cle.indexOf(":");
-    if (sep !== -1) cibles.add(cle.slice(sep + 1));
-  }
-  return cibles;
-}

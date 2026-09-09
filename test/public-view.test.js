@@ -38,6 +38,7 @@ describe("vuePublique", () => {
     // Le mapping geste→flag reste secret côté serveur (anti-triche).
     expect(vue.declencheurs).toBeUndefined();
     expect(vue.preconditions).toBeUndefined();
+    expect(vue.conditionsActions).toBeUndefined();
 
     const json = JSON.stringify(vue).toLowerCase();
     expect(json).not.toContain("au nom de laurent"); // révélation de la plaquette

@@ -13,6 +13,22 @@ vers un pixel art rétro assumé.
 
 ## À faire
 
+### T-09 · Chat contextuel et capacités conditionnées par la progression
+
+Limiter les entrées au contexte observé, autoriser les actions uniquement selon
+la zone, l'inventaire et la progression réellement acquise, et préserver une
+mémoire distincte pour Laurent sans exposer les règles verrouillées au navigateur
+ni au modèle.
+
+Critères d'acceptation :
+
+- le contexte observé est immutable, explicite et arbitré côté serveur ;
+- toutes les interactions passent par un moteur central de capacités et des reçus
+  de progression opaques signés ;
+- Laurent ne reçoit que l'historique de son canal, exclusivement face à lui ;
+- les tests et le rapport de couverture restent verts, sans fuite de conditions ou
+  de révélations verrouillées.
+
 ### T-08 · 🟢 Décors pixel art pour la pièce
 
 Faire évoluer les pièces et les zones fouillables vers des décors pixel art, sans
