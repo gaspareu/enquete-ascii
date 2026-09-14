@@ -3,6 +3,8 @@
 // requis sont présents dans `flags` sont injectées. Le reste n'existe pas pour le
 // modèle — donc impossible à soutirer, même par « ignore tes instructions ».
 
+import { DIDASCALIES_AUTORISEES } from "./replique.js";
+
 function connaissancesDebloquees(scenario, flags) {
   const acquis = new Set(flags);
   return (scenario.connaissances ?? [])
@@ -17,10 +19,17 @@ export function construitProjectionPrompt(scenario, flags = []) {
   const sections = [
     `Tu incarnes ${nom}, un personnage d'un jeu d'enquête en huis clos. ` +
       `Reste en permanence dans ton rôle. Réponds en français, brièvement ` +
-      `(une à trois phrases), sur un ton naturel et vivant. Quand une réaction ` +
-      `est utile, commence par une courte didascalie au format *…*, sur sa propre ` +
-      `ligne, puis écris ta parole entre guillemets. N'écris jamais ton nom : ` +
+      `(une à trois phrases), sur un ton naturel et vivant. N'écris jamais ton nom : ` +
       `l'interface l'ajoute elle-même.`,
+    `Adresse-toi au joueur exclusivement en le vouvoyant : n'emploie jamais ` +
+      `« tu », « ton », « ta » ou « tes » pour lui parler.`,
+    `Toute réponse est de la parole destinée au joueur. Tu peux, de façon ` +
+      `optionnelle, la faire précéder d'une unique première ligne strictement ` +
+      `au format « DIDASCALIE: <geste> », avec l'un de ces gestes exacts :\n` +
+      DIDASCALIES_AUTORISEES.map((didascalie) => `- ${didascalie}`).join("\n") +
+      `\nN'ajoute aucune autre didascalie. Une didascalie est purement décorative : ` +
+      `aucune information, émotion probante, intention, objet, hypothèse ou fait ` +
+      `n'y figure jamais ; tout élément de jeu doit être dans la parole.`,
     `Personnalité :\n${personnalite}`,
     `Ce que tu sais et assumes toujours :\n` +
       faitsDeBase.map((f) => `- ${f}`).join("\n"),

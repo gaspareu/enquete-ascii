@@ -48,8 +48,8 @@ describe("construitPrompt", () => {
 
   test("conserve un prompt texte pour le scénario réel sans fuite", () => {
     const p = construitPrompt(scenario, []);
-    expect(p).toContain("*…*");
-    expect(p).toContain("guillemets");
+    expect(p).toContain("DIDASCALIE:");
+    expect(p).toContain("vouvoyant");
     expect(p.toLowerCase()).not.toContain("infidèle");
     expect(p).not.toContain("conditionsActions");
   });

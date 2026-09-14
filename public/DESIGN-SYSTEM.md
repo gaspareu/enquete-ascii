@@ -55,17 +55,44 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   ASCII dans le panneau principal. Elles remplissent toute la zone de scène, sans
   marge ni bordure interne, et sont affichées sans lissage (`image-rendering:
   pixelated`).
+- **Mode mobile** : sous `48rem`, la grille devient une colonne : scène, dialogue,
+  puis plan et sac côte à côte. La scène conserve le ratio
+  `--ratio-scene-mobile`, calé sur les illustrations les plus larges : le portrait
+  entier ou l'illustration utilise donc toute la hauteur de scène, sans recadrage.
+  Le dialogue reçoit sa propre piste minimale
+  (`--hauteur-dialogue-mobile-min` / `--hauteur-dialogue-mobile`) ; la page défile
+  ensuite pour accéder au plan et au sac, sans réduire la scène ni créer de
+  débordement horizontal. La hauteur dynamique de la vue est employée avec le repli
+  `100vh` afin que les barres de Safari mobile ne masquent pas le contenu.
 - **Portrait de l'interlocuteur** : un portrait pixel art peut remplacer le visage
-  ASCII lors du face-à-face. Son expression évolue après les réponses du chat;
-  ses dimensions maximales passent par
-  `--largeur-portrait-max` et `--hauteur-portrait-max`.
+  ASCII lors du face-à-face. Son expression évolue après les réponses du chat et
+  le `figure` occupe toute la hauteur de la scène. L'image remplit cette zone avec
+  `object-fit: contain` : le ratio et l'illustration complète sont conservés, les
+  éventuelles marges latérales restent le fond de scène, sans carte ni bordure.
+- **Journal d'interrogatoire** : chaque tour est un élément sémantique construit
+  par nœuds DOM (`textContent`, jamais HTML injecté). Laurent est à gauche, le
+  joueur à droite, et la narration système est centrée, atténuée et en italique.
+  La largeur maximale d'un tour passe par `--largeur-tour-max`; le contenu garde
+  ses retours de paragraphe avec `white-space: pre-wrap`. Une didascalie de Laurent
+  validée par le serveur est un nœud `<em>` décoratif distinct de sa parole ; elle
+  n'est jamais fusionnée à l'historique ni à la synthèse vocale.
+- **Pistes d'interrogatoire** : sous le compositeur, `#pistes` ne présente que les
+  questions déjà autorisées par le serveur et seulement en face-à-face avec Laurent.
+  Chaque question est un bouton `.piste-interrogatoire` pleine largeur, discret (ambre
+  faible / surface), accessible au clavier ; son activation préremplit le champ puis
+  le focalise, sans jamais envoyer le message. Les pistes sont masquées lors de la
+  fouille d'une zone et quand le serveur n'en fournit aucune.
 - **Formulaire de débrief & écran de score (T-06)** : dans la modale, l'accusation
   ouvre un **formulaire de débrief** — un `<textarea>` par question (fond `--c-surface`,
   contour `--c-bordure`, focus → `--c-ambre`), libellés en `--c-ambre-faible` /
-  `--taille-petite`. À la soumission, la modale affiche l'**écran de score** : texte
-  ASCII pré-formaté (rang, score global, note + justification par question), rendu par
-  `rendreDebrief()` dans `#modale-contenu` (`white-space: pre-wrap`). Aucune valeur brute :
-  tout passe par les tokens ; `resize: vertical` reste la seule dimension structurelle.
+  `--taille-petite`. À la soumission, son état accessible (`role=status`) annonce
+  l'analyse et désactive le seul bouton de verdict, sans effacer les réponses. Une
+  erreur réactive ce bouton et laisse le formulaire intact. En cas de réussite, la
+  modale affiche un débrief structuré : rang, score, puis une évaluation, la
+  justification et, si le juge le fournit, l'élément à approfondir pour chaque
+  hypothèse. `--hauteur-modale-max` assure que les quatre réponses restent lisibles
+  sur petit écran. Aucune valeur brute : tout passe par les tokens ; `resize: vertical`
+  reste la seule dimension structurelle.
 - **Boutons icône du dialogue — micro & voix (T-07)** : `.btn-icone` (`#btn-micro`,
   `#btn-voix`), fond `--c-surface`, contour `--c-bordure`, survol `--c-surface-survol`.
   États : `#btn-voix.actif` (voix activée) en accent `--c-vert`, texte et contour —

@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
 import { executerInteraction } from "../server/interactions.js";
 import { creerRecu, empreinteRecu, MAX_RECUS, verifierRecus } from "../server/progression.js";
+import { deriverEtat } from "../server/etat.js";
 
 const secret = "secret-interactions";
 const scenario = {
@@ -14,7 +15,7 @@ const scenario = {
     cle: { nom: "Clé", description: "Une clé gravée.", ramassable: true },
     lettre: { nom: "Lettre", apercu: "Une enveloppe fermée.", description: "Une lettre révélatrice.", ramassable: true },
   },
-  declencheurs: { "examiner:lettre": "lettre_lue" },
+  declencheurs: { "examiner:livre": "livre_lu", "examiner:lettre": "lettre_lue" },
   preconditions: { "examiner:lettre": ["indice"] },
 };
 
@@ -93,7 +94,7 @@ describe("executerInteraction", () => {
     expect(verifierRecus(secret, [...ramassage.recus, ...remise.recus]).evenements).toHaveLength(2);
   });
 
-  test("fouiller signe tous les examens autorisés avant de calculer les descriptions", () => {
+  test("fouiller signe une action sans examiner ni révéler les trouvailles", () => {
     const resultat = executerInteraction({
       scenario,
       secret,
@@ -103,12 +104,20 @@ describe("executerInteraction", () => {
     });
 
     expect(resultat.ok).toBe(true);
-    expect(resultat.recus).toHaveLength(2);
-    expect(resultat.narration).toContain("Livre — Un livre ouvert.");
-    expect(resultat.narration).toContain("Clé — Une clé gravée.");
+    expect(resultat.recus).toHaveLength(1);
+    expect(resultat.narration).toContain("• Livre");
+    expect(resultat.narration).toContain("• Clé");
+    expect(resultat.narration).not.toContain("Un livre ouvert.");
+    expect(resultat.narration).not.toContain("Une clé gravée.");
+    expect(verifierRecus(secret, resultat.recus).evenements[0]).toMatchObject({
+      type: "fouiller",
+      cible: "N",
+      contexte: nord,
+    });
+    expect(deriverEtat(scenario, verifierRecus(secret, resultat.recus).evenements).flags).toEqual([]);
   });
 
-  test("fouiller n'expose pas un objet dont l'examen est bloqué par la progression", () => {
+  test("fouiller liste les objets même si leur examen reste verrouillé", () => {
     const verrouille = {
       ...scenario,
       conditionsActions: {
@@ -125,8 +134,9 @@ describe("executerInteraction", () => {
 
     expect(resultat.ok).toBe(true);
     expect(resultat.recus).toHaveLength(1);
-    expect(resultat.narration).toContain("Livre — Un livre ouvert.");
-    expect(resultat.narration).not.toContain("Clé — Une clé gravée.");
+    expect(resultat.narration).toContain("• Livre");
+    expect(resultat.narration).toContain("• Clé");
+    expect(resultat.narration).not.toContain("Une clé gravée.");
   });
 
   test("refuse proprement une nouvelle action quand le journal a atteint sa borne", () => {

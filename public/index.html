@@ -19,20 +19,8 @@
         </figure>
       </section>
 
-      <aside id="cote">
-        <section id="panneau-plan">
-          <h2>PLAN DE LA PIÈCE</h2>
-          <div id="plan"></div>
-        </section>
-        <section id="panneau-sac">
-          <h2>SAC</h2>
-          <ul id="sac"></ul>
-          <button id="btn-accuser" type="button">⚖ ACCUSER</button>
-        </section>
-      </aside>
-
       <section id="panneau-dialogue" aria-label="Dialogue">
-        <pre id="dialogue"></pre>
+        <div id="dialogue" role="log" aria-live="polite" aria-label="Journal de l'interrogatoire"></div>
         <form id="saisie" autocomplete="off">
           <span class="invite">&gt;</span>
           <input
@@ -57,7 +45,20 @@
             aria-pressed="false"
           >🔊</button>
         </form>
+        <ul id="pistes" aria-label="Pistes d'interrogatoire" hidden></ul>
       </section>
+
+      <aside id="cote">
+        <section id="panneau-plan">
+          <h2>PLAN DE LA PIÈCE</h2>
+          <div id="plan"></div>
+        </section>
+        <section id="panneau-sac">
+          <h2>SAC</h2>
+          <ul id="sac"></ul>
+          <button id="btn-accuser" type="button">⚖ ACCUSER</button>
+        </section>
+      </aside>
     </div>
 
     <div id="modale" class="cache" role="dialog" aria-modal="true">

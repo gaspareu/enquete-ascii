@@ -10,17 +10,18 @@ import {
   valideRequeteVoix,
 } from "./validate.js";
 import { verifierRecus, emettreRecu, MAX_RECUS } from "./progression.js";
-import { deriverEtat } from "./etat.js";
+import { deriverEtat, deriverFlagsVisibles } from "./etat.js";
 import { evaluerCapacite } from "./capacites.js";
 import { executerInteraction } from "./interactions.js";
 import { agregeScore } from "./scoring.js";
 import { noterDebrief } from "./juge.js";
 import { repondreEnFlux } from "./claude.js";
 import { synthetiserVoix } from "./voix.js";
+import { pistesPourFlags } from "./pistes.js";
 
 function vueZonePublique(zone) {
-  const { nom, article, aliases, description, illustration, objetsCaches } = zone;
-  return { nom, article, aliases, description, illustration, objetsCaches };
+  const { nom, article, aliases, description, illustration } = zone;
+  return { nom, article, aliases, description, illustration };
 }
 
 // Projection explicite : ne jamais passer directement une partie du scénario, car
@@ -105,10 +106,16 @@ export function creerRouteur({
       intention: demande.valeur.intention,
     });
     if (!resultat.ok) return res.status(403).json({ erreur: messageRefus(resultat) });
+    const verificationApres = verifierRecus(secret, [...verification.recus, ...resultat.recus]);
+    if (!verificationApres.ok) {
+      console.error("Erreur de signature après interaction.");
+      return res.status(500).json({ erreur: "Cette action est impossible pour le moment." });
+    }
     return res.json({
       narration: resultat.narration,
       recus: resultat.recus,
       etatPublic: resultat.etatPublic,
+      pistes: pistesPourFlags(scenario, deriverFlagsVisibles(scenario, verificationApres.evenements)),
     });
   });
 
@@ -132,7 +139,7 @@ export function creerRouteur({
 
     let projection;
     try {
-      projection = construitProjectionPrompt(scenario, etat.flags);
+      projection = construitProjectionPrompt(scenario, deriverFlagsVisibles(scenario, verification.evenements));
     } catch (err) {
       console.error("Erreur préparation prompt:", err?.message ?? err);
       return res.status(502).json({ erreur: "Le personnage est injoignable pour le moment." });
@@ -158,7 +165,13 @@ export function creerRouteur({
         message: demande.valeur.message,
         model,
         evenementsAutorises,
-      }, (texte) => ecrire(`event: delta\ndata: ${JSON.stringify({ texte })}\n\n`));
+      }, (evenement) => {
+        if (evenement?.type === "didascalie" && typeof evenement.texte === "string") {
+          ecrire(`event: didascalie\ndata: ${JSON.stringify({ texte: evenement.texte })}\n\n`);
+        } else if (evenement?.type === "delta" && typeof evenement.texte === "string") {
+          ecrire(`event: delta\ndata: ${JSON.stringify({ texte: evenement.texte })}\n\n`);
+        }
+      });
       const exprimes = (sortie?.evenementsExprimes ?? []).filter((evenement) =>
         evenementsAutorises.includes(evenement),
       );
@@ -166,7 +179,14 @@ export function creerRouteur({
       const recus = verification.recus.length + uniques.length <= MAX_RECUS
         ? signerEvenementsDialogue(secret, verification, uniques)
         : [];
-      ecrire(`event: progression\ndata: ${JSON.stringify({ recus })}\n\n`);
+      const verificationApres = verifierRecus(secret, [...verification.recus, ...recus]);
+      const flagsApres = verificationApres.ok
+        ? deriverFlagsVisibles(scenario, verificationApres.evenements)
+        : deriverFlagsVisibles(scenario, verification.evenements);
+      ecrire(`event: progression\ndata: ${JSON.stringify({
+        recus,
+        pistes: pistesPourFlags(scenario, flagsApres),
+      })}\n\n`);
       ecrire("event: fin\ndata: {}\n\n");
     } catch (err) {
       console.error("Erreur appel Claude (flux):", err?.message ?? err);

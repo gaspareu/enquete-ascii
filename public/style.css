@@ -100,13 +100,13 @@ h2 {
 }
 #portrait-personnage {
   width: var(--largeur-plein);
-  max-width: var(--largeur-portrait-max);
+  height: var(--hauteur-plein);
   margin: 0;
 }
 #portrait-personnage-image {
   display: block;
   width: var(--largeur-plein);
-  max-height: var(--hauteur-portrait-max);
+  height: var(--hauteur-plein);
   object-fit: contain;
   image-rendering: pixelated;
 }
@@ -211,6 +211,13 @@ button {
 button:hover {
   background: var(--c-bouton-survol);
 }
+button:disabled,
+button:disabled:hover {
+  background: var(--c-bouton);
+  color: var(--c-ambre-faible);
+  cursor: default;
+  opacity: var(--opacite-desactive);
+}
 #btn-accuser {
   color: var(--c-erreur);
   border-color: var(--c-erreur);
@@ -224,10 +231,43 @@ button:hover {
 }
 #dialogue {
   flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-sm);
   margin: 0 0 var(--esp-md);
-  white-space: pre-wrap;
   overflow-y: auto;
   text-shadow: var(--crt-lueur) currentColor; /* lueur phosphore */
+}
+.tour {
+  max-width: var(--largeur-tour-max);
+}
+.tour-texte {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.tour-auteur {
+  color: var(--c-ambre-faible);
+}
+.didascalie {
+  font-style: italic;
+}
+.tour--joueur {
+  align-self: flex-end;
+  text-align: right;
+}
+.tour--personnage {
+  align-self: flex-start;
+  text-align: left;
+}
+.tour--systeme {
+  align-self: center;
+  color: var(--c-ambre-faible);
+  font-style: italic;
+  text-align: center;
+}
+.curseur {
+  color: var(--c-vert);
 }
 #saisie {
   display: flex;
@@ -242,12 +282,37 @@ button:hover {
 }
 #message {
   flex: 1 1 auto;
+  min-width: 0;
   font-family: inherit;
   font-size: var(--taille-base);
   color: var(--c-ambre);
   background: transparent;
   border: none;
   outline: none;
+}
+#pistes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-xs);
+  list-style: none;
+  margin: var(--esp-sm) 0 0;
+  padding: 0;
+}
+#pistes[hidden] {
+  display: none;
+}
+.piste-interrogatoire {
+  width: var(--largeur-plein);
+  padding: var(--esp-xs) var(--esp-sm);
+  color: var(--c-ambre-faible);
+  background: var(--c-surface);
+  border-color: var(--c-bordure);
+  font-size: var(--taille-petite);
+  text-align: left;
+}
+.piste-interrogatoire:hover:not(:disabled) {
+  color: var(--c-ambre);
+  background: var(--c-surface-survol);
 }
 
 /* --- Boutons icône du dialogue : micro + voix (T-07) --- */
@@ -292,7 +357,9 @@ button:hover {
   border-radius: var(--rayon);
   padding: var(--esp-3xl);
   max-width: 32rem;
+  max-height: var(--hauteur-modale-max);
   white-space: pre-wrap;
+  overflow-y: auto;
 }
 #modale-contenu .boutons {
   margin-top: var(--esp-2xl);
@@ -332,6 +399,88 @@ button:hover {
 #form-debrief textarea:focus {
   outline: none;
   border-color: var(--c-ambre);
+}
+.debrief-statut {
+  margin: 0;
+  color: var(--c-ambre-faible);
+  font-style: italic;
+}
+#form-debrief[aria-busy="true"] .debrief-statut {
+  color: var(--c-vert);
+}
+.debrief-resume {
+  margin: var(--esp-lg) 0;
+  color: var(--c-ambre);
+}
+.debrief-hypotheses {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-lg);
+  margin: 0;
+  padding-left: var(--esp-2xl);
+}
+.debrief-hypothese {
+  border-left: var(--trait) solid var(--c-bordure);
+  padding-left: var(--esp-md);
+}
+.debrief-hypothese h3,
+.debrief-hypothese p {
+  margin: 0;
+}
+.debrief-note {
+  color: var(--c-vert);
+}
+.debrief-justification,
+.debrief-manquant {
+  margin-top: var(--esp-xs) !important;
+}
+.debrief-manquant {
+  color: var(--c-ambre-faible);
+  font-style: italic;
+}
+
+/* --- Petit écran : la scène garde son ratio, le reste défile sous elle --- */
+@media (max-width: 48rem) {
+  #jeu {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows:
+      auto
+      minmax(var(--hauteur-dialogue-mobile-min), var(--hauteur-dialogue-mobile))
+      auto;
+    grid-template-areas:
+      "scene"
+      "dialogue"
+      "cote";
+    align-content: start;
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  #scene,
+  #panneau-dialogue,
+  #cote,
+  #panneau-plan,
+  #panneau-sac {
+    min-width: 0;
+  }
+  #scene {
+    aspect-ratio: var(--ratio-scene-mobile);
+  }
+  #panneau-dialogue {
+    min-height: 0;
+  }
+  #cote {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+  #panneau-plan,
+  #panneau-sac {
+    min-height: 0;
+  }
+  #panneau-sac {
+    flex: 0 0 auto;
+  }
 }
 
 /* --- Animations (keyframes) --- */

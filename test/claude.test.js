@@ -1,5 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { repondreEnFlux } from "../server/claude.js";
+import { DIDASCALIES_AUTORISEES } from "../server/replique.js";
 
 function fauxClientFlux(morceaux, { erreur, outils = [] } = {}) {
   const appels = [];
@@ -25,15 +26,35 @@ function fauxClientFlux(morceaux, { erreur, outils = [] } = {}) {
 }
 
 describe("repondreEnFlux", () => {
-  test("appelle onTexte pour chaque fragment de texte", async () => {
+  test("diffuse les paroles comme delta, après avoir isolé la didascalie initiale", async () => {
+    const didascalie = DIDASCALIES_AUTORISEES[0];
+    const client = fauxClientFlux(["DIDASC", `ALIE: ${didascalie}\nBon`, "jour."]);
+    const recus = [];
+    await repondreEnFlux(
+      client,
+      { system: "S", historique: [], message: "Salut", model: "m" },
+      (evenement) => recus.push(evenement),
+    );
+    expect(recus).toEqual([
+      { type: "didascalie", texte: didascalie },
+      { type: "delta", texte: "Bon" },
+      { type: "delta", texte: "jour." },
+    ]);
+  });
+
+  test("diffuse une réponse sans saut de ligne comme des delta", async () => {
     const client = fauxClientFlux(["Bon", "jour", "."]);
     const recus = [];
     await repondreEnFlux(
       client,
       { system: "S", historique: [], message: "Salut", model: "m" },
-      (t) => recus.push(t),
+      (evenement) => recus.push(evenement),
     );
-    expect(recus).toEqual(["Bon", "jour", "."]);
+    expect(recus).toEqual([
+      { type: "delta", texte: "Bon" },
+      { type: "delta", texte: "jour" },
+      { type: "delta", texte: "." },
+    ]);
   });
 
   test("mappe uniquement l'historique Laurent en rôles user/assistant puis ajoute le message", async () => {

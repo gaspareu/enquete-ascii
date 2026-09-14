@@ -4,6 +4,7 @@ import { intentionDepuisTexte } from "../public/intention.js";
 const vue = {
   zones: {
     N: { nom: "bibliothèque", aliases: ["bibliotheque"] },
+    E: { nom: "plateau à tisane", aliases: ["tisanes"] },
     SE: { nom: "corbeille à papier", aliases: ["corbeille", "poubelle"] },
   },
   objets: {
@@ -18,6 +19,21 @@ describe("intentionDepuisTexte", () => {
     expect(intentionDepuisTexte("Je fouille dans la corbeille.", vue)).toEqual({
       action: "fouiller",
       cible: "SE",
+    });
+  });
+
+  test("reconnaît les formulations naturelles et la zone observée", () => {
+    expect(intentionDepuisTexte("Je cherche dans la corbeille.", vue)).toEqual({
+      action: "fouiller",
+      cible: "SE",
+    });
+    expect(intentionDepuisTexte("J'inspecte la pièce à l'est.", vue)).toEqual({
+      action: "fouiller",
+      cible: "E",
+    });
+    expect(intentionDepuisTexte("Je fouille ici.", vue, { type: "zone", id: "N" })).toEqual({
+      action: "fouiller",
+      cible: "N",
     });
   });
 
