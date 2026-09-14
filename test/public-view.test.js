@@ -13,6 +13,7 @@ describe("vuePublique", () => {
     expect(vue.zones).toBeDefined();
     expect(vue.objets.grand_cru.nom).toBe("Grand cru");
     expect(vue.objets.grand_cru.ramassable).toBe(true);
+    expect(vue.zones.N.aliases).toContain("table");
   });
 
   test("expose le visage ASCII du personnage (donnée publique pour le rendu)", () => {
@@ -39,6 +40,8 @@ describe("vuePublique", () => {
     expect(vue.declencheurs).toBeUndefined();
     expect(vue.preconditions).toBeUndefined();
     expect(vue.conditionsActions).toBeUndefined();
+    expect(vue.pistesInterrogatoire).toBeUndefined();
+    expect(vue.zones.N.objetsCaches).toBeUndefined();
 
     const json = JSON.stringify(vue).toLowerCase();
     expect(json).not.toContain("au nom de laurent"); // révélation de la plaquette

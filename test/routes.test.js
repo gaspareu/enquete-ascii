@@ -48,6 +48,8 @@ describe("GET /scenario", () => {
     expect(json).not.toContain("declencheurs");
     expect(json).not.toContain("preconditions");
     expect(json).not.toContain("evenementquandexprime");
+    expect(json).not.toContain("objetscaches");
+    expect(json).not.toContain("pistesinterrogatoire");
   });
 });
 
@@ -93,6 +95,7 @@ describe("POST /interagir", () => {
     expect(res.body.narration).toBe(scenario.objets.distinction.description);
     expect(res.body.etatPublic).toEqual({ sac: [] });
     expect(verifierRecus(secret, res.body.recus).ok).toBe(true);
+    expect(res.body.pistes).toEqual(["Comment avez-vous vécu la récente réussite d'Hélène ?"]);
   });
 
   test("le sac et la remise sont reconstruits à partir des reçus", async () => {
@@ -112,7 +115,7 @@ describe("POST /interagir", () => {
     expect(remise.body.narration).toContain("Grand cru");
   });
 
-  test("fouille une seule zone et crée ses examens avant les révélations", async () => {
+  test("fouille une seule zone, signe l'action et ne renvoie que des noms", async () => {
     const res = await request(faireApp()).post("/api/interagir").send({
       contexte: nord,
       intention: { action: "fouiller", cible: "N" },
@@ -120,7 +123,10 @@ describe("POST /interagir", () => {
     });
     expect(res.status).toBe(200);
     expect(res.body.narration).toContain("Distinction d'architecture");
-    expect(res.body.recus.length).toBe(scenario.zones.N.objetsCaches.length);
+    expect(res.body.narration).not.toContain("ENCORE elle");
+    expect(res.body.recus).toHaveLength(1);
+    expect(verifierRecus(secret, res.body.recus).evenements[0].type).toBe("fouiller");
+    expect(res.body.pistes).toEqual([]);
   });
 });
 
@@ -138,9 +144,10 @@ describe("POST /chat", () => {
   });
 
   test("requête valide : flux SSE delta, progression puis fin, avec mémoire Laurent seulement", async () => {
-    const repondreFluxFn = vi.fn(async (_c, _a, onTexte) => {
-      onTexte("Bonjour");
-      onTexte(" à vous.");
+    const repondreFluxFn = vi.fn(async (_c, _a, onEvenement) => {
+      onEvenement({ type: "didascalie", texte: "Laurent joint les mains." });
+      onEvenement({ type: "delta", texte: "Bonjour" });
+      onEvenement({ type: "delta", texte: " à vous." });
       return { evenementsExprimes: [] };
     });
     const res = await request(faireApp({ repondreFluxFn })).post("/api/chat").send({
@@ -153,6 +160,7 @@ describe("POST /chat", () => {
       ],
     });
     expect(res.status).toBe(200);
+    expect(res.text).toContain("event: didascalie");
     expect(res.text).toContain("event: delta");
     expect(res.text).toContain("event: progression");
     expect(res.text.indexOf("event: progression")).toBeLessThan(res.text.indexOf("event: fin"));

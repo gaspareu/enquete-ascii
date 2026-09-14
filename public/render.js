@@ -31,27 +31,56 @@ export function decouperReplique(texte) {
   return { reaction: match[1].trim(), parole: match[2].trim() };
 }
 
+// Projection sémantique pour le journal DOM. Le rôle est défini par le client,
+// jamais par le texte du modèle ; une ancienne didascalie étoilée reste compatible.
+export function toursDialogue(historique, nomPerso) {
+  return historique.map((tour) => {
+    const role = tour.role === "joueur" || tour.role === "systeme" ? tour.role : "personnage";
+    const { reaction, parole } = role === "personnage"
+      ? decouperReplique(tour.texte)
+      : { reaction: "", parole: tour.texte };
+    return {
+      role,
+      auteur: role === "systeme" ? "Système" : role === "joueur" ? "Vous" : nomPerso,
+      texte: parole,
+      didascalie: reaction,
+    };
+  });
+}
+
 // Met en forme l'historique du dialogue. "joueur" → "Vous", narration système
 // sans préfixe, sinon le nom du personnage.
 export function rendreDialogue(historique, nomPerso) {
-  return historique
+  return toursDialogue(historique, nomPerso)
     .map((tour) => {
       if (tour.role === "systeme") return `— ${tour.texte}`;
-      const qui = tour.role === "joueur" ? "Vous" : nomPerso;
-      if (tour.role === "joueur") return `${qui} : ${tour.texte}`;
-      const { reaction, parole } = decouperReplique(tour.texte);
-      return [reaction, `${qui} : ${parole}`].filter(Boolean).join("\n");
+      return [tour.didascalie, `${tour.auteur} : ${tour.texte}`].filter(Boolean).join("\n");
     })
     .join("\n\n");
+}
+
+export function structurerDebrief({ total, max, rang, details = [] }) {
+  return {
+    total,
+    max,
+    rang,
+    hypotheses: (Array.isArray(details) ? details : []).map((detail) => ({
+      question: detail.question,
+      note: detail.note,
+      justification: detail.justification,
+      elementManquant: typeof detail.elementManquant === "string" ? detail.elementManquant : "",
+    })),
+  };
 }
 
 // Écran de fin du débrief (T-06) : rang, score global, puis note + justification
 // par question. Rendu ASCII pur ; l'affichage DOM est câblé dans game.js.
 export function rendreDebrief({ total, max, rang, details }) {
   const entete = [`RANG : ${rang}`, `SCORE : ${total} / ${max}`, ""];
-  const corps = details.flatMap((d) => {
+  const corps = (Array.isArray(details) ? details : []).flatMap((d) => {
     const lignes = [`[${d.note}/5] ${d.question}`];
     if (d.justification) lignes.push(`       ${d.justification}`);
+    if (d.elementManquant) lignes.push(`       À approfondir : ${d.elementManquant}`);
     return lignes;
   });
   return [...entete, ...corps].join("\n");

@@ -31,11 +31,11 @@ function signerEvenements(secret, verification, evenements) {
   return { verification: courant, nouveaux };
 }
 
-function narrationFouille(scenario, contexte, etat, cibles) {
+function narrationFouille(scenario, contexte, cibles) {
   const zone = scenario.zones[contexte.id];
   const nomZone = zone.nom ? `${zone.article ?? "la"} ${zone.nom}` : "cette zone";
   const trouvailles = cibles
-    .map((cible) => `• ${scenario.objets[cible].nom} — ${texteExamen(scenario, cible, etat.flags)}`)
+    .map((cible) => `• ${scenario.objets[cible].nom}`)
     .join("\n");
   return `En cherchant dans ${nomZone}, vous trouvez :\n${trouvailles}`;
 }
@@ -48,16 +48,11 @@ export function executerInteraction({ scenario, secret, verification, contexte, 
   let evenements;
   let ciblesFouille = [];
   if (intention.action === "fouiller") {
-    // Une fouille est un lot d'examens. Les reçus sont tous créés avant la lecture
-    // des descriptions afin que les préconditions historiques soient résolues sur
-    // l'état complet de la fouille.
+    // Fouiller ne vaut jamais un examen : aucun flag d'objet ni piste ne doit être
+    // débloqué par la seule énumération des trouvailles.
     ciblesFouille = scenario.zones[contexte.id].objetsCaches
-      .filter((cible) => scenario.objets[cible])
-      .filter((cible) => evaluerCapacite(scenario, avant, {
-        contexte,
-        intention: { action: "examiner", cible },
-      }).ok);
-    evenements = ciblesFouille.map((cible) => evenementPour({ action: "examiner", cible }, contexte));
+      .filter((cible) => scenario.objets[cible]);
+    evenements = [evenementPour(intention, contexte)];
   } else {
     evenements = [evenementPour(intention, contexte)];
   }
@@ -72,7 +67,7 @@ export function executerInteraction({ scenario, secret, verification, contexte, 
   if (intention.action === "examiner") narration = texteExamen(scenario, intention.cible, apres.flags);
   else if (intention.action === "ramasser") narration = `Vous ramassez : ${scenario.objets[intention.cible].nom}.`;
   else if (intention.action === "donner") narration = `Vous tendez ${scenario.objets[intention.cible].nom} à ${scenario.personnage.nom}.`;
-  else narration = narrationFouille(scenario, contexte, apres, ciblesFouille);
+  else narration = narrationFouille(scenario, contexte, ciblesFouille);
 
   return { ok: true, narration, recus: signes.nouveaux, etatPublic: { sac: apres.sac } };
 }

@@ -19,12 +19,13 @@ const MARKUP = `
   <div id="plan"></div>
   <ul id="sac"></ul>
   <button id="btn-accuser" type="button"></button>
-  <pre id="dialogue"></pre>
+  <div id="dialogue" role="log"></div>
   <form id="saisie">
     <input id="message" type="text" />
     <button id="btn-micro" type="button">🎙</button>
     <button id="btn-voix" type="button" aria-pressed="false">🔊</button>
   </form>
+  <ul id="pistes" hidden></ul>
   <div id="modale" class="cache"><div id="modale-contenu"></div></div>
 `;
 
@@ -188,6 +189,7 @@ describe("init", () => {
     expect(boutonParTexte($("plan"), "Victor").disabled).toBe(false);
     // Sac vide au départ.
     expect($("sac").textContent).toContain("(vide)");
+    expect($("dialogue").querySelector(".tour--systeme")).toBeTruthy();
   });
 
   test("affiche un message d'erreur si le scénario ne se charge pas", async () => {
@@ -368,6 +370,25 @@ describe("dialogue (envoi de message)", () => {
     const corps = JSON.parse(appel[1].body);
     expect(corps.message).toBe("Salut Victor");
     expect(corps.historique.some((t) => t.role === "systeme")).toBe(false);
+    expect($("dialogue").querySelector(".tour--joueur")?.textContent).toContain("Salut Victor");
+    expect($("dialogue").querySelector(".tour--personnage")?.textContent).toContain("Bonjour,");
+  });
+
+  test("affiche une didascalie SSE séparée de la parole", async () => {
+    await charger({
+      chatTrames: [
+        `event: didascalie\ndata: ${JSON.stringify({ texte: "Laurent joint les mains." })}\n\n`,
+        `event: delta\ndata: ${JSON.stringify({ texte: "Je vous écoute." })}\n\n`,
+        "event: fin\ndata: {}\n\n",
+      ],
+    });
+
+    envoyerMessage("Parlons.");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Je vous écoute."));
+    const tour = $("dialogue").querySelector(".tour--personnage");
+    expect(tour?.querySelector("em")?.textContent).toBe("Laurent joint les mains.");
+    expect(tour?.textContent).toContain("Victor : Je vous écoute.");
   });
 
   test("adapte le portrait au ton de la réponse de Laurent", async () => {
@@ -492,6 +513,24 @@ describe("dialogue (envoi de message)", () => {
     const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");
     expect(JSON.parse(appel[1].body).recus).toEqual(["recu-laurent"]);
   });
+
+  test("propose une piste face à Laurent et la place dans la saisie sans l'envoyer", async () => {
+    await charger({
+      chatTrames: [
+        `event: progression\ndata: ${JSON.stringify({
+          recus: [],
+          pistes: ["Qui a partagé la tisane ?"],
+        })}\n\n`,
+        "event: fin\ndata: {}\n\n",
+      ],
+    });
+    envoyerMessage("Parlons.");
+
+    await vi.waitFor(() => expect($("pistes").hidden).toBe(false));
+    boutonParTexte($("pistes"), "Qui a partagé").click();
+    expect($("message").value).toBe("Qui a partagé la tisane ?");
+    expect(global.fetch.mock.calls.filter(([u]) => u === "/api/chat")).toHaveLength(1);
+  });
 });
 
 describe("donner un objet", () => {
@@ -557,10 +596,14 @@ describe("débrief", () => {
     await charger({ debriefErreur: true });
     $("btn-accuser").click();
     await vi.waitFor(() => expect($("modale-contenu").querySelectorAll("textarea").length).toBe(2));
+    const champ = $("modale-contenu").querySelector("textarea");
+    champ.value = "Laurent.";
     $("form-debrief").dispatchEvent(new Event("submit", { cancelable: true }));
     await vi.waitFor(() =>
       expect($("modale-contenu").textContent).toContain("Impossible de soumettre le débrief"),
     );
+    expect(champ.value).toBe("Laurent.");
+    expect(boutonParTexte($("modale-contenu"), "Rendre mon verdict").disabled).toBe(false);
   });
 });
 

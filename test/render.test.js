@@ -1,5 +1,12 @@
 import { describe, test, expect } from "vitest";
-import { artInterlocuteur, decouperReplique, rendreDialogue, rendreDebrief } from "../public/render.js";
+import {
+  artInterlocuteur,
+  decouperReplique,
+  rendreDialogue,
+  rendreDebrief,
+  structurerDebrief,
+  toursDialogue,
+} from "../public/render.js";
 
 describe("artInterlocuteur", () => {
   test("avec un visage personnalisé, l'affiche et inclut le nom", () => {
@@ -84,5 +91,33 @@ describe("rendreDebrief", () => {
     expect(txt).toContain("5/5");
     expect(txt).toContain("Laurent, exact.");
     expect(txt).toContain("3/5");
+  });
+});
+
+describe("projections de rendu", () => {
+  test("préserve le rôle de chaque tour pour l'alignement sémantique", () => {
+    expect(toursDialogue([
+      { role: "joueur", texte: "Bonjour" },
+      { role: "personnage", texte: "Bonsoir." },
+      { role: "systeme", texte: "Un bruit retentit." },
+    ], "Laurent")).toEqual([
+      { role: "joueur", auteur: "Vous", texte: "Bonjour", didascalie: "" },
+      { role: "personnage", auteur: "Laurent", texte: "Bonsoir.", didascalie: "" },
+      { role: "systeme", auteur: "Système", texte: "Un bruit retentit.", didascalie: "" },
+    ]);
+  });
+
+  test("structure le feedback de chaque hypothèse sans exiger de conseil", () => {
+    expect(structurerDebrief({
+      total: 5,
+      max: 20,
+      rang: "À revoir",
+      details: [{ question: "Qui ?", note: 1, justification: "Partiel." }],
+    })).toEqual({
+      total: 5,
+      max: 20,
+      rang: "À revoir",
+      hypotheses: [{ question: "Qui ?", note: 1, justification: "Partiel.", elementManquant: "" }],
+    });
   });
 });

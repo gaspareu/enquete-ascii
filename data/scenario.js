@@ -60,6 +60,7 @@ export const scenario = {
     N: {
       nom: "table à dessin",
       article: "la",
+      aliases: ["table", "bureau d'Hélène"],
       description:
         "La grande table à dessin d'Hélène. Au mur, une distinction encadrée et des plans.",
       illustration: "/images/nord.jpeg",
@@ -68,6 +69,7 @@ export const scenario = {
     NE: {
       nom: "bibliothèque",
       article: "la",
+      aliases: ["étagères", "rayonnage"],
       description: "Une bibliothèque d'architecture et des classeurs bien rangés.",
       illustration: "/images/nord-est.jpeg",
       objetsCaches: ["agenda", "monographies", "revues_deco", "presse_papier"],
@@ -75,6 +77,7 @@ export const scenario = {
     E: {
       nom: "plateau à tisane",
       article: "le",
+      aliases: ["guéridon", "tisanes"],
       description: "Un guéridon où repose le plateau à tisane du soir.",
       illustration: "/images/est.jpeg",
       objetsCaches: ["theiere", "boite_tisanes", "napperon", "cuillere_argent"],
@@ -97,6 +100,7 @@ export const scenario = {
     S: {
       nom: "coin salon",
       article: "le",
+      aliases: ["salon", "canapé"],
       description: "Un coin salon : un canapé, une table basse, quelques souvenirs.",
       illustration: "/images/sud.jpeg",
       objetsCaches: ["mot_manuscrit", "photos_mariage", "plaid", "roman_corne"],
@@ -104,6 +108,7 @@ export const scenario = {
     SO: {
       nom: "placard",
       article: "le",
+      aliases: ["armoire"],
       description: "Un placard fermé, au fond de l'atelier.",
       illustration: "/images/sud-ouest.jpeg",
       objetsCaches: ["cadeau_cache", "manteaux", "cartons_archives", "raquette_tennis"],
@@ -111,6 +116,7 @@ export const scenario = {
     O: {
       nom: "secrétaire",
       article: "le",
+      aliases: ["bureau", "secrétaire en bois"],
       description: "Un secrétaire près de la fenêtre qui donne sur la rue.",
       illustration: "/images/ouest.jpeg",
       objetsCaches: ["telephone", "courrier", "stylo_plume", "cartes_postales", "cactus"],
@@ -118,6 +124,7 @@ export const scenario = {
     NO: {
       nom: "meuble-bar",
       article: "le",
+      aliases: ["bar"],
       description: "Un meuble-bar cossu — l'espace de Laurent, qui détonne dans l'atelier.",
       illustration: "/images/nord-ouest.jpeg",
       objetsCaches: ["grand_cru", "lettre_dettes", "verres_whisky", "coffret_cigares", "trophee_golf"],
@@ -438,6 +445,38 @@ export const scenario = {
   // signés, pas des flags envoyés par le navigateur. Le scénario courant n'ajoute
   // volontairement aucun exemple fictif (stylo/encre, etc.).
   conditionsActions: {},
+
+  // Pistes affichables pendant l'interrogatoire. Le serveur ne projette que les
+  // questions dont les faits sont déjà attestés par les reçus signés.
+  pistesInterrogatoire: [
+    { requiert: ["double_tasse"], question: "Qui a partagé la tisane d'Hélène ce soir-là ?" },
+    { requiert: ["reussite_vue"], question: "Comment avez-vous vécu la récente réussite d'Hélène ?" },
+    {
+      requiert: ["mobile_dettes"],
+      question: "Comment expliquez-vous la situation décrite dans cette lettre de banque ?",
+    },
+    {
+      requiert: ["controle_vu"],
+      retireSi: ["rdv_eclaircis"],
+      question: "Pourquoi avez-vous consulté le téléphone d'Hélène ?",
+    },
+    {
+      requiert: ["recu_laurent_vu"],
+      retireSi: ["aveu_acte"],
+      question: "Comment expliquez-vous l'achat de ces somnifères à votre nom ?",
+    },
+    {
+      requiert: ["fete_decouverte"],
+      retireSi: ["invitation_lue"],
+      question: "À qui Hélène destinait-elle ces préparatifs ?",
+    },
+    {
+      requiert: ["invitation_lue"],
+      retireSi: ["aveu_mobile"],
+      question: "Que pensiez-vous qu'Hélène vous cachait ?",
+    },
+    { requiert: ["rdv_eclaircis"], question: "Que signifiaient finalement les rendez-vous d'Hélène ?" },
+  ],
 
   solution: {
     coupable: true, // Laurent est bien le meurtrier.

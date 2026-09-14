@@ -1,8 +1,17 @@
-// Orchestration DOM : le serveur arbitre toujours contexte, inventaire et progression signée.
+// Orchestration DOM : le serveur arbitre contexte, inventaire et progression signée.
 
-import { etatInitial, observerZone, observerPersonnage, ajouterDialogue, historiquePourLaurent, recanaliserDernierTour, ajouterRecus, remplacerSac } from "./state.js";
+import {
+  etatInitial,
+  observerZone,
+  observerPersonnage,
+  ajouterDialogue,
+  historiquePourLaurent,
+  recanaliserDernierTour,
+  ajouterRecus,
+  remplacerSac,
+} from "./state.js";
 import { intentionDepuisTexte } from "./intention.js";
-import { artInterlocuteur, decouperReplique } from "./render.js";
+import { artInterlocuteur, decouperReplique, toursDialogue } from "./render.js";
 import { decoupeTrames } from "./sse.js";
 import { creerModeVocal } from "./voix.js";
 import { creerDebrief } from "./debrief.js";
@@ -24,6 +33,7 @@ const elSac = $("sac");
 const elDialogue = $("dialogue");
 const elForm = $("saisie");
 const elInput = $("message");
+const elPistes = $("pistes");
 const elAccuser = $("btn-accuser");
 const elModale = $("modale");
 const elModaleContenu = $("modale-contenu");
@@ -41,6 +51,11 @@ let etat = etatInitial();
 let minuteurAttente = null;
 let emotionLaurent = EMOTION_LAURENT_PAR_DEFAUT;
 let entreeEnCours = false;
+let pistes = [];
+let attente = null;
+let flux = null;
+const didascalies = new WeakMap();
+
 const modeVocal = creerModeVocal({
   jouer: (blob) => {
     const url = URL.createObjectURL(blob);
@@ -51,21 +66,6 @@ const modeVocal = creerModeVocal({
     audio.play().catch(liberer);
   },
 });
-
-async function init() {
-  try {
-    const rep = await fetch("/api/scenario");
-    vue = await rep.json();
-  } catch {
-    elVisuel.textContent = "Impossible de charger le scénario.";
-    return;
-  }
-  etat = ajouterDialogue(etat, "systeme", vue.intro, "scene");
-  rendrePerso();
-  rendrePlan();
-  rendreSac();
-  rendreDialogueDOM();
-}
 
 function bouton(label, onClick) {
   const element = document.createElement("button");
@@ -78,6 +78,61 @@ function mettreAJourPlaceholder() {
   elInput.placeholder = etat.contexte.type === "personnage"
     ? "Interrogez Laurent ou utilisez un objet du sac…"
     : "Fouillez cette zone ou examinez votre sac…";
+}
+
+function creerTour(projection, didascalie = "") {
+  const article = document.createElement("article");
+  article.className = `tour tour--${projection.role}`;
+  if (didascalie) {
+    const geste = document.createElement("em");
+    geste.className = "didascalie";
+    geste.textContent = didascalie;
+    article.append(geste, document.createElement("br"));
+  }
+  const texte = document.createElement("p");
+  texte.className = "tour-texte";
+  if (projection.role !== "systeme") {
+    const auteur = document.createElement("span");
+    auteur.className = "tour-auteur";
+    auteur.textContent = `${projection.auteur} : `;
+    texte.appendChild(auteur);
+  }
+  texte.append(projection.texte);
+  article.appendChild(texte);
+  return article;
+}
+
+function rendreDialogueDOM(historique = etat.historique) {
+  elDialogue.replaceChildren();
+  const fragments = document.createDocumentFragment();
+  for (const tour of historique) {
+    const projection = toursDialogue([tour], vue.personnage.nom)[0];
+    fragments.appendChild(creerTour(projection, didascalies.get(tour) ?? projection.didascalie));
+  }
+  elDialogue.appendChild(fragments);
+  elDialogue.scrollTop = elDialogue.scrollHeight;
+}
+
+function rendrePistes(nouvellesPistes = pistes) {
+  pistes = Array.isArray(nouvellesPistes) ? nouvellesPistes.filter((piste) => typeof piste === "string") : [];
+  const visibles = etat.contexte.type === "personnage" ? pistes : [];
+  elPistes.replaceChildren();
+  if (visibles.length === 0) {
+    elPistes.hidden = true;
+    return;
+  }
+  for (const piste of visibles.slice(0, 3)) {
+    const item = document.createElement("li");
+    const action = bouton(piste, () => {
+      elInput.value = piste;
+      elInput.focus();
+    });
+    action.className = "piste-interrogatoire";
+    action.type = "button";
+    item.appendChild(action);
+    elPistes.appendChild(item);
+  }
+  elPistes.hidden = false;
 }
 
 function rendrePerso() {
@@ -97,6 +152,7 @@ function rendrePerso() {
     elPortrait.classList.remove("cache");
   }
   mettreAJourPlaceholder();
+  rendrePistes();
 }
 
 function ouvrirZone(id) {
@@ -116,6 +172,7 @@ function ouvrirZone(id) {
     elIllustration.classList.remove("cache");
   }
   mettreAJourPlaceholder();
+  rendrePistes();
 }
 
 function rendrePlan() {
@@ -138,31 +195,6 @@ function rendrePlan() {
       elPlan.appendChild(element);
     }
   }
-}
-
-function ajouterTourDialogue(tour) {
-  if (tour.role === "systeme") {
-    elDialogue.append(`— ${tour.texte}`);
-  } else if (tour.role === "joueur") {
-    elDialogue.append(`Vous : ${tour.texte}`);
-  } else {
-    const { reaction, parole } = decouperReplique(tour.texte);
-    if (reaction) {
-      const didascalie = document.createElement("em");
-      didascalie.textContent = reaction;
-      elDialogue.append(didascalie, "\n");
-    }
-    elDialogue.append(`${vue.personnage.nom} : ${parole}`);
-  }
-}
-
-function rendreDialogueDOM(historique = etat.historique) {
-  elDialogue.replaceChildren();
-  historique.forEach((tour, index) => {
-    if (index > 0) elDialogue.append("\n\n");
-    ajouterTourDialogue(tour);
-  });
-  elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
 function rendreSac() {
@@ -196,13 +228,20 @@ function arreterAttente() {
     clearInterval(minuteurAttente);
     minuteurAttente = null;
   }
+  attente?.remove();
+  attente = null;
+  elDialogue.removeAttribute("aria-busy");
 }
 
 function demarrerAttente() {
   arreterAttente();
+  const projection = { role: "systeme", auteur: "Système", texte: "" };
+  attente = creerTour(projection);
+  const texte = attente.querySelector(".tour-texte");
+  elDialogue.appendChild(attente);
+  elDialogue.setAttribute("aria-busy", "true");
   const peindre = (points) => {
-    rendreDialogueDOM();
-    elDialogue.append(`\n\n— ${vue.personnage.nom} réfléchit${points}`);
+    texte.textContent = `${vue.personnage.nom} réfléchit${points}`;
     elDialogue.scrollTop = elDialogue.scrollHeight;
   };
   if (mouvementReduit()) return peindre("…");
@@ -212,19 +251,42 @@ function demarrerAttente() {
   minuteurAttente = setInterval(animer, 350);
 }
 
-function peindreFlux(texte) {
-  rendreDialogueDOM([...etat.historique, { role: "personnage", texte, canal: "laurent" }]);
-  elDialogue.append("▌");
+function rendreFlux() {
+  if (!flux || (!flux.texte && !flux.didascalie)) return;
+  const projection = { role: "personnage", auteur: vue.personnage.nom, texte: flux.texte };
+  const nouveau = creerTour(projection, flux.didascalie);
+  if (flux.texte) {
+    const curseur = document.createElement("span");
+    curseur.className = "curseur";
+    curseur.textContent = "▌";
+    nouveau.querySelector(".tour-texte").appendChild(curseur);
+  }
+  if (flux.noeud) flux.noeud.replaceWith(nouveau);
+  else elDialogue.appendChild(nouveau);
+  flux.noeud = nouveau;
   elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
-function finaliserReplique(texte) {
+function commencerFlux() {
+  arreterAttente();
+  flux = { texte: "", didascalie: "", noeud: null };
+}
+
+function finaliserReplique(texte, didascalie = "") {
+  if (!texte) {
+    flux?.noeud?.remove();
+    flux = null;
+    return;
+  }
   etat = ajouterDialogue(etat, "personnage", texte, "laurent");
+  const tour = etat.historique.at(-1);
+  if (didascalie) didascalies.set(tour, didascalie);
   emotionLaurent = emotionDepuisReplique(texte);
   if (!elPortrait.classList.contains("cache")) {
     const portrait = imagePourEmotionLaurent(vue.personnage.portraits ?? {}, emotionLaurent);
     if (portrait) elPortraitImage.src = portrait;
   }
+  flux = null;
   rendreDialogueDOM();
   modeVocal.dire(decouperReplique(texte).parole);
 }
@@ -233,8 +295,7 @@ async function consommerFlux(rep) {
   const lecteur = rep.body.getReader();
   const decodeur = new TextDecoder();
   let tampon = "";
-  let texte = "";
-  let demarre = false;
+  let termine = false;
   try {
     for (;;) {
       const { value, done } = await lecteur.read();
@@ -243,39 +304,42 @@ async function consommerFlux(rep) {
       const decoupe = decoupeTrames(tampon);
       tampon = decoupe.reste;
       for (const { event, data } of decoupe.trames) {
-        if (event === "delta") {
-          if (!demarre) {
-            arreterAttente();
-            demarre = true;
-          }
-          texte += JSON.parse(data).texte;
-          peindreFlux(texte);
+        const contenu = JSON.parse(data);
+        if (event === "didascalie") {
+          if (!flux) commencerFlux();
+          flux.didascalie = contenu.texte;
+          rendreFlux();
+        } else if (event === "delta") {
+          if (!flux) commencerFlux();
+          flux.texte += contenu.texte;
+          rendreFlux();
         } else if (event === "progression") {
-          etat = ajouterRecus(etat, JSON.parse(data).recus);
+          etat = ajouterRecus(etat, contenu.recus);
+          rendrePistes(contenu.pistes);
         } else if (event === "erreur") {
           arreterAttente();
-          if (texte) etat = ajouterDialogue(etat, "personnage", texte, "laurent");
+          finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
           narration("(communication interrompue)");
+          termine = true;
           return;
         } else if (event === "fin") {
           arreterAttente();
-          finaliserReplique(texte);
+          finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
+          termine = true;
           return;
         }
       }
     }
-    arreterAttente();
-    if (texte) {
-      etat = ajouterDialogue(etat, "personnage", texte, "laurent");
-      rendreDialogueDOM();
-    }
   } catch {
     arreterAttente();
-    if (texte) {
-      etat = ajouterDialogue(etat, "personnage", texte, "laurent");
-      rendreDialogueDOM();
-    }
+    finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
     narration("Le personnage est injoignable (réseau).");
+    return;
+  } finally {
+    if (!termine) {
+      arreterAttente();
+      finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
+    }
   }
 }
 
@@ -319,7 +383,10 @@ async function traiterInteraction(message, intention) {
   etat = remplacerSac(etat, data.etatPublic?.sac);
   rendreSac();
   narration(data.narration ?? "Rien de particulier ici.");
-  if (intention.action === "examiner") ouvrirModale(data.narration ?? "Rien de particulier ici.", [["Fermer", fermerModale]]);
+  rendrePistes(data.pistes);
+  if (intention.action === "examiner") {
+    ouvrirModale(data.narration ?? "Rien de particulier ici.", [["Fermer", fermerModale]]);
+  }
 }
 
 async function traiterDialogue(message) {
@@ -360,18 +427,23 @@ async function traiterEntreeChat(message) {
   return traiterDialogue(message);
 }
 
+function reglerSaisieOccupee(occupee) {
+  elInput.disabled = occupee;
+  elBtnMicro.disabled = occupee;
+}
+
 elForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const message = elInput.value.trim();
   if (!message || !vue || entreeEnCours) return;
   elInput.value = "";
   entreeEnCours = true;
-  elInput.disabled = true;
+  reglerSaisieOccupee(true);
   try {
     await traiterEntreeChat(message);
   } finally {
     entreeEnCours = false;
-    elInput.disabled = false;
+    reglerSaisieOccupee(false);
   }
 });
 
@@ -394,5 +466,20 @@ brancherControlesVoix({
   boutonMicro: elBtnMicro,
   saisie: elInput,
 });
+
+async function init() {
+  try {
+    const rep = await fetch("/api/scenario");
+    vue = await rep.json();
+  } catch {
+    elVisuel.textContent = "Impossible de charger le scénario.";
+    return;
+  }
+  etat = ajouterDialogue(etat, "systeme", vue.intro, "scene");
+  rendrePerso();
+  rendrePlan();
+  rendreSac();
+  rendreDialogueDOM();
+}
 
 init();
