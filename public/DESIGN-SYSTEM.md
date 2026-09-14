@@ -23,7 +23,7 @@ que les itérations front restent cohérentes avec l'esthétique.
 | `--c-bouton` / `--c-bouton-survol` | Boutons d'action (+ survol) |
 | `--c-ambre` | Texte principal |
 | `--c-ambre-faible` | Texte secondaire, désactivé, titres |
-| `--c-vert` | Accent : invite `>`, art ASCII, centre du plan |
+| `--c-vert` | Accent : invite `>`, art ASCII, case active du plan |
 | `--c-erreur` | Danger : « Accuser », erreurs |
 | `--c-bordure` | Traits et contours |
 
@@ -48,7 +48,9 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
 - **Bouton d'action** : fond `--c-bouton`, contour `--c-ambre-faible`. Variante
   danger (« Accuser ») : texte et contour `--c-erreur`.
 - **Case du plan / objet du sac** : fond `--c-surface`, survol `--c-surface-survol` ;
-  centre du plan (l'interlocuteur) en `--c-vert`, cliquable pour revenir au face-à-face.
+  seule la case correspondant à la scène affichée reçoit le fond `--c-vert` et le
+  texte `--c-fond`, avec `aria-current="location"`. Le centre du plan (l'interlocuteur)
+  reste cliquable pour revenir au face-à-face, sans conserver l'accent lorsqu'une zone est ouverte.
 - **Modale** : voile sombre + boîte `--c-fond-panneau` contour `--c-ambre`.
 - **Invite de saisie** : caret `>` en `--c-vert`, champ sans bordure ni fond.
 - **Illustration de zone** : les scènes fournies par le scénario remplacent l'art
@@ -96,7 +98,7 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
 - **Boutons icône du dialogue — micro & voix (T-07)** : `.btn-icone` (`#btn-micro`,
   `#btn-voix`), fond `--c-surface`, contour `--c-bordure`, survol `--c-surface-survol`.
   États : `#btn-voix.actif` (voix activée) en accent `--c-vert`, texte et contour —
-  même accent que le centre du plan ; `#btn-micro.ecoute` (micro en écoute) en
+  même accent que la case active du plan ; `#btn-micro.ecoute` (micro en écoute) en
   `--c-erreur` avec une pulsation discrète (`@keyframes pulser`, durée
   `--duree-clignotement`), neutralisée sous `prefers-reduced-motion` par la règle `*`
   déjà en place. Aucune valeur brute introduite : tout vient des tokens existants.

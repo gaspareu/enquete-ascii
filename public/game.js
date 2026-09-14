@@ -164,6 +164,7 @@ function rendrePerso() {
     elPortrait.classList.remove("cache");
   }
   mettreAJourPlaceholder();
+  rendrePlan();
   rendrePistes();
 }
 
@@ -184,7 +185,13 @@ function ouvrirZone(id) {
     elIllustration.classList.remove("cache");
   }
   mettreAJourPlaceholder();
+  rendrePlan();
   rendrePistes();
+}
+
+function estCasePlanCourante(direction) {
+  if (direction === "C") return etat.contexte.type === "personnage";
+  return etat.contexte.type === "zone" && etat.contexte.id === direction;
 }
 
 function rendrePlan() {
@@ -203,6 +210,10 @@ function rendrePlan() {
       } else {
         element.textContent = "·";
         element.disabled = true;
+      }
+      if (estCasePlanCourante(direction)) {
+        element.classList.add("active");
+        element.setAttribute("aria-current", "location");
       }
       elPlan.appendChild(element);
     }
@@ -491,7 +502,6 @@ async function init() {
   }
   etat = ajouterDialogue(etat, "systeme", vue.intro, "scene");
   rendrePerso();
-  rendrePlan();
   rendreSac();
   rendreDialogueDOM();
 }

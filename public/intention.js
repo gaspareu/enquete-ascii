@@ -25,6 +25,10 @@ const VERBES = {
   donner: /\b(donne|donner|tends|tendre|presente|presenter)\b/,
 };
 
+// Les questions de découverte sont une façon naturelle de déclencher une
+// fouille. Elles restent limitées à une zone explicitement citée ou observée.
+const QUESTION_FOUILLE = /\b(?:qu[' ]?y\s+a|qu[' ]?il\s+y\s+a|qu[' ]?est-ce\s+qu[' ]?il\s+y\s+a|que\s+(?:trouve|contient))\b/u;
+
 const DIRECTIONS = [
   { cible: "NE", motif: /\b(?:au|a|vers)\s+(?:nord[ -]?est)\b/u },
   { cible: "NO", motif: /\b(?:au|a|vers)\s+(?:nord[ -]?ouest)\b/u },
@@ -44,12 +48,12 @@ export function intentionDepuisTexte(message, vue, contexte = null) {
   const texte = normaliser(message);
   if (!texte || !vue) return null;
 
-  if (VERBES.fouiller.test(texte)) {
+  if (VERBES.fouiller.test(texte) || QUESTION_FOUILLE.test(texte)) {
     const cible = cibleLaPlusLongue(texte, Object.entries(vue.zones ?? {}));
     if (cible) return { action: "fouiller", cible };
     const direction = directionCitee(texte, vue.zones);
     if (direction) return { action: "fouiller", cible: direction };
-    if (/\bici\b/u.test(texte) && contexte?.type === "zone" && vue.zones?.[contexte.id]) {
+    if (/\b(?:ici|cette\s+zone)\b/u.test(texte) && contexte?.type === "zone" && vue.zones?.[contexte.id]) {
       return { action: "fouiller", cible: contexte.id };
     }
   }

@@ -186,7 +186,10 @@ describe("init", () => {
     // Le plan a 9 cases (grille 3×3) ; le centre porte le nom du perso.
     const cases = $("plan").querySelectorAll("button.case");
     expect(cases.length).toBe(9);
-    expect(boutonParTexte($("plan"), "Victor").disabled).toBe(false);
+    const centre = boutonParTexte($("plan"), "Victor");
+    expect(centre.disabled).toBe(false);
+    expect(centre.classList.contains("active")).toBe(true);
+    expect(centre.getAttribute("aria-current")).toBe("location");
     // Sac vide au départ.
     expect($("sac").textContent).toContain("(vide)");
     expect($("dialogue").querySelector(".tour--systeme")).toBeTruthy();
@@ -238,8 +241,13 @@ describe("exploration d'une zone", () => {
   test("la case centrale du plan revient au face-à-face", async () => {
     await charger();
     await ouvrirZoneNord();
+    const caseN = boutonParTexte($("plan"), "N");
+    expect(caseN.classList.contains("active")).toBe(true);
+    expect(caseN.getAttribute("aria-current")).toBe("location");
+    expect(boutonParTexte($("plan"), "Victor").classList.contains("active")).toBe(false);
     boutonParTexte($("plan"), "Victor").click();
     expect($("visuel").textContent).toContain("Victor");
+    expect(boutonParTexte($("plan"), "Victor").classList.contains("active")).toBe(true);
   });
 
   test("met à jour le placeholder selon le contexte observé", async () => {
@@ -285,6 +293,16 @@ describe("exploration d'une zone", () => {
     await charger();
     await ouvrirZoneNord();
     envoyerMessage("Je fouille ici.");
+
+    await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/interagir")).toBe(true));
+    const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");
+    expect(JSON.parse(appel[1].body).intention).toEqual({ action: "fouiller", cible: "N" });
+  });
+
+  test("fouille la zone observée quand le joueur demande ce qu'elle contient", async () => {
+    await charger();
+    await ouvrirZoneNord();
+    envoyerMessage("Qu'il y a t'il dans cette zone ?");
 
     await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/interagir")).toBe(true));
     const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");

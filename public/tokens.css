@@ -17,7 +17,7 @@
   /* --- Couleurs : texte & accents (palette phosphore) -------------------- */
   --c-ambre: #e8b04b; /* texte principal */
   --c-ambre-faible: #8a6f33; /* texte secondaire, désactivé, titres */
-  --c-vert: #7fdc6e; /* accent : invite, art ASCII, centre du plan */
+  --c-vert: #7fdc6e; /* accent : invite, art ASCII, case active du plan */
   --c-erreur: #e07a5f; /* danger : accuser, messages d'erreur */
   --c-bordure: #3a3320; /* traits de séparation et contours */
 

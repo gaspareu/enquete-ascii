@@ -6,6 +6,7 @@ const vue = {
     N: { nom: "bibliothèque", aliases: ["bibliotheque"] },
     E: { nom: "plateau à tisane", aliases: ["tisanes"] },
     SE: { nom: "corbeille à papier", aliases: ["corbeille", "poubelle"] },
+    O: { nom: "secrétaire", aliases: ["bureau"] },
   },
   objets: {
     lettre: { nom: "Lettre", aliases: ["mot"] },
@@ -34,6 +35,20 @@ describe("intentionDepuisTexte", () => {
     expect(intentionDepuisTexte("Je fouille ici.", vue, { type: "zone", id: "N" })).toEqual({
       action: "fouiller",
       cible: "N",
+    });
+  });
+
+  test("reconnaît les questions sur une zone affichée ou nommée", () => {
+    expect(intentionDepuisTexte("Qu'il y a t'il dans cette zone ?", vue, {
+      type: "zone",
+      id: "N",
+    })).toEqual({
+      action: "fouiller",
+      cible: "N",
+    });
+    expect(intentionDepuisTexte("Qu'y a-t-il sur le bureau ?", vue)).toEqual({
+      action: "fouiller",
+      cible: "O",
     });
   });
 
