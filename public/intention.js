@@ -5,6 +5,7 @@ export function normaliser(texte) {
   return String(texte ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’']/g, "'")
     .toLocaleLowerCase("fr-FR");
 }
 
@@ -18,19 +19,39 @@ function cibleLaPlusLongue(texte, elements) {
 }
 
 const VERBES = {
-  fouiller: /\b(fouille|fouiller)\b/,
+  fouiller: /\b(fouille|fouiller|cherche|chercher|inspecte|inspecter)\b/,
   examiner: /\b(examine|examiner|inspecte|inspecter|regarde|regarder|observe|observer)\b/,
   ramasser: /\b(ramasse|ramasser|prends|prendre|recupere|recuperer)\b/,
   donner: /\b(donne|donner|tends|tendre|presente|presenter)\b/,
 };
 
-export function intentionDepuisTexte(message, vue) {
+const DIRECTIONS = [
+  { cible: "NE", motif: /\b(?:au|a|vers)\s+(?:nord[ -]?est)\b/u },
+  { cible: "NO", motif: /\b(?:au|a|vers)\s+(?:nord[ -]?ouest)\b/u },
+  { cible: "SE", motif: /\b(?:au|a|vers)\s+(?:sud[ -]?est)\b/u },
+  { cible: "SO", motif: /\b(?:au|a|vers)\s+(?:sud[ -]?ouest)\b/u },
+  { cible: "N", motif: /\b(?:au|a|vers)\s+nord\b/u },
+  { cible: "S", motif: /\b(?:au|a|vers)\s+sud\b/u },
+  { cible: "E", motif: /\b(?:au|a|vers)\s+(?:l[' ]?)?est\b/u },
+  { cible: "O", motif: /\b(?:au|a|vers)\s+(?:l[' ]?)?ouest\b/u },
+];
+
+function directionCitee(texte, zones) {
+  return DIRECTIONS.find(({ cible, motif }) => zones?.[cible] && motif.test(texte))?.cible ?? null;
+}
+
+export function intentionDepuisTexte(message, vue, contexte = null) {
   const texte = normaliser(message);
   if (!texte || !vue) return null;
 
   if (VERBES.fouiller.test(texte)) {
     const cible = cibleLaPlusLongue(texte, Object.entries(vue.zones ?? {}));
-    return cible ? { action: "fouiller", cible } : null;
+    if (cible) return { action: "fouiller", cible };
+    const direction = directionCitee(texte, vue.zones);
+    if (direction) return { action: "fouiller", cible: direction };
+    if (/\bici\b/u.test(texte) && contexte?.type === "zone" && vue.zones?.[contexte.id]) {
+      return { action: "fouiller", cible: contexte.id };
+    }
   }
 
   const cible = cibleLaPlusLongue(texte, Object.entries(vue.objets ?? {}));

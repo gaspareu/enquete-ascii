@@ -73,3 +73,36 @@ export function deriverEtat(scenario, evenementsVerifies = []) {
 
   return { sac, flags, actionsEffectuees };
 }
+
+// Les pistes et le prompt ne doivent évoquer que ce que le joueur a effectivement
+// lu ou entendu. Contrairement à `deriverEtat`, cette projection ne résout pas les
+// préconditions à rebours : un examen réalisé avant son prérequis reste un aperçu
+// tant que le joueur ne l'examine pas de nouveau après avoir obtenu ce prérequis.
+export function deriverFlagsVisibles(scenario, evenementsVerifies = []) {
+  const objets = scenario.objets ?? {};
+  const declencheurs = scenario.declencheurs ?? {};
+  const preconditions = scenario.preconditions ?? {};
+  const sac = [];
+  const flags = [];
+
+  for (const evenement of evenementsVerifies) {
+    if (!evenementValide(evenement)) continue;
+    const { type, cible } = evenement;
+    if (!ACTIONS_OBJET.has(type) || !objets[cible]) continue;
+
+    if (type === "ramasser") {
+      if (!objets[cible].ramassable) continue;
+      ajouterUnique(sac, cible);
+    } else if (type === "donner" && !sac.includes(cible)) {
+      continue;
+    }
+
+    const cle = `${type}:${cible}`;
+    const flag = declencheurs[cle];
+    if (flag && (preconditions[cle] ?? []).every((requis) => flags.includes(requis))) {
+      ajouterUnique(flags, flag);
+    }
+  }
+
+  return flags;
+}

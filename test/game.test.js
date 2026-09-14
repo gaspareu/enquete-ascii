@@ -281,6 +281,16 @@ describe("exploration d'une zone", () => {
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 
+  test("fouille la zone observée quand le joueur écrit « ici »", async () => {
+    await charger();
+    await ouvrirZoneNord();
+    envoyerMessage("Je fouille ici.");
+
+    await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/interagir")).toBe(true));
+    const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");
+    expect(JSON.parse(appel[1].body).intention).toEqual({ action: "fouiller", cible: "N" });
+  });
+
   test("un refus d'action reste une narration de scène et ne bascule pas vers Claude", async () => {
     await charger({ interagirOk: false, interagir: { erreur: "Cet objet n'est pas dans la zone." } });
     await ouvrirZoneNord();
@@ -374,6 +384,16 @@ describe("dialogue (envoi de message)", () => {
     expect($("dialogue").querySelector(".tour--personnage")?.textContent).toContain("Bonjour,");
   });
 
+  test("ajoute les tours terminés sans réannoncer tout le journal", async () => {
+    await charger({ chatTrames: tramesDelta("Je vous écoute.") });
+    const remplacer = vi.spyOn($("dialogue"), "replaceChildren");
+
+    envoyerMessage("Parlons.");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Je vous écoute."));
+    expect(remplacer).not.toHaveBeenCalled();
+  });
+
   test("affiche une didascalie SSE séparée de la parole", async () => {
     await charger({
       chatTrames: [
@@ -417,7 +437,7 @@ describe("dialogue (envoi de message)", () => {
     );
   });
 
-  test("affiche la réaction initiale en italique, distincte de la parole", async () => {
+  test("ne réinterprète pas une ancienne didascalie Markdown comme un geste", async () => {
     await charger({ chatTexte: '*Il fronce les sourcils*\n"Pourquoi tu me dis ça ?"' });
 
     envoyerMessage("Vous m'évitez ?");
@@ -426,7 +446,7 @@ describe("dialogue (envoi de message)", () => {
       expect($("dialogue").textContent).toContain('Victor : "Pourquoi tu me dis ça ?"'),
     );
     const reaction = $("dialogue").querySelector("em");
-    expect(reaction?.textContent).toBe("Il fronce les sourcils");
+    expect(reaction).toBeNull();
     expect($("dialogue").textContent).not.toContain("*Il fronce les sourcils*");
   });
 
@@ -442,6 +462,16 @@ describe("dialogue (envoi de message)", () => {
     $("message").value = "Test";
     $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("Message trop long."));
+  });
+
+  test("ajoute un refus de pré-vol sans recréer le journal accessible", async () => {
+    await charger({ chatOk: false, chat: { erreur: "Message trop long." } });
+    const remplacer = vi.spyOn($("dialogue"), "replaceChildren");
+
+    envoyerMessage("Test");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Message trop long."));
+    expect(remplacer).not.toHaveBeenCalled();
   });
 
   test("signale une panne réseau", async () => {

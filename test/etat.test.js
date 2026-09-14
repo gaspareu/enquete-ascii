@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { deriverEtat } from "../server/etat.js";
+import { deriverEtat, deriverFlagsVisibles } from "../server/etat.js";
 
 const scenario = {
   objets: {
@@ -54,6 +54,23 @@ describe("deriverEtat", () => {
       "ramasser:chocolats",
       "donner:chocolats",
     ]);
+  });
+
+  test("ne rend visible une révélation conditionnelle qu'après son examen explicite", () => {
+    const avantReexamen = deriverFlagsVisibles(scenario, [
+      e("examiner", "tableau"),
+      e("ramasser", "chocolats"),
+      e("donner", "chocolats"),
+    ]);
+    const apresReexamen = deriverFlagsVisibles(scenario, [
+      e("examiner", "tableau"),
+      e("ramasser", "chocolats"),
+      e("donner", "chocolats"),
+      e("examiner", "tableau"),
+    ]);
+
+    expect(avantReexamen).toEqual(["chocolats_trouves", "chocolats_donnes"]);
+    expect(apresReexamen).toEqual(["chocolats_trouves", "chocolats_donnes", "code_lu"]);
   });
 
   test("ignore un événement qui ne respecte pas le contrat vérifié", () => {

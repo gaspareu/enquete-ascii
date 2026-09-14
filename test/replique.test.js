@@ -49,6 +49,12 @@ describe("creerFiltreReplique", () => {
     ]);
   });
 
+  test("supprime une didascalie Markdown héritée au lieu de la diffuser comme parole", () => {
+    expect(filtrer(["*Laurent cache la plaquette*\nJe vous répondrai."])).toEqual([
+      { type: "delta", texte: "Je vous répondrai." },
+    ]);
+  });
+
   test("diffuse une parole sans saut de ligne sans lui inventer de didascalie", () => {
     expect(filtrer(["Je ", "vous écoute."])).toEqual([
       { type: "delta", texte: "Je " },

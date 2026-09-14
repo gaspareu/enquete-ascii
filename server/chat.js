@@ -10,7 +10,7 @@ import {
   valideRequeteVoix,
 } from "./validate.js";
 import { verifierRecus, emettreRecu, MAX_RECUS } from "./progression.js";
-import { deriverEtat } from "./etat.js";
+import { deriverEtat, deriverFlagsVisibles } from "./etat.js";
 import { evaluerCapacite } from "./capacites.js";
 import { executerInteraction } from "./interactions.js";
 import { agregeScore } from "./scoring.js";
@@ -111,12 +111,11 @@ export function creerRouteur({
       console.error("Erreur de signature après interaction.");
       return res.status(500).json({ erreur: "Cette action est impossible pour le moment." });
     }
-    const etatApres = deriverEtat(scenario, verificationApres.evenements);
     return res.json({
       narration: resultat.narration,
       recus: resultat.recus,
       etatPublic: resultat.etatPublic,
-      pistes: pistesPourFlags(scenario, etatApres.flags),
+      pistes: pistesPourFlags(scenario, deriverFlagsVisibles(scenario, verificationApres.evenements)),
     });
   });
 
@@ -140,7 +139,7 @@ export function creerRouteur({
 
     let projection;
     try {
-      projection = construitProjectionPrompt(scenario, etat.flags);
+      projection = construitProjectionPrompt(scenario, deriverFlagsVisibles(scenario, verification.evenements));
     } catch (err) {
       console.error("Erreur préparation prompt:", err?.message ?? err);
       return res.status(502).json({ erreur: "Le personnage est injoignable pour le moment." });
@@ -182,8 +181,8 @@ export function creerRouteur({
         : [];
       const verificationApres = verifierRecus(secret, [...verification.recus, ...recus]);
       const flagsApres = verificationApres.ok
-        ? deriverEtat(scenario, verificationApres.evenements).flags
-        : etat.flags;
+        ? deriverFlagsVisibles(scenario, verificationApres.evenements)
+        : deriverFlagsVisibles(scenario, verification.evenements);
       ecrire(`event: progression\ndata: ${JSON.stringify({
         recus,
         pistes: pistesPourFlags(scenario, flagsApres),

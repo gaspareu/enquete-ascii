@@ -128,6 +128,24 @@ describe("POST /interagir", () => {
     expect(verifierRecus(secret, res.body.recus).evenements[0].type).toBe("fouiller");
     expect(res.body.pistes).toEqual([]);
   });
+
+  test("n'affiche pas une piste issue d'une révélation conditionnelle non relue", async () => {
+    const app = faireApp();
+    const plaquette = await request(app).post("/api/interagir").send({
+      contexte: { type: "zone", id: "SE" },
+      intention: { action: "examiner", cible: "plaquette_somniferes" },
+      recus: [],
+    });
+    const theiere = await request(app).post("/api/interagir").send({
+      contexte: { type: "zone", id: "E" },
+      intention: { action: "examiner", cible: "theiere" },
+      recus: plaquette.body.recus,
+    });
+
+    expect(plaquette.body.narration).toContain("la version de Laurent se tient");
+    expect(theiere.body.pistes).toContain("Qui a partagé la tisane d'Hélène ce soir-là ?");
+    expect(theiere.body.pistes.join(" ")).not.toContain("achat de ces somnifères à votre nom");
+  });
 });
 
 describe("POST /chat", () => {

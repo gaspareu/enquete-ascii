@@ -54,6 +54,7 @@ let entreeEnCours = false;
 let pistes = [];
 let attente = null;
 let flux = null;
+let historiqueAffiche = [];
 const didascalies = new WeakMap();
 
 const modeVocal = creerModeVocal({
@@ -103,13 +104,24 @@ function creerTour(projection, didascalie = "") {
 }
 
 function rendreDialogueDOM(historique = etat.historique) {
-  elDialogue.replaceChildren();
+  const prefixConserve = historiqueAffiche.length <= historique.length &&
+    historiqueAffiche.every((tour, index) => {
+      const suivant = historique[index];
+      return tour.role === suivant.role &&
+        tour.texte === suivant.texte &&
+        didascalies.get(tour) === didascalies.get(suivant);
+    });
+  if (!prefixConserve) {
+    elDialogue.replaceChildren();
+    historiqueAffiche = [];
+  }
   const fragments = document.createDocumentFragment();
-  for (const tour of historique) {
+  for (const tour of historique.slice(historiqueAffiche.length)) {
     const projection = toursDialogue([tour], vue.personnage.nom)[0];
     fragments.appendChild(creerTour(projection, didascalies.get(tour) ?? projection.didascalie));
   }
   elDialogue.appendChild(fragments);
+  historiqueAffiche = [...historique];
   elDialogue.scrollTop = elDialogue.scrollHeight;
 }
 
@@ -273,22 +285,24 @@ function commencerFlux() {
 }
 
 function finaliserReplique(texte, didascalie = "") {
-  if (!texte) {
+  const parole = decouperReplique(texte).parole;
+  if (!parole) {
     flux?.noeud?.remove();
     flux = null;
     return;
   }
-  etat = ajouterDialogue(etat, "personnage", texte, "laurent");
+  etat = ajouterDialogue(etat, "personnage", parole, "laurent");
   const tour = etat.historique.at(-1);
   if (didascalie) didascalies.set(tour, didascalie);
-  emotionLaurent = emotionDepuisReplique(texte);
+  emotionLaurent = emotionDepuisReplique(parole);
   if (!elPortrait.classList.contains("cache")) {
     const portrait = imagePourEmotionLaurent(vue.personnage.portraits ?? {}, emotionLaurent);
     if (portrait) elPortraitImage.src = portrait;
   }
+  flux?.noeud?.remove();
   flux = null;
   rendreDialogueDOM();
-  modeVocal.dire(decouperReplique(texte).parole);
+  modeVocal.dire(parole);
 }
 
 async function consommerFlux(rep) {
@@ -422,7 +436,7 @@ async function traiterDialogue(message) {
 }
 
 async function traiterEntreeChat(message) {
-  const intention = intentionDepuisTexte(message, vue);
+  const intention = intentionDepuisTexte(message, vue, etat.contexte);
   if (intention) return traiterInteraction(message, intention);
   return traiterDialogue(message);
 }

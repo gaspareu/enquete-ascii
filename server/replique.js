@@ -13,6 +13,7 @@ export const DIDASCALIES_AUTORISEES = Object.freeze([
 const ENTETE_STRICT = "DIDASCALIE:";
 const ENTETE_RECONNU = /^\s*didascalie\s*:\s*(.*)\s*$/iu;
 const MARQUEUR_DIDASCALIE = /^\s*didascalie\b/iu;
+const MARQUEUR_DIDASCALIE_LEGACY = /^\s*\*/u;
 
 function texteCanonique(texte) {
   return texte.trim().replace(/\s+/gu, " ");
@@ -26,7 +27,7 @@ function didascalieAutorisee(texte) {
 function estUnDebutDeDidascalie(texte) {
   const debut = texte.trimStart().toLocaleLowerCase("fr-FR");
   const entete = ENTETE_STRICT.toLocaleLowerCase("fr-FR");
-  return entete.startsWith(debut) || debut.startsWith("didascalie");
+  return entete.startsWith(debut) || debut.startsWith("didascalie") || debut.startsWith("*");
 }
 
 // Produit des événements internes `{ type: "didascalie" | "delta", texte }`.
@@ -46,7 +47,7 @@ export function creerFiltreReplique(emetteur) {
   const traiterPremiereLigne = (ligne, conserveSaut = false) => {
     premiereLigneTraitee = true;
     const correspondance = ligne.match(ENTETE_RECONNU);
-    if (!correspondance && !MARQUEUR_DIDASCALIE.test(ligne)) {
+    if (!correspondance && !MARQUEUR_DIDASCALIE.test(ligne) && !MARQUEUR_DIDASCALIE_LEGACY.test(ligne)) {
       emettreParole(`${ligne}${conserveSaut ? "\n" : ""}`);
       return;
     }
