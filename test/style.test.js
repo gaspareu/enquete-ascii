@@ -22,3 +22,10 @@ describe("mise en page mobile", () => {
     expect(designSystem).toContain("Mode mobile");
   });
 });
+
+describe("plan de la pièce", () => {
+  test("met en évidence la seule case correspondant au contexte ouvert", () => {
+    expect(style).toMatch(/\.case\.active\s*\{[\s\S]*?color:\s*var\(--c-fond\);[\s\S]*?background:\s*var\(--c-vert\);[\s\S]*?border-color:\s*var\(--c-vert\);/);
+    expect(designSystem).toContain('aria-current="location"');
+  });
+});
