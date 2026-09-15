@@ -170,9 +170,12 @@ h2 {
   opacity: 0.5;
 }
 .case.centre {
-  color: var(--c-vert);
-  border-color: var(--c-vert);
   cursor: pointer;
+}
+.case.active {
+  color: var(--c-fond);
+  background: var(--c-vert);
+  border-color: var(--c-vert);
 }
 
 #sac {
