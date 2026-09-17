@@ -5,10 +5,12 @@ import express from "express";
 import { construitProjectionPrompt } from "./prompt.js";
 import {
   valideRequeteChat,
+  valideRequeteInterprete,
   valideRequeteInteraction,
   valideDebrief,
   valideRequeteVoix,
 } from "./validate.js";
+import { construireCatalogueInterprete, resoudreIntention } from "./interprete.js";
 import { verifierRecus, emettreRecu, MAX_RECUS } from "./progression.js";
 import { deriverEtat, deriverFlagsVisibles } from "./etat.js";
 import { evaluerCapacite } from "./capacites.js";
@@ -27,10 +29,6 @@ function vueZonePublique(zone) {
 // Projection explicite : ne jamais passer directement une partie du scénario, car
 // un futur champ de règles ou de visibilité deviendrait sinon public par accident.
 export function vuePublique(scenario) {
-  const objets = {};
-  for (const [id, objet] of Object.entries(scenario.objets)) {
-    objets[id] = { nom: objet.nom, aliases: objet.aliases, ramassable: objet.ramassable };
-  }
   const zones = {};
   for (const [id, zone] of Object.entries(scenario.zones)) zones[id] = vueZonePublique(zone);
   return {
@@ -42,7 +40,6 @@ export function vuePublique(scenario) {
       portraits: scenario.personnage.portraits,
     },
     zones,
-    objets,
     debrief: {
       questions: scenario.debrief.questions.map(({ id, question }) => ({ id, question })),
     },
@@ -86,11 +83,37 @@ export function creerRouteur({
   repondreFluxFn = repondreEnFlux,
   noterFn = noterDebrief,
   synthetiserFn = synthetiserVoix,
+  resoudreIntentionFn = resoudreIntention,
+  modelInterprete = model,
 }) {
   const routeur = express.Router();
   const idsDebrief = new Set(scenario.debrief.questions.map((q) => q.id));
 
   routeur.get("/scenario", (_req, res) => res.json(vuePublique(scenario)));
+
+  routeur.post("/interpreter", async (req, res) => {
+    const demande = valideRequeteInterprete(req.body, scenario);
+    if (!demande.ok) return res.status(400).json({ erreur: demande.erreur });
+    const verification = verifierRecus(secret, demande.valeur.recus);
+    if (!verification.ok) return res.status(400).json({ erreur: "Reçus invalides." });
+    if (!client) {
+      return res.status(503).json({
+        erreur: "Interprète indisponible. Renseignez ANTHROPIC_API_KEY dans .env.",
+      });
+    }
+    try {
+      const catalogue = construireCatalogueInterprete(scenario, verification.evenements, demande.valeur.contexte);
+      const decision = await resoudreIntentionFn(client, {
+        message: demande.valeur.message,
+        catalogue,
+        model: modelInterprete,
+      });
+      return res.json({ decision });
+    } catch (err) {
+      console.error("Erreur interprète:", err?.message ?? err);
+      return res.status(502).json({ erreur: "L'interprète est indisponible pour le moment." });
+    }
+  });
 
   routeur.post("/interagir", (req, res) => {
     const demande = valideRequeteInteraction(req.body, scenario);

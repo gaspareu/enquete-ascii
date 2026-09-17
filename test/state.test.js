@@ -6,15 +6,16 @@ import {
   ajouterDialogue,
   historiquePourLaurent,
   ajouterRecus,
-  remplacerSac,
+  remplacerEtatPublic,
   recanaliserDernierTour,
 } from "../public/state.js";
 
 describe("etatInitial", () => {
-  test("démarre face à Laurent avec un sac, un historique et des reçus vides", () => {
+  test("démarre face à Laurent avec un sac, les objets connus, un historique et des reçus vides", () => {
     expect(etatInitial()).toEqual({
       contexte: { type: "personnage", id: "laurent" },
       sac: [],
+      objetsConnus: [],
       historique: [],
       recus: [],
     });
@@ -83,12 +84,17 @@ describe("reçus et inventaire publics", () => {
     expect(avant.recus).toEqual([]);
   });
 
-  test("remplacerSac applique seulement le sac dérivé par le serveur", () => {
+  test("remplacerEtatPublic applique la projection d'inventaire dérivée par le serveur", () => {
     const avant = etatInitial();
-    const apres = remplacerSac(avant, ["cle", "grand_cru"]);
+    const objetsConnus = [
+      { id: "cle", nom: "Petite clé", aliases: ["clé"], ramassable: true },
+    ];
+    const apres = remplacerEtatPublic(avant, { sac: ["cle", "grand_cru"], objetsConnus });
 
     expect(apres.sac).toEqual(["cle", "grand_cru"]);
+    expect(apres.objetsConnus).toEqual(objetsConnus);
     expect(avant.sac).toEqual([]);
+    expect(avant.objetsConnus).toEqual([]);
   });
 });
 

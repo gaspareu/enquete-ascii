@@ -41,7 +41,7 @@ describe("GET /scenario", () => {
   test("renvoie la vue publique sans conditions, événements ni révélations", async () => {
     const res = await request(faireApp()).get("/api/scenario");
     expect(res.status).toBe(200);
-    expect(res.body.objets.grand_cru).toEqual(expect.objectContaining({ nom: "Grand cru", ramassable: true }));
+    expect(res.body.objets).toBeUndefined();
     const json = JSON.stringify(res.body).toLowerCase();
     expect(json).not.toContain("au nom de laurent");
     expect(json).not.toContain("conditionsactions");
@@ -50,6 +50,68 @@ describe("GET /scenario", () => {
     expect(json).not.toContain("evenementquandexprime");
     expect(json).not.toContain("objetscaches");
     expect(json).not.toContain("pistesinterrogatoire");
+  });
+});
+
+describe("POST /interpreter", () => {
+  test("vérifie les reçus et transmet une décision structurée construite depuis le catalogue public", async () => {
+    const resoudreIntentionFn = vi.fn(async (_client, args) => {
+      expect(args.model).toBe("modele-test");
+      expect(args.message).toBe("Que contient la table ?");
+      expect(args.catalogue.contexte).toEqual(nord);
+      expect(args.catalogue.objetsConnus).toEqual([]);
+      expect(JSON.stringify(args.catalogue).toLowerCase()).not.toContain("grand cru");
+      return { type: "interagir", contexte: nord, action: "fouiller", cibleId: "N" };
+    });
+
+    const res = await request(faireApp({ resoudreIntentionFn })).post("/api/interpreter").send({
+      message: "Que contient la table ?",
+      contexte: nord,
+      recus: [],
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      decision: { type: "interagir", contexte: nord, action: "fouiller", cibleId: "N" },
+    });
+    expect(resoudreIntentionFn).toHaveBeenCalledOnce();
+  });
+
+  test("rejette une requête ou des reçus invalides avant d'appeler l'interprète", async () => {
+    const resoudreIntentionFn = vi.fn();
+    const app = faireApp({ resoudreIntentionFn });
+    const vide = await request(app).post("/api/interpreter").send({});
+    const falsifie = await request(app).post("/api/interpreter").send({
+      message: "Regardez la table",
+      contexte: nord,
+      recus: ["faux.recu"],
+    });
+
+    expect(vide.status).toBe(400);
+    expect(falsifie.status).toBe(400);
+    expect(resoudreIntentionFn).not.toHaveBeenCalled();
+  });
+
+  test("signale clairement l'absence d'agent", async () => {
+    const res = await request(faireApp({ client: null })).post("/api/interpreter").send({
+      message: "Regardez la table",
+      contexte: nord,
+      recus: [],
+    });
+
+    expect(res.status).toBe(503);
+    expect(res.body.erreur).toContain("ANTHROPIC_API_KEY");
+  });
+
+  test("ne révèle pas d'erreur interne si l'interprète échoue", async () => {
+    const erreurConsole = vi.spyOn(console, "error").mockImplementation(() => {});
+    const res = await request(faireApp({ resoudreIntentionFn: async () => { throw new Error("secret technique"); } }))
+      .post("/api/interpreter")
+      .send({ message: "Regardez la table", contexte: nord, recus: [] });
+
+    expect(res.status).toBe(502);
+    expect(res.body.erreur).toBe("L'interprète est indisponible pour le moment.");
+    erreurConsole.mockRestore();
   });
 });
 
@@ -93,7 +155,17 @@ describe("POST /interagir", () => {
     });
     expect(res.status).toBe(200);
     expect(res.body.narration).toBe(scenario.objets.distinction.description);
-    expect(res.body.etatPublic).toEqual({ sac: [] });
+    expect(res.body.etatPublic).toEqual({
+      sac: [],
+      objetsConnus: [
+        {
+          id: "distinction",
+          nom: "Distinction d'architecture",
+          aliases: [],
+          ramassable: false,
+        },
+      ],
+    });
     expect(verifierRecus(secret, res.body.recus).ok).toBe(true);
     expect(res.body.pistes).toEqual(["Comment avez-vous vécu la récente réussite d'Hélène ?"]);
   });

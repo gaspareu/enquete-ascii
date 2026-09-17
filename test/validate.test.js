@@ -5,6 +5,7 @@ import {
   valideRecus,
   valideRequeteInteraction,
   valideRequeteChat,
+  valideRequeteInterprete,
   valideDebrief,
   valideRequeteVoix,
 } from "../server/validate.js";
@@ -110,6 +111,35 @@ describe("valideRequeteChat", () => {
     expect(valideRequeteChat({ message: "   " }, scenario).ok).toBe(false);
     expect(valideRequeteChat({ message: "x".repeat(501), contexte: { type: "personnage", id: "laurent" } }, scenario).ok).toBe(false);
     expect(valideRequeteChat({ message: "Bonjour", contexte: { type: "zone", id: "N" } }, scenario).ok).toBe(true);
+  });
+});
+
+describe("valideRequeteInterprete", () => {
+  test("normalise le texte, le contexte et les reçus sans accepter de décision cliente", () => {
+    expect(
+      valideRequeteInterprete(
+        {
+          message: "  Que voyez-vous sur la table ?  ",
+          contexte: { type: "zone", id: "N" },
+          recus: ["opaque"],
+          decision: { type: "interagir", cibleId: "tableau" },
+        },
+        scenario,
+      ),
+    ).toEqual({
+      ok: true,
+      valeur: {
+        message: "Que voyez-vous sur la table ?",
+        contexte: { type: "zone", id: "N" },
+        recus: ["opaque"],
+      },
+    });
+  });
+
+  test("refuse un texte vide, trop long ou un contexte invalide", () => {
+    expect(valideRequeteInterprete({}, scenario).ok).toBe(false);
+    expect(valideRequeteInterprete({ message: "x".repeat(501), contexte: { type: "zone", id: "N" }, recus: [] }, scenario).ok).toBe(false);
+    expect(valideRequeteInterprete({ message: "Bonjour", contexte: { type: "zone", id: "E" }, recus: [] }, scenario).ok).toBe(false);
   });
 });
 

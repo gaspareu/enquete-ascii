@@ -27,10 +27,13 @@ souhaité, la configuration ElevenLabs). Les secrets restent uniquement côté s
 ```
 server/
   index.js         bootstrap Express, environnement, clients Claude/ElevenLabs
-  chat.js          routes : scenario, examiner, chat SSE, debrief, voix
+  chat.js          routes : scenario, interpreter, interagir, chat SSE, debrief, voix
+  interprete.js    agent borné : phrase libre → décision structurée validée
   prompt.js        prompt système avec connaissances légitimement débloquées
-  etat.js          dérivation serveur des flags à partir du journal de gestes
+  etat.js          dérivation serveur des flags, sac et objets connus depuis les reçus
   validate.js      validation de toutes les entrées HTTP
+  capacites.js     arbitre unique des droits spatiaux et de progression
+  interactions.js  exécution et signature des interactions autorisées
   claude.js        client Claude et réponse en flux
   juge.js          appel du modèle pour noter le débrief
   scoring.js       agrégation du score et du rang
@@ -40,7 +43,7 @@ public/
   index.html       panneaux de jeu, dialogue, modale et boutons voix/micro
   tokens.css       source de vérité des tokens visuels
   style.css        thème terminal/CRT qui consomme les tokens
-  state.js         état front immuable et journal de gestes
+  state.js         état front immuable, inventaire public et journal affiché
   render.js        rendu ASCII pur
   game.js          orchestration DOM, API, SSE et écran de débrief
   sse.js           lecture du flux Server-Sent Events
@@ -51,10 +54,14 @@ test/              tests unitaires et de routes
 
 ### Flux et sécurité
 
-`game.js` envoie `{ message, gestes, historique, note }` à `/api/chat`.
-`validate.js` valide la requête, puis `etat.js` rejoue le journal pour en dériver
-les flags. `prompt.js` ne transmet à Claude que les connaissances dont les flags
-sont débloqués. La réponse revient en SSE et est rendue progressivement.
+`game.js` envoie d'abord `{ message, contexte, recus }` à `/api/interpreter`.
+`interprete.js` reçoit un catalogue public réduit aux zones et aux objets déjà
+rencontrés, puis retourne une unique décision validée : observer, interagir,
+dialoguer ou clarifier. Le navigateur applique cette décision avant de contacter
+`/api/interagir` ou `/api/chat`. `validate.js` valide chaque requête, puis
+`etat.js` rejoue les reçus vérifiés pour en dériver l'état. `prompt.js` ne
+transmet à Laurent que les connaissances dont les flags sont débloqués ; sa
+réponse revient en SSE et est rendue progressivement.
 
 Le backend est sans état : le navigateur ne transmet jamais de flags. Pour poser
 un flag, le serveur exige un journal cohérent : « donner » suppose que l'objet a

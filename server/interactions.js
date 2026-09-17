@@ -3,7 +3,7 @@
 // capacites.js avant de signer toute action acceptée.
 
 import { evaluerCapacite } from "./capacites.js";
-import { deriverEtat } from "./etat.js";
+import { deriverEtat, deriverEtatPublic } from "./etat.js";
 import { emettreRecu, MAX_RECUS, verifierRecus } from "./progression.js";
 
 function evenementPour(intention, contexte) {
@@ -69,5 +69,10 @@ export function executerInteraction({ scenario, secret, verification, contexte, 
   else if (intention.action === "donner") narration = `Vous tendez ${scenario.objets[intention.cible].nom} à ${scenario.personnage.nom}.`;
   else narration = narrationFouille(scenario, contexte, ciblesFouille);
 
-  return { ok: true, narration, recus: signes.nouveaux, etatPublic: { sac: apres.sac } };
+  return {
+    ok: true,
+    narration,
+    recus: signes.nouveaux,
+    etatPublic: deriverEtatPublic(scenario, signes.verification.evenements),
+  };
 }

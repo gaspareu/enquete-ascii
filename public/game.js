@@ -8,9 +8,8 @@ import {
   historiquePourLaurent,
   recanaliserDernierTour,
   ajouterRecus,
-  remplacerSac,
+  remplacerEtatPublic,
 } from "./state.js";
-import { intentionDepuisTexte } from "./intention.js";
 import { artInterlocuteur, decouperReplique, toursDialogue } from "./render.js";
 import { decoupeTrames } from "./sse.js";
 import { creerModeVocal } from "./voix.js";
@@ -76,9 +75,7 @@ function bouton(label, onClick) {
 }
 
 function mettreAJourPlaceholder() {
-  elInput.placeholder = etat.contexte.type === "personnage"
-    ? "Interrogez Laurent ou utilisez un objet du sac…"
-    : "Fouillez cette zone ou examinez votre sac…";
+  elInput.placeholder = "Décrivez ce que vous observez, faites ou demandez…";
 }
 
 function creerTour(projection, didascalie = "") {
@@ -165,6 +162,7 @@ function rendrePerso() {
   }
   mettreAJourPlaceholder();
   rendrePistes();
+  rendrePlan();
 }
 
 function ouvrirZone(id) {
@@ -185,6 +183,7 @@ function ouvrirZone(id) {
   }
   mettreAJourPlaceholder();
   rendrePistes();
+  rendrePlan();
 }
 
 function rendrePlan() {
@@ -204,6 +203,12 @@ function rendrePlan() {
         element.textContent = "·";
         element.disabled = true;
       }
+      const active = (direction === "C" && etat.contexte.type === "personnage") ||
+        (etat.contexte.type === "zone" && direction === etat.contexte.id);
+      if (active) {
+        element.classList.add("active");
+        element.setAttribute("aria-current", "location");
+      }
       elPlan.appendChild(element);
     }
   }
@@ -221,7 +226,7 @@ function rendreSac() {
   for (const id of etat.sac) {
     const li = document.createElement("li");
     li.className = "objet";
-    li.textContent = vue.objets[id]?.nom ?? id;
+    li.textContent = etat.objetsConnus.find((objet) => objet.id === id)?.nom ?? id;
     elSac.appendChild(li);
   }
 }
@@ -245,7 +250,7 @@ function arreterAttente() {
   elDialogue.removeAttribute("aria-busy");
 }
 
-function demarrerAttente() {
+function demarrerAttente(libelle = `${vue.personnage.nom} réfléchit`) {
   arreterAttente();
   const projection = { role: "systeme", auteur: "Système", texte: "" };
   attente = creerTour(projection);
@@ -253,7 +258,7 @@ function demarrerAttente() {
   elDialogue.appendChild(attente);
   elDialogue.setAttribute("aria-busy", "true");
   const peindre = (points) => {
-    texte.textContent = `${vue.personnage.nom} réfléchit${points}`;
+    texte.textContent = `${libelle}${points}`;
     elDialogue.scrollTop = elDialogue.scrollHeight;
   };
   if (mouvementReduit()) return peindre("…");
@@ -394,7 +399,7 @@ async function traiterInteraction(message, intention) {
     return;
   }
   etat = ajouterRecus(etat, data.recus);
-  etat = remplacerSac(etat, data.etatPublic?.sac);
+  etat = remplacerEtatPublic(etat, data.etatPublic);
   rendreSac();
   narration(data.narration ?? "Rien de particulier ici.");
   rendrePistes(data.pistes);
@@ -404,10 +409,6 @@ async function traiterInteraction(message, intention) {
 }
 
 async function traiterDialogue(message) {
-  if (etat.contexte.type !== "personnage") {
-    narration("Vous êtes loin de Laurent. Fouillez cette zone ou examinez un objet de votre sac.");
-    return;
-  }
   const historique = historiquePourLaurent(etat);
   etat = ajouterDialogue(etat, "joueur", message, "laurent");
   rendreDialogueDOM();
@@ -435,10 +436,72 @@ async function traiterDialogue(message) {
   await consommerFlux(rep);
 }
 
+function appliquerContexte(contexte) {
+  if (contexte?.type === "personnage" && contexte.id === "laurent") {
+    rendrePerso();
+    return true;
+  }
+  if (contexte?.type === "zone" && vue.zones[contexte.id]) {
+    ouvrirZone(contexte.id);
+    return true;
+  }
+  return false;
+}
+
+function decrireObservation(contexte) {
+  if (contexte.type === "personnage") return `Vous vous tournez vers ${vue.personnage.nom}.`;
+  return `Vous observez : ${vue.zones[contexte.id].nom}.`;
+}
+
+async function interpreterEntree(message) {
+  demarrerAttente("Vous réfléchissez");
+  let rep;
+  try {
+    rep = await fetch("/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, contexte: etat.contexte, recus: etat.recus }),
+    });
+  } catch {
+    arreterAttente();
+    narration("L'interprète est indisponible (réseau).");
+    return;
+  }
+  const data = await rep.json().catch(() => ({}));
+  if (!rep.ok) {
+    arreterAttente();
+    narration(data.erreur ?? "L'interprète est indisponible pour le moment.");
+    return;
+  }
+  arreterAttente();
+  const decision = data.decision;
+  if (!decision || typeof decision.type !== "string") {
+    narration("Que souhaitez-vous observer, faire ou demander à Laurent ?");
+    return;
+  }
+  if (decision.type === "observer" && appliquerContexte(decision.contexte)) {
+    etat = ajouterDialogue(etat, "joueur", message, "scene");
+    rendreDialogueDOM();
+    narration(decrireObservation(decision.contexte));
+    return;
+  }
+  if (decision.type === "interagir" && appliquerContexte(decision.contexte)) {
+    return traiterInteraction(message, { action: decision.action, cible: decision.cibleId });
+  }
+  if (decision.type === "dialoguer" && appliquerContexte(decision.contexte)) {
+    return traiterDialogue(message);
+  }
+  if (decision.type === "clarifier") {
+    etat = ajouterDialogue(etat, "joueur", message, "scene");
+    rendreDialogueDOM();
+    narration(decision.question ?? "Que souhaitez-vous observer, faire ou demander à Laurent ?");
+    return;
+  }
+  narration("Que souhaitez-vous observer, faire ou demander à Laurent ?");
+}
+
 async function traiterEntreeChat(message) {
-  const intention = intentionDepuisTexte(message, vue, etat.contexte);
-  if (intention) return traiterInteraction(message, intention);
-  return traiterDialogue(message);
+  return interpreterEntree(message);
 }
 
 function reglerSaisieOccupee(occupee) {
@@ -491,7 +554,6 @@ async function init() {
   }
   etat = ajouterDialogue(etat, "systeme", vue.intro, "scene");
   rendrePerso();
-  rendrePlan();
   rendreSac();
   rendreDialogueDOM();
 }

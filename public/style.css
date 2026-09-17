@@ -169,10 +169,9 @@ h2 {
   cursor: default;
   opacity: 0.5;
 }
-.case.centre {
+.case.active {
   color: var(--c-vert);
   border-color: var(--c-vert);
-  cursor: pointer;
 }
 
 #sac {

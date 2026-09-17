@@ -11,9 +11,8 @@ describe("vuePublique", () => {
     expect(vue.intro).toBe(scenario.intro);
     expect(vue.personnage.nom).toBe(scenario.personnage.nom);
     expect(vue.zones).toBeDefined();
-    expect(vue.objets.grand_cru.nom).toBe("Grand cru");
-    expect(vue.objets.grand_cru.ramassable).toBe(true);
     expect(vue.zones.N.aliases).toContain("table");
+    expect(vue.objets).toBeUndefined();
   });
 
   test("expose le visage ASCII du personnage (donnée publique pour le rendu)", () => {
@@ -26,9 +25,11 @@ describe("vuePublique", () => {
     expect(vue.personnage.portraits[EmotionLaurent.NEUTRE]).toBe("/images/laurent-neutre.png");
   });
 
-  test("n'expose ni description ni aperçu des objets (servis à l'examen)", () => {
-    expect(vue.objets.plaquette_somniferes.description).toBeUndefined();
-    expect(vue.objets.plaquette_somniferes.apercu).toBeUndefined();
+  test("ne dévoile aucun catalogue d'objets avant leur découverte", () => {
+    expect(vue.objets).toBeUndefined();
+    const json = JSON.stringify(vue).toLowerCase();
+    expect(json).not.toContain("grand cru");
+    expect(json).not.toContain("plaquette de somnifères");
   });
 
   test("ne fuite jamais les secrets du scénario", () => {
