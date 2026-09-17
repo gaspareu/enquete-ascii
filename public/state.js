@@ -5,7 +5,7 @@
 const CONTEXTE_LAURENT = Object.freeze({ type: "personnage", id: "laurent" });
 
 export function etatInitial() {
-  return { contexte: { ...CONTEXTE_LAURENT }, sac: [], historique: [], recus: [] };
+  return { contexte: { ...CONTEXTE_LAURENT }, sac: [], objetsConnus: [], historique: [], recus: [] };
 }
 
 export function observerZone(etat, id) {
@@ -52,7 +52,16 @@ export function ajouterRecus(etat, recus) {
   return nouveaux.length === 0 ? etat : { ...etat, recus: [...etat.recus, ...nouveaux] };
 }
 
-// Seule une réponse d'interaction acceptée fournit le sac affiché au navigateur.
-export function remplacerSac(etat, sac) {
-  return { ...etat, sac: Array.isArray(sac) ? [...sac] : [] };
+// Seule une réponse d'interaction acceptée fournit l'inventaire public affiché.
+export function remplacerEtatPublic(etat, etatPublic) {
+  const objetsConnus = Array.isArray(etatPublic?.objetsConnus)
+    ? etatPublic.objetsConnus
+      .filter((objet) => objet && typeof objet.id === "string" && typeof objet.nom === "string")
+      .map((objet) => ({ ...objet, aliases: Array.isArray(objet.aliases) ? [...objet.aliases] : [] }))
+    : [];
+  return {
+    ...etat,
+    sac: Array.isArray(etatPublic?.sac) ? [...etatPublic.sac] : [],
+    objetsConnus,
+  };
 }

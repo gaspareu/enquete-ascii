@@ -74,6 +74,39 @@ export function deriverEtat(scenario, evenementsVerifies = []) {
   return { sac, flags, actionsEffectuees };
 }
 
+function objetPublic(id, objet) {
+  return {
+    id,
+    nom: objet.nom,
+    aliases: [...(objet.aliases ?? [])],
+    ramassable: objet.ramassable === true,
+  };
+}
+
+// Cette projection se déduit des reçus, pas du navigateur : l'interprète ne peut
+// nommer que les objets dont le joueur a légitimement rencontré le nom.
+export function deriverObjetsConnus(scenario, evenementsVerifies = []) {
+  const connus = [];
+  const ajouter = (id) => {
+    if (connus.some((objet) => objet.id === id) || !scenario.objets?.[id]) return;
+    connus.push(objetPublic(id, scenario.objets[id]));
+  };
+  for (const evenement of evenementsVerifies) {
+    if (!evenementValide(evenement)) continue;
+    if (evenement.type === "fouiller" && evenement.contexte.type === "zone" && evenement.cible === evenement.contexte.id) {
+      for (const id of scenario.zones?.[evenement.cible]?.objetsCaches ?? []) ajouter(id);
+    } else if (ACTIONS_OBJET.has(evenement.type) && scenario.objets?.[evenement.cible]) {
+      ajouter(evenement.cible);
+    }
+  }
+  return connus;
+}
+
+export function deriverEtatPublic(scenario, evenementsVerifies = []) {
+  const etat = deriverEtat(scenario, evenementsVerifies);
+  return { sac: etat.sac, objetsConnus: deriverObjetsConnus(scenario, evenementsVerifies) };
+}
+
 // Les pistes et le prompt ne doivent évoquer que ce que le joueur a effectivement
 // lu ou entendu. Contrairement à `deriverEtat`, cette projection ne résout pas les
 // préconditions à rebours : un examen réalisé avant son prérequis reste un aperçu

@@ -92,6 +92,18 @@ export function valideRequeteChat(body, scenario) {
   return { ok: true, valeur: { message, contexte: contexte.valeur, recus: recus.valeur, historique } };
 }
 
+export function valideRequeteInterprete(body, scenario) {
+  if (!estObjet(body)) return { ok: false, erreur: "Requête invalide." };
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (message.length === 0) return { ok: false, erreur: "Le message est vide." };
+  if (message.length > MAX_MESSAGE) return { ok: false, erreur: "Le message est trop long." };
+  const contexte = valideContexte(body.contexte, scenario);
+  if (!contexte.ok) return contexte;
+  const recus = valideRecus(body.recus);
+  if (!recus.ok) return recus;
+  return { ok: true, valeur: { message, contexte: contexte.valeur, recus: recus.valeur } };
+}
+
 export function valideDebrief(body, idsConnus) {
   if (!estObjet(body)) return { ok: false, erreur: "Requête invalide." };
   const brut = body.reponses ?? [];

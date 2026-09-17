@@ -49,19 +49,25 @@ const VUE = {
       objetsCaches: ["brochure", "courrier_syndic"],
     },
   },
-  objets: {
-    livre: { nom: "Vieux livre", ramassable: false },
-    cle: { nom: "Petite clé", ramassable: true },
-    lettre: { nom: "Lettre froissée", ramassable: true },
-    brochure: { nom: "Brochure de vente de l'appartement", ramassable: false },
-    courrier_syndic: { nom: "Courrier du syndic déchiré", ramassable: false },
-  },
   debrief: {
     questions: [
       { id: "qui", question: "Qui a tué ?" },
       { id: "mobile", question: "Pourquoi ?" },
     ],
   },
+};
+
+const OBJETS_CONNUS = [
+  { id: "livre", nom: "Vieux livre", aliases: ["livre"], ramassable: false },
+  { id: "cle", nom: "Petite clé", aliases: ["clé"], ramassable: true },
+  { id: "lettre", nom: "Lettre froissée", aliases: ["lettre"], ramassable: true },
+  { id: "brochure", nom: "Brochure de vente de l'appartement", aliases: ["brochure"], ramassable: false },
+  { id: "courrier_syndic", nom: "Courrier du syndic déchiré", aliases: ["courrier"], ramassable: false },
+];
+
+const DECISION_LAURENT = {
+  type: "dialoguer",
+  contexte: { type: "personnage", id: "laurent" },
 };
 
 const rep = (data, ok = true) => ({ ok, json: async () => data });
@@ -103,6 +109,17 @@ function monterFetch(reponses = {}) {
       if (reponses.scenarioErreur) throw new Error("réseau");
       return rep(reponses.scenario ?? VUE);
     }
+    if (url === "/api/interpreter") {
+      if (reponses.interpreterErreur) throw new Error("réseau");
+      if (reponses.interpreterOk === false) {
+        return rep(reponses.interpreter ?? { erreur: "L'interprète est indisponible." }, false);
+      }
+      const corps = JSON.parse(opts.body);
+      if (typeof reponses.interpreterFn === "function") {
+        return rep(await reponses.interpreterFn(corps));
+      }
+      return rep({ decision: reponses.interpreter ?? DECISION_LAURENT });
+    }
     if (url === "/api/interagir") {
       if (reponses.interagirErreur) throw new Error("réseau");
       const corps = JSON.parse(opts.body);
@@ -120,7 +137,7 @@ function monterFetch(reponses = {}) {
       return rep({
         narration,
         recus: [`recu-${++sequence}`],
-        etatPublic: { sac },
+        etatPublic: { sac, objetsConnus: reponses.objetsConnus ?? OBJETS_CONNUS },
       });
     }
     if (url === "/api/chat") {
@@ -187,8 +204,11 @@ describe("init", () => {
     const cases = $("plan").querySelectorAll("button.case");
     expect(cases.length).toBe(9);
     expect(boutonParTexte($("plan"), "Victor").disabled).toBe(false);
+    expect(boutonParTexte($("plan"), "Victor").classList.contains("active")).toBe(true);
+    expect(boutonParTexte($("plan"), "Victor").getAttribute("aria-current")).toBe("location");
     // Sac vide au départ.
     expect($("sac").textContent).toContain("(vide)");
+    expect($("message").placeholder).toBe("Décrivez ce que vous observez, faites ou demandez…");
     expect($("dialogue").querySelector(".tour--systeme")).toBeTruthy();
   });
 
@@ -240,18 +260,27 @@ describe("exploration d'une zone", () => {
     await ouvrirZoneNord();
     boutonParTexte($("plan"), "Victor").click();
     expect($("visuel").textContent).toContain("Victor");
+    expect(boutonParTexte($("plan"), "Victor").classList.contains("active")).toBe(true);
   });
 
-  test("met à jour le placeholder selon le contexte observé", async () => {
+  test("conserve un placeholder universel quel que soit le contexte observé", async () => {
     await charger();
     await ouvrirZoneNord();
-    expect($("message").placeholder).toContain("Fouillez cette zone");
+    expect($("message").placeholder).toBe("Décrivez ce que vous observez, faites ou demandez…");
     boutonParTexte($("plan"), "Victor").click();
-    expect($("message").placeholder).toContain("Interrogez Laurent");
+    expect($("message").placeholder).toBe("Décrivez ce que vous observez, faites ou demandez…");
   });
 
   test("ramasser un objet dans le chat le met au sac sans appeler le personnage", async () => {
-    await charger({ interagir: { narration: "Vous ramassez : Petite clé." } });
+    await charger({
+      interagir: { narration: "Vous ramassez : Petite clé." },
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "ramasser",
+        cibleId: "cle",
+      },
+    });
     await ouvrirZoneNord();
     envoyerMessage("Je ramasse la Petite clé.");
 
@@ -267,10 +296,16 @@ describe("exploration d'une zone", () => {
   });
 
   test("fouille la corbeille à papier dans le chat et y liste les documents trouvés", async () => {
-    await charger();
-    boutonParTexte($("plan"), "SE").click();
+    await charger({
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "SE" },
+        action: "fouiller",
+        cibleId: "SE",
+      },
+    });
 
-    envoyerMessage("Je fouille dans la corbeille.");
+    envoyerMessage("Qu'est-ce qu'il y a sur le bureau ?");
 
     await vi.waitFor(() =>
     expect($("dialogue").textContent).toContain("En cherchant dans la corbeille à papier"),
@@ -281,10 +316,17 @@ describe("exploration d'une zone", () => {
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 
-  test("fouille la zone observée quand le joueur écrit « ici »", async () => {
-    await charger();
+  test("applique la décision de fouille dans la zone observée", async () => {
+    await charger({
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "fouiller",
+        cibleId: "N",
+      },
+    });
     await ouvrirZoneNord();
-    envoyerMessage("Je fouille ici.");
+    envoyerMessage("Qu'est-ce qu'il y a dans cette zone ?");
 
     await vi.waitFor(() => expect(global.fetch.mock.calls.some(([u]) => u === "/api/interagir")).toBe(true));
     const appel = global.fetch.mock.calls.find(([u]) => u === "/api/interagir");
@@ -292,7 +334,16 @@ describe("exploration d'une zone", () => {
   });
 
   test("un refus d'action reste une narration de scène et ne bascule pas vers Claude", async () => {
-    await charger({ interagirOk: false, interagir: { erreur: "Cet objet n'est pas dans la zone." } });
+    await charger({
+      interagirOk: false,
+      interagir: { erreur: "Cet objet n'est pas dans la zone." },
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "examiner",
+        cibleId: "lettre",
+      },
+    });
     await ouvrirZoneNord();
     envoyerMessage("J'examine la Lettre froissée.");
 
@@ -305,7 +356,15 @@ describe("exploration d'une zone", () => {
     const interagirFn = vi.fn(() => new Promise((resoudre) => {
       resoudreInteraction = resoudre;
     }));
-    await charger({ interagirFn });
+    await charger({
+      interagirFn,
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "ramasser",
+        cibleId: "cle",
+      },
+    });
     await ouvrirZoneNord();
 
     envoyerMessage("Je ramasse la Petite clé.");
@@ -316,24 +375,67 @@ describe("exploration d'une zone", () => {
     resoudreInteraction({
       narration: "Vous ramassez : Petite clé.",
       recus: ["recu-unique"],
-      etatPublic: { sac: ["cle"] },
+      etatPublic: { sac: ["cle"], objetsConnus: OBJETS_CONNUS },
     });
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous ramassez : Petite clé."));
   });
 
-  test("une phrase libre dans une zone affiche une aide locale sans appeler Claude", async () => {
-    await charger();
+  test("une clarification est locale et ne contacte pas Laurent", async () => {
+    await charger({
+      interpreter: {
+        type: "clarifier",
+        contexte: { type: "zone", id: "N" },
+        question: "Que souhaitez-vous observer ?",
+        choix: [],
+      },
+    });
     await ouvrirZoneNord();
-    envoyerMessage("Pourquoi Victor ment-il ?");
+    envoyerMessage("Regardez ça.");
 
-    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous êtes loin de Laurent."));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Que souhaitez-vous observer ?"));
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/interpreter")).toBe(true);
+  });
+
+  test("une observation décidée par l'interprète déplace aussi la case active", async () => {
+    await charger({
+      interpreter: { type: "observer", contexte: { type: "zone", id: "S" } },
+    });
+
+    envoyerMessage("Regardons le bureau.");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous observez : bureau."));
+    const active = boutonParTexte($("plan"), "S");
+    expect(active.classList.contains("active")).toBe(true);
+    expect(active.getAttribute("aria-current")).toBe("location");
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
+  });
+
+  test("signale l'indisponibilité de l'interprète sans essayer une autre route", async () => {
+    await charger({
+      interpreterOk: false,
+      interpreter: { erreur: "Interprète indisponible. Renseignez ANTHROPIC_API_KEY dans .env." },
+    });
+
+    envoyerMessage("Qu'y a-t-il sur le bureau ?");
+
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Interprète indisponible."));
+    expect(global.fetch.mock.calls.some(([u]) => u === "/api/interagir")).toBe(false);
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
   });
 });
 
 describe("examen d'une cible", () => {
   test("ouvre une modale avec le texte renvoyé par le serveur", async () => {
-    await charger({ interagir: { narration: "Une clé ancienne, gravée d'initiales." } });
+    await charger({
+      interagir: { narration: "Une clé ancienne, gravée d'initiales." },
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "examiner",
+        cibleId: "cle",
+      },
+    });
     await ouvrirZoneNord();
     envoyerMessage("J'examine la Petite clé.");
 
@@ -345,7 +447,24 @@ describe("examen d'une cible", () => {
   });
 
   test("permet d'examiner un objet ramassé depuis le chat", async () => {
-    await charger({ interagir: { narration: "La clé porte une trace de cire." } });
+    const decisions = [
+      {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "ramasser",
+        cibleId: "cle",
+      },
+      {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "examiner",
+        cibleId: "cle",
+      },
+    ];
+    await charger({
+      interagir: { narration: "La clé porte une trace de cire." },
+      interpreterFn: () => ({ decision: decisions.shift() }),
+    });
     await ouvrirZoneNord();
     envoyerMessage("Je prends la Petite clé.");
     await vi.waitFor(() => expect($("sac").textContent).toContain("Petite clé"));
@@ -356,7 +475,15 @@ describe("examen d'une cible", () => {
   });
 
   test("signale l'échec réseau d'une interaction sans ouvrir de modale", async () => {
-    await charger({ interagirErreur: true });
+    await charger({
+      interagirErreur: true,
+      interpreter: {
+        type: "interagir",
+        contexte: { type: "zone", id: "N" },
+        action: "examiner",
+        cibleId: "livre",
+      },
+    });
     await ouvrirZoneNord();
     envoyerMessage("J'inspecte le Vieux livre.");
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("Impossible d'agir (réseau)."));
@@ -497,7 +624,16 @@ describe("dialogue (envoi de message)", () => {
   });
 
   test("conserve le journal global mais n'envoie à Laurent que son propre canal", async () => {
-    await charger({ interagir: { narration: "Vous examinez le livre." } });
+    const decisions = [
+      { type: "interagir", contexte: { type: "zone", id: "N" }, action: "examiner", cibleId: "livre" },
+      DECISION_LAURENT,
+      { type: "observer", contexte: { type: "zone", id: "S" } },
+      DECISION_LAURENT,
+    ];
+    await charger({
+      interagir: { narration: "Vous examinez le livre." },
+      interpreterFn: () => ({ decision: decisions.shift() }),
+    });
     await ouvrirZoneNord();
     envoyerMessage("J'examine le Vieux livre.");
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous examinez le livre."));
@@ -509,7 +645,7 @@ describe("dialogue (envoi de message)", () => {
 
     boutonParTexte($("plan"), "S").click();
     envoyerMessage("Que vois-je ici ?");
-    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous êtes loin de Laurent."));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous observez : bureau."));
     await vi.waitFor(() => expect($("message").disabled).toBe(false));
 
     boutonParTexte($("plan"), "Victor").click();
@@ -523,11 +659,16 @@ describe("dialogue (envoi de message)", () => {
       "Je n'ai rien à dire.",
     ]);
     expect($("dialogue").textContent).toContain("Vous examinez le livre.");
-    expect($("dialogue").textContent).toContain("Vous êtes loin de Laurent.");
+    expect($("dialogue").textContent).toContain("Vous observez : bureau.");
   });
 
   test("absorbe la trame progression avant de réutiliser les reçus", async () => {
     await charger({
+      interpreterFn: () => ({
+        decision: global.fetch.mock.calls.some(([url]) => url === "/api/chat")
+          ? { type: "interagir", contexte: { type: "zone", id: "N" }, action: "examiner", cibleId: "livre" }
+          : DECISION_LAURENT,
+      }),
       chatTrames: [
         `event: delta\ndata: ${JSON.stringify({ texte: "D'accord." })}\n\n`,
         `event: progression\ndata: ${JSON.stringify({ recus: ["recu-laurent"] })}\n\n`,
@@ -565,7 +706,15 @@ describe("dialogue (envoi de message)", () => {
 
 describe("donner un objet", () => {
   test("la remise passe par l'interaction signée, sans note libre au chat", async () => {
-    await charger({ interagir: { narration: "Vous tendez Petite clé à Victor." } });
+    const decisions = [
+      { type: "interagir", contexte: { type: "zone", id: "N" }, action: "ramasser", cibleId: "cle" },
+      { type: "interagir", contexte: { type: "personnage", id: "laurent" }, action: "donner", cibleId: "cle" },
+      DECISION_LAURENT,
+    ];
+    await charger({
+      interagir: { narration: "Vous tendez Petite clé à Victor." },
+      interpreterFn: () => ({ decision: decisions.shift() }),
+    });
     await ouvrirZoneNord();
     envoyerMessage("Je ramasse la Petite clé.");
     await vi.waitFor(() => expect($("sac").textContent).toContain("Petite clé"));

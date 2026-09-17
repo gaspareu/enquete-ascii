@@ -19,7 +19,7 @@ ni l'accessibilité du terminal actuel.
 Le socle jouable est en place :
 
 - exploration de huit zones autour d'un interlocuteur central, objets examinables
-  et inventaire ;
+  et inventaire, décrits en langage libre à un agent d'interprétation dédié ;
 - scénario à embranchements : les interactions acceptées produisent des reçus
   HMAC chaînés ; le serveur en dérive inventaire, flags et révélations sans
   exposer les secrets au navigateur ;
@@ -30,8 +30,8 @@ Le socle jouable est en place :
   micro quand le navigateur propose Web Speech API ;
 - tests automatisés et seuils de couverture appliqués.
 
-Le chantier produit restant est **T-08** : faire évoluer les décors du rendu
-ASCII vers une direction pixel art cohérente. Son cadrage et son critère
+Le chantier produit en cours est **T-10** : rendre toutes les interactions
+naturelles, sans imposer de mots-clés au joueur. Son cadrage et son critère
 d'acceptation vivent dans le [backlog](BACKLOG.md).
 
 ## Prérequis
@@ -58,9 +58,9 @@ MODEL=claude-sonnet-4-6
 PORT=3000
 ```
 
-Sans `ANTHROPIC_API_KEY`, le serveur et l'exploration démarrent quand même, mais
-le dialogue et le débrief indiquent qu'ils sont indisponibles. La clé reste côté
-serveur et `.env` est ignoré par git.
+Sans `ANTHROPIC_API_KEY`, l'interface et les décors démarrent quand même, mais
+l'interprète d'actions, le dialogue et le débrief indiquent qu'ils sont
+indisponibles. La clé reste côté serveur et `.env` est ignoré par git.
 
 ### Voix et micro (facultatifs)
 
@@ -80,15 +80,15 @@ transcription : vérifiez leur politique avant de l'utiliser.
 
 ## Jouer
 
-- Cliquez une direction du plan pour observer une zone. Dans une zone, décrivez une
-  action locale, par exemple : « Je fouille dans la corbeille à papier »,
-  « J'examine la plaquette de somnifères » ou « Je ramasse le grand cru ».
-- Un objet du sac reste examinable depuis toute zone. Pour donner un objet ou
-  parler à Laurent, revenez au centre du plan, par exemple : « Je lui tends le
-  grand cru. »
-- Une phrase libre envoyée depuis une zone affiche une aide locale : Laurent n'est
-  jamais appelé à distance. Au centre, ses réponses apparaissent en streaming et
-  il retrouve uniquement vos précédents échanges avec lui.
+- Écrivez simplement ce que vous observez, faites ou demandez : « Qu'est-ce qu'il
+  y a sur le bureau ? », « Je prends le grand cru » ou « Demandez à Laurent
+  pourquoi il ment. » L'interprète ouvre la bonne scène, déclenche une action ou
+  revient à Laurent ; en cas d'ambiguïté, il vous demande de préciser.
+- Le plan reste un raccourci pour observer une zone. Sa case verte indique toujours
+  la scène affichée.
+- Laurent ne reçoit que les demandes qui lui sont destinées. Ses réponses
+  apparaissent en streaming et il retrouve uniquement vos précédents échanges
+  avec lui.
 - Prenez vos notes au fur et à mesure, puis choisissez `⚖ ACCUSER` pour répondre
   au débrief final et obtenir votre score.
 
@@ -106,11 +106,13 @@ docs/superpowers/   décisions de conception et plans historiques
 ```
 
 Le navigateur conserve un contexte observé, un journal visuel et une chaîne de
-reçus opaques. Après chaque action autorisée, le serveur signe un événement HMAC
-chaîné. À chaque requête suivante, il vérifie la chaîne puis dérive le sac, les
-flags et les actions effectivement réalisées. `server/capacites.js` est l'unique
-arbitre des règles spatiales et des conditions de progression ; une cible hors zone
-ou hors inventaire ne peut donc pas être lue.
+reçus opaques. Un agent serveur dédié traduit le langage libre en une décision
+structurée, sans recevoir les indices ou règles secrets. Après chaque action
+autorisée, le serveur signe un événement HMAC chaîné. À chaque requête suivante,
+il vérifie la chaîne puis dérive le sac, les objets déjà rencontrés, les flags et
+les actions effectivement réalisées. `server/capacites.js` est l'unique arbitre
+des règles spatiales et des conditions de progression ; une cible hors zone ou
+hors inventaire ne peut donc pas être lue.
 
 Le journal affiché reste global, mais le navigateur ne transmet à Claude que les
 tours canalisés `laurent`, et `/api/chat` exige le contexte central. Le scénario
@@ -120,8 +122,10 @@ révélations restent côté serveur.
 Les routes publiques sont :
 
 - `GET /api/scenario` : vue sans secret du scénario ;
+- `POST /api/interpreter` : transforme un message libre en observation,
+  interaction, dialogue ou demande de précision ;
 - `POST /api/interagir` : exécute une intention autorisée dans le contexte observé
-  et renvoie narration, nouveaux reçus et sac dérivé ;
+  et renvoie narration, nouveaux reçus, sac et objets déjà rencontrés ;
 - `POST /api/chat` : réponse Claude en Server-Sent Events ;
 - `POST /api/debrief` : notation finale ;
 - `POST /api/voix` : MP3 ElevenLabs, si configuré.

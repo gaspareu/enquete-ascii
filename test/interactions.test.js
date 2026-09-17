@@ -62,7 +62,10 @@ describe("executerInteraction", () => {
     expect(resultat.ok).toBe(true);
     expect(resultat.narration).toBe("Un livre ouvert.");
     expect(resultat.recus).toHaveLength(1);
-    expect(resultat.etatPublic).toEqual({ sac: [] });
+    expect(resultat.etatPublic).toEqual({
+      sac: [],
+      objetsConnus: [{ id: "livre", nom: "Livre", aliases: [], ramassable: false }],
+    });
     expect(verifierRecus(secret, resultat.recus).evenements[0]).toMatchObject({
       type: "examiner",
       cible: "livre",

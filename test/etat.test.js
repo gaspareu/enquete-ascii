@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { deriverEtat, deriverFlagsVisibles } from "../server/etat.js";
+import { deriverEtat, deriverEtatPublic, deriverFlagsVisibles } from "../server/etat.js";
 
 const scenario = {
   objets: {
@@ -7,6 +7,7 @@ const scenario = {
     cle: { nom: "Clé", ramassable: true },
     tableau: { nom: "Tableau", ramassable: false },
   },
+  zones: { N: { objetsCaches: ["tableau"] } },
   declencheurs: {
     "ramasser:chocolats": "chocolats_trouves",
     "donner:chocolats": "chocolats_donnes",
@@ -89,5 +90,17 @@ describe("deriverEtat", () => {
     ]);
 
     expect(etat.actionsEffectuees).toEqual(["laurent_demande_stylo"]);
+  });
+});
+
+describe("deriverEtatPublic", () => {
+  test("ne projette que les objets légitimement rencontrés", () => {
+    expect(deriverEtatPublic(scenario, [])).toEqual({ sac: [], objetsConnus: [] });
+    expect(deriverEtatPublic(scenario, [e("fouiller", "N")]).objetsConnus).toEqual([
+      { id: "tableau", nom: "Tableau", aliases: [], ramassable: false },
+    ]);
+    expect(deriverEtatPublic(scenario, [e("ramasser", "chocolats")]).objetsConnus).toEqual([
+      { id: "chocolats", nom: "Chocolats", aliases: [], ramassable: true },
+    ]);
   });
 });

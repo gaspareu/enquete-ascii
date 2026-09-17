@@ -56,6 +56,7 @@ app.use(
     secret: secretProgression,
     client,
     model: process.env.MODEL || "claude-sonnet-4-6",
+    modelInterprete: process.env.INTERPRETER_MODEL || process.env.MODEL || "claude-sonnet-4-6",
     voix,
   }),
 );

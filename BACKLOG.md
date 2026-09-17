@@ -11,38 +11,23 @@ le débrief récompensent une vraie déduction. L'expérience doit rester fluide
 clavier et lisible, tout en faisant progressivement évoluer l'esthétique terminal
 vers un pixel art rétro assumé.
 
-## À faire
-
-### T-09 · Chat contextuel et capacités conditionnées par la progression
-
-Limiter les entrées au contexte observé, autoriser les actions uniquement selon
-la zone, l'inventaire et la progression réellement acquise, et préserver une
-mémoire distincte pour Laurent sans exposer les règles verrouillées au navigateur
-ni au modèle.
-
-Critères d'acceptation :
-
-- le contexte observé est immutable, explicite et arbitré côté serveur ;
-- toutes les interactions passent par un moteur central de capacités et des reçus
-  de progression opaques signés ;
-- Laurent ne reçoit que l'historique de son canal, exclusivement face à lui ;
-- les tests et le rapport de couverture restent verts, sans fuite de conditions ou
-  de révélations verrouillées.
-
-### T-08 · 🟢 Décors pixel art pour la pièce
-
-Faire évoluer les pièces et les zones fouillables vers des décors pixel art, sans
-régression fonctionnelle ni perte de l'identité rétro du jeu.
-
-Critères d'acceptation :
-
-- le plan et la scène restent immédiatement lisibles sur ordinateur et mobile ;
-- les interactions existantes (zones, inventaire, dialogue, modale) sont intactes ;
-- les nouveaux styles respectent `public/tokens.css`,
-  `public/DESIGN-SYSTEM.md` et `prefers-reduced-motion` ;
-- les tests et le rapport de couverture restent verts.
-
 ## En cours
+
+### T-10 · Agent d'interprétation des actions libres
+
+Permettre au joueur de décrire naturellement une observation, une action ou une
+demande à Laurent, sans apprendre de mots-clés. Un agent distinct de Laurent
+renvoie une décision structurée et le serveur conserve l'autorité exclusive sur
+les actions, la progression et les révélations.
+
+Critères d'acceptation :
+
+- aucune intention visible n'est déterminée par regex ou dictionnaire de verbes ;
+- l'interprète ne reçoit que des zones publiques et des objets déjà rencontrés ;
+- chaque décision est validée, puis une action reste contrôlée par les capacités
+  et les reçus HMAC côté serveur ;
+- les ambiguïtés deviennent des précisions locales, sans fuite ni appel à Laurent ;
+- les tests, la couverture, le rendu mobile et l'accessibilité restent verts.
 
 ### T-07 · 🟢 Mode vocal
 
