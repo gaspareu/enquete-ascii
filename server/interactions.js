@@ -24,7 +24,11 @@ function signerEvenements(secret, verification, evenements) {
   for (const evenement of evenements) {
     const recu = emettreRecu(secret, courant, evenement);
     chaine.push(recu);
-    courant = verifierRecus(secret, chaine);
+    courant = verifierRecus(secret, chaine, {
+      scenarioId: verification.scenarioId,
+      revision: verification.revision,
+      personnageId: verification.personnageId,
+    });
     if (!courant.ok) throw new Error("Chaîne de progression invalide.");
     nouveaux.push(recu);
   }

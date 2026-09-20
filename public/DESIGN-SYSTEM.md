@@ -6,7 +6,8 @@ des `<pre>`. Tout doit évoquer un vieux moniteur à tube.
 
 > **Source de vérité = [tokens.css](tokens.css).** Aucune valeur brute de couleur,
 > typographie, espacement ou durée ne doit être écrite en dur dans
-> [style.css](style.css) : on référence toujours une variable `--*`. Seules les
+> [style.css](style.css), [enquetes.css](enquetes.css) et
+> [../editeur/style.css](../editeur/style.css) : on référence toujours une variable `--*`. Seules les
 > dimensions structurelles de la grille (`rem`/`vh` de `grid-template`, `100vh`)
 > restent inline. Ce fichier documente le « pourquoi ».
 
@@ -55,7 +56,7 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   Sa consigne est universelle : le joueur peut décrire librement ce qu'il
   observe, fait ou demande. Une attente courte et accessible indique que
   l'interprète comprend la demande ; elle ne doit jamais être confondue avec
-  l'attente « Laurent réfléchit… », réservée au dialogue SSE.
+  l'attente de réponse de l'interlocuteur, réservée au dialogue SSE.
 - **Illustration de zone** : les scènes fournies par le scénario remplacent l'art
   ASCII dans le panneau principal. Elles remplissent toute la zone de scène, sans
   marge ni bordure interne, et sont affichées sans lissage (`image-rendering:
@@ -75,14 +76,14 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   `object-fit: contain` : le ratio et l'illustration complète sont conservés, les
   éventuelles marges latérales restent le fond de scène, sans carte ni bordure.
 - **Journal d'interrogatoire** : chaque tour est un élément sémantique construit
-  par nœuds DOM (`textContent`, jamais HTML injecté). Laurent est à gauche, le
+  par nœuds DOM (`textContent`, jamais HTML injecté). L'interlocuteur est à gauche, le
   joueur à droite, et la narration système est centrée, atténuée et en italique.
   La largeur maximale d'un tour passe par `--largeur-tour-max`; le contenu garde
-  ses retours de paragraphe avec `white-space: pre-wrap`. Une didascalie de Laurent
+  ses retours de paragraphe avec `white-space: pre-wrap`. Une didascalie de l'interlocuteur
   validée par le serveur est un nœud `<em>` décoratif distinct de sa parole ; elle
   n'est jamais fusionnée à l'historique ni à la synthèse vocale.
 - **Pistes d'interrogatoire** : sous le compositeur, `#pistes` ne présente que les
-  questions déjà autorisées par le serveur et seulement en face-à-face avec Laurent.
+  questions déjà autorisées par le serveur et seulement en face-à-face avec l'interlocuteur.
   Chaque question est un bouton `.piste-interrogatoire` pleine largeur, discret (ambre
   faible / surface), accessible au clavier ; son activation préremplit le champ puis
   le focalise, sans jamais envoyer le message. Les pistes sont masquées lors de la
@@ -105,6 +106,13 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   `--c-erreur` avec une pulsation discrète (`@keyframes pulser`, durée
   `--duree-clignotement`), neutralisée sous `prefers-reduced-motion` par la règle `*`
   déjà en place. Aucune valeur brute introduite : tout vient des tokens existants.
+- **Sélection des enquêtes** : cartes cliquables à contour `--c-bordure`, titre
+  et description textuels. Elle ne montre que les enquêtes prêtes ; son rendu
+  utilise les mêmes tokens que le jeu.
+- **Atelier local** : formulaires en panneaux et cartes, navigation par onglets
+  accessibles au clavier, plan 3 × 3, graphe des faits et liste équivalente.
+  Les diagnostics pointent vers leur champ. Sous `48rem`, les colonnes deviennent
+  une seule colonne et les onglets restent défilables.
 
 ## Mouvement & ambiance CRT
 

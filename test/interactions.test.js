@@ -22,6 +22,10 @@ const scenario = {
 const nord = { type: "zone", id: "N" };
 const laurent = { type: "personnage", id: "laurent" };
 const vide = () => verifierRecus(secret, []);
+const fouilleNord = () => verifierRecus(secret, [creerRecu(secret, {
+  partie: "partie-fouille", sequence: 1, precedent: null,
+  evenement: { type: "fouiller", cible: "N", contexte: nord },
+})]);
 
 function chainePleine() {
   let precedent = null;
@@ -30,7 +34,9 @@ function chainePleine() {
       partie: "partie-pleine",
       sequence: index + 1,
       precedent,
-      evenement: { type: "examiner", cible: "livre", contexte: nord },
+      evenement: index === 0
+        ? { type: "fouiller", cible: "N", contexte: nord }
+        : { type: "examiner", cible: "livre", contexte: nord },
     });
     precedent = empreinteRecu(recu);
     return recu;
@@ -54,7 +60,7 @@ describe("executerInteraction", () => {
     const resultat = executerInteraction({
       scenario,
       secret,
-      verification: vide(),
+      verification: fouilleNord(),
       contexte: nord,
       intention: { action: "examiner", cible: "livre" },
     });
@@ -62,11 +68,11 @@ describe("executerInteraction", () => {
     expect(resultat.ok).toBe(true);
     expect(resultat.narration).toBe("Un livre ouvert.");
     expect(resultat.recus).toHaveLength(1);
-    expect(resultat.etatPublic).toEqual({
-      sac: [],
-      objetsConnus: [{ id: "livre", nom: "Livre", aliases: [], ramassable: false }],
-    });
-    expect(verifierRecus(secret, resultat.recus).evenements[0]).toMatchObject({
+    expect(resultat.etatPublic.sac).toEqual([]);
+    expect(resultat.etatPublic.objetsConnus).toEqual(expect.arrayContaining([
+      { id: "livre", nom: "Livre", aliases: [], ramassable: false },
+    ]));
+    expect(verifierRecus(secret, [...fouilleNord().recus, ...resultat.recus]).evenements.at(-1)).toMatchObject({
       type: "examiner",
       cible: "livre",
       contexte: nord,
@@ -77,11 +83,11 @@ describe("executerInteraction", () => {
     const ramassage = executerInteraction({
       scenario,
       secret,
-      verification: vide(),
+      verification: fouilleNord(),
       contexte: nord,
       intention: { action: "ramasser", cible: "cle" },
     });
-    const verification = verifierRecus(secret, ramassage.recus);
+    const verification = verifierRecus(secret, [...fouilleNord().recus, ...ramassage.recus]);
     const remise = executerInteraction({
       scenario,
       secret,
@@ -94,7 +100,7 @@ describe("executerInteraction", () => {
     expect(remise.ok).toBe(true);
     expect(remise.narration).toContain("Clé");
     expect(remise.etatPublic.sac).toEqual(["cle"]);
-    expect(verifierRecus(secret, [...ramassage.recus, ...remise.recus]).evenements).toHaveLength(2);
+    expect(verifierRecus(secret, [...fouilleNord().recus, ...ramassage.recus, ...remise.recus]).evenements).toHaveLength(3);
   });
 
   test("fouiller signe une action sans examiner ni révéler les trouvailles", () => {

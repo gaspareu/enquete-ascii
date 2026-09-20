@@ -1,0 +1,79 @@
+* { box-sizing: border-box; }
+html { background: var(--c-fond); color: var(--c-ambre); font: var(--taille-base)/var(--interligne) var(--police); }
+body { margin: 0; min-height: 100vh; }
+button, input, select, textarea { font: inherit; }
+button, input, select, textarea { border: var(--trait) solid var(--c-bordure); border-radius: var(--rayon); }
+button { background: var(--c-bouton); color: var(--c-ambre); cursor: pointer; padding: var(--esp-md) var(--esp-xl); }
+button:hover { background: var(--c-bouton-survol); }
+button:disabled { opacity: var(--opacite-desactive); cursor: default; }
+a { color: var(--c-vert); }
+:focus-visible { outline: var(--trait) solid var(--c-vert); outline-offset: var(--esp-xs); }
+.lien-saut { position: absolute; left: var(--esp-xl); top: -100px; z-index: 10; background: var(--c-fond); padding: var(--esp-md); }
+.lien-saut:focus { top: var(--esp-xl); }
+.entete { padding: var(--esp-3xl); border-bottom: var(--trait) solid var(--c-bordure); }
+.entete h1 { margin: var(--esp-sm) 0; font-size: calc(var(--taille-base) + var(--esp-2xl)); color: var(--c-vert); }
+.surtitre, .sous-titre, .aide, .meta { color: var(--c-ambre-faible); }
+.surtitre, .sous-titre { margin: 0; }
+main { max-width: 92rem; margin: auto; padding: var(--esp-2xl); }
+.annonce { min-height: 1.5em; color: var(--c-vert); }
+.annonce.erreur { color: var(--c-erreur); }
+.barre, .actions, .cartes, .colonnes, .deux-colonnes, .ligne-formulaire, .entete-section { display: flex; gap: var(--esp-xl); }
+.barre, .entete-section { align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.barre { padding: var(--esp-2xl); background: var(--c-fond-panneau); border: var(--trait) solid var(--c-bordure); }
+.barre h2 { margin: 0; }
+.actions { align-items: center; flex-wrap: wrap; }
+.badge { display: inline-block; padding: var(--esp-xs) var(--esp-md); border: var(--trait) solid var(--c-bordure); color: var(--c-vert); }
+.badge.attention { color: var(--c-erreur); }
+.onglets { display: flex; gap: var(--esp-xs); flex-wrap: wrap; padding: var(--esp-xl) 0; border-bottom: var(--trait) solid var(--c-bordure); }
+.onglets button[aria-selected="true"], .bascule button[aria-pressed="true"] { background: var(--c-surface-survol); color: var(--c-vert); border-color: var(--c-vert); }
+.atelier { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); gap: var(--esp-2xl); margin-top: var(--esp-2xl); }
+.atelier.sans-liste { grid-template-columns: minmax(0, 1fr); }
+.panneau, .carte { background: var(--c-fond-panneau); border: var(--trait) solid var(--c-bordure); padding: var(--esp-2xl); min-width: 0; }
+.panneau h2, .panneau h3, .carte h3 { margin-top: 0; }
+.liste-selection { display: grid; gap: var(--esp-xs); max-height: 65vh; overflow: auto; }
+.liste-selection button { width: 100%; text-align: left; overflow-wrap: anywhere; }
+.liste-selection button[aria-current="true"] { border-color: var(--c-vert); color: var(--c-vert); }
+.grille-formulaire { display: grid; gap: var(--esp-2xl); }
+.champ { display: grid; gap: var(--esp-xs); min-width: 0; }
+.champ label { color: var(--c-vert); }
+.champ input:not([type="checkbox"]):not([type="file"]), .champ select, .champ textarea { width: 100%; min-width: 0; background: var(--c-surface); color: var(--c-ambre); padding: var(--esp-md); }
+.champ textarea { min-height: 5rem; resize: vertical; }
+.champ textarea.long { min-height: 10rem; }
+.champ-boolean { display: flex; align-items: center; gap: var(--esp-md); }
+.champ-boolean input { accent-color: var(--c-vert); }
+.champ-boolean label { color: var(--c-ambre); }
+.aide { margin: 0; font-size: var(--taille-petite); }
+.deux-colonnes > * { flex: 1 1 0; min-width: 0; }
+.cartes { flex-wrap: wrap; }
+.carte { flex: 1 1 17rem; }
+.carte .actions { margin-top: var(--esp-2xl); }
+.cartes h3 { color: var(--c-vert); }
+.plan { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-xs); max-width: 33rem; }
+.plan button { min-height: 4rem; }
+.plan button[aria-pressed="true"] { border-color: var(--c-vert); color: var(--c-vert); }
+.plan .centre { display: grid; place-items: center; border: var(--trait) solid var(--c-vert); color: var(--c-vert); text-align: center; padding: var(--esp-xs); }
+.liste-cases { display: grid; gap: var(--esp-md); margin: var(--esp-xl) 0; padding: 0; list-style: none; }
+.liste-cases label { display: flex; gap: var(--esp-md); align-items: center; }
+.apercu { max-width: 100%; max-height: 16rem; object-fit: contain; border: var(--trait) solid var(--c-bordure); }
+.ascii { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--c-vert); }
+.bascule { display: flex; gap: var(--esp-md); margin-bottom: var(--esp-xl); }
+.graphe { width: 100%; min-height: 18rem; background: var(--c-surface); border: var(--trait) solid var(--c-bordure); overflow: auto; }
+.graphe svg { min-width: 38rem; font-family: var(--police); }
+.graphe .arete { stroke: var(--c-ambre-faible); stroke-width: var(--trait); }
+.graphe .noeud { fill: var(--c-fond-panneau); stroke: var(--c-vert); stroke-width: var(--trait); }
+.graphe text { fill: var(--c-ambre); font-size: var(--taille-petite); }
+.diagnostic { border-left: var(--trait) solid var(--c-erreur); padding: var(--esp-xl); background: var(--c-surface); margin-bottom: var(--esp-md); }
+.diagnostic.avertissement { border-color: var(--c-ambre-faible); }
+.diagnostic p { margin: var(--esp-xs) 0; }
+.diagnostic button { text-align: left; }
+.vide { padding: var(--esp-3xl); background: var(--c-fond-panneau); border: var(--trait) dashed var(--c-bordure); }
+.separateur { border: 0; border-top: var(--trait) solid var(--c-bordure); margin: var(--esp-2xl) 0; }
+@media (max-width: 48rem) {
+  .entete { padding: var(--esp-2xl); }
+  .atelier { grid-template-columns: minmax(0, 1fr); }
+  .deux-colonnes { flex-direction: column; }
+  .onglets { overflow-x: auto; flex-wrap: nowrap; }
+  .onglets button { white-space: nowrap; }
+  .barre { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }

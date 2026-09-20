@@ -3,22 +3,23 @@
 
 const ACTIONS_OBJET = new Set(["ramasser", "donner", "examiner"]);
 
-function contexteValide(contexte) {
+function contexteValide(scenario, contexte) {
   return (
     contexte &&
     typeof contexte === "object" &&
     typeof contexte.id === "string" &&
-    (contexte.type === "zone" || (contexte.type === "personnage" && contexte.id === "laurent"))
+    (contexte.type === "zone" ||
+      (contexte.type === "personnage" && contexte.id === (scenario.personnage?.id ?? "laurent")))
   );
 }
 
-function evenementValide(evenement) {
+function evenementValide(scenario, evenement) {
   return (
     evenement &&
     typeof evenement === "object" &&
     typeof evenement.type === "string" &&
     typeof evenement.cible === "string" &&
-    contexteValide(evenement.contexte)
+    contexteValide(scenario, evenement.contexte)
   );
 }
 
@@ -35,11 +36,17 @@ export function deriverEtat(scenario, evenementsVerifies = []) {
   const actionsEffectuees = [];
 
   for (const evenement of evenementsVerifies) {
-    if (!evenementValide(evenement)) continue;
+    if (!evenementValide(scenario, evenement)) continue;
     const { type, cible } = evenement;
 
     if (type === "dialogue") {
       ajouterUnique(actionsEffectuees, cible);
+      continue;
+    }
+    if (type === "fouiller") {
+      if (evenement.contexte.type === "zone" && evenement.contexte.id === cible && scenario.zones?.[cible]) {
+        ajouterUnique(actionsEffectuees, `fouiller:${cible}`);
+      }
       continue;
     }
     if (!ACTIONS_OBJET.has(type) || !objets[cible]) continue;
@@ -92,7 +99,7 @@ export function deriverObjetsConnus(scenario, evenementsVerifies = []) {
     connus.push(objetPublic(id, scenario.objets[id]));
   };
   for (const evenement of evenementsVerifies) {
-    if (!evenementValide(evenement)) continue;
+    if (!evenementValide(scenario, evenement)) continue;
     if (evenement.type === "fouiller" && evenement.contexte.type === "zone" && evenement.cible === evenement.contexte.id) {
       for (const id of scenario.zones?.[evenement.cible]?.objetsCaches ?? []) ajouter(id);
     } else if (ACTIONS_OBJET.has(evenement.type) && scenario.objets?.[evenement.cible]) {
@@ -119,7 +126,7 @@ export function deriverFlagsVisibles(scenario, evenementsVerifies = []) {
   const flags = [];
 
   for (const evenement of evenementsVerifies) {
-    if (!evenementValide(evenement)) continue;
+    if (!evenementValide(scenario, evenement)) continue;
     const { type, cible } = evenement;
     if (!ACTIONS_OBJET.has(type) || !objets[cible]) continue;
 

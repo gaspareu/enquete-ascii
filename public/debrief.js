@@ -2,7 +2,7 @@
 
 import { structurerDebrief } from "./render.js";
 
-export function creerDebrief({ obtenirVue, conteneur, modale, creerBouton, fermerModale }) {
+export function creerDebrief({ obtenirVue, conteneur, modale, creerBouton, fermerModale, apiBase = "/api" }) {
   function afficherResultat(resultat) {
     const debrief = structurerDebrief(resultat);
     conteneur.replaceChildren();
@@ -79,7 +79,7 @@ export function creerDebrief({ obtenirVue, conteneur, modale, creerBouton, ferme
       valider.disabled = true;
       statut.textContent = "Analyse de vos hypothèses…";
       try {
-        const rep = await fetch("/api/debrief", {
+        const rep = await fetch(`${apiBase}/debrief`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

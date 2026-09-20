@@ -75,14 +75,17 @@ describe("dérivation des fils (vrai scénario)", () => {
 describe("bascules HTTP /interagir", () => {
   test("le mot manuscrit reste un faux adieu avant la fête, puis se révèle avec la chaîne signée", async () => {
     const app = faireApp();
+    const fouilleS = recusPour([e("fouiller", "S", { type: "zone", id: "S" })]);
     const froid = await request(app).post("/api/interagir").send({
       contexte: { type: "zone", id: "S" },
       intention: { action: "examiner", cible: "mot_manuscrit" },
-      recus: [],
+      recus: fouilleS,
     });
     expect(froid.body.narration).toBe(scenario.objets.mot_manuscrit.apercu);
 
     const recus = recusPour([
+      e("fouiller", "S", { type: "zone", id: "S" }),
+      e("fouiller", "SO", { type: "zone", id: "SO" }),
       e("examiner", "cadeau_cache", { type: "zone", id: "SO" }),
     ]);
     const chaud = await request(app).post("/api/interagir").send({
@@ -97,7 +100,11 @@ describe("bascules HTTP /interagir", () => {
     const chaud = await request(faireApp()).post("/api/interagir").send({
       contexte: { type: "zone", id: "NE" },
       intention: { action: "examiner", cible: "agenda" },
-      recus: recusPour([e("examiner", "telephone", { type: "zone", id: "O" })]),
+      recus: recusPour([
+        e("fouiller", "NE", { type: "zone", id: "NE" }),
+        e("fouiller", "O", { type: "zone", id: "O" }),
+        e("examiner", "telephone", { type: "zone", id: "O" }),
+      ]),
     });
     expect(chaud.body.narration).toBe(scenario.objets.agenda.description);
   });

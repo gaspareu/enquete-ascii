@@ -5,7 +5,7 @@ import {
   observerZone,
   observerPersonnage,
   ajouterDialogue,
-  historiquePourLaurent,
+  historiquePourPersonnage,
   recanaliserDernierTour,
   ajouterRecus,
   remplacerEtatPublic,
@@ -16,12 +16,14 @@ import { creerModeVocal } from "./voix.js";
 import { creerDebrief } from "./debrief.js";
 import { brancherControlesVoix } from "./controles-voix.js";
 import {
-  EMOTION_LAURENT_PAR_DEFAUT,
+  EMOTION_PAR_DEFAUT,
   emotionDepuisReplique,
-  imagePourEmotionLaurent,
+  imagePourEmotion,
 } from "./emotion.js";
 
 const $ = (id) => document.getElementById(id);
+const idEnquete = window.location.pathname.match(/^\/jouer\/([a-z0-9_-]+)\/?$/i)?.[1];
+const apiBase = idEnquete ? `/api/enquetes/${idEnquete}` : "/api";
 const elVisuel = $("visuel");
 const elPortrait = $("portrait-personnage");
 const elPortraitImage = $("portrait-personnage-image");
@@ -48,7 +50,7 @@ const GRILLE = [
 let vue = null;
 let etat = etatInitial();
 let minuteurAttente = null;
-let emotionLaurent = EMOTION_LAURENT_PAR_DEFAUT;
+let emotionPersonnage = EMOTION_PAR_DEFAUT;
 let entreeEnCours = false;
 let pistes = [];
 let attente = null;
@@ -57,6 +59,7 @@ let historiqueAffiche = [];
 const didascalies = new WeakMap();
 
 const modeVocal = creerModeVocal({
+  apiBase,
   jouer: (blob) => {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
@@ -148,7 +151,7 @@ function rendrePerso() {
   etat = observerPersonnage(etat);
   elIllustration.classList.add("cache");
   elIllustrationImage.removeAttribute("src");
-  const portrait = imagePourEmotionLaurent(vue.personnage.portraits ?? {}, emotionLaurent);
+  const portrait = imagePourEmotion(vue.personnage.portraits ?? {}, emotionPersonnage);
   if (!portrait) {
     elPortrait.classList.add("cache");
     elPortraitImage.removeAttribute("src");
@@ -236,6 +239,12 @@ function narration(texte) {
   rendreDialogueDOM();
 }
 
+function messageErreurApi(erreur, repli) {
+  return erreur === "Reçus invalides."
+    ? "L'enquête a changé depuis le début de cette partie. Recommencez la partie pour utiliser la nouvelle version."
+    : (erreur ?? repli);
+}
+
 function mouvementReduit() {
   return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -296,12 +305,12 @@ function finaliserReplique(texte, didascalie = "") {
     flux = null;
     return;
   }
-  etat = ajouterDialogue(etat, "personnage", parole, "laurent");
+  etat = ajouterDialogue(etat, "personnage", parole, etat.personnageId);
   const tour = etat.historique.at(-1);
   if (didascalie) didascalies.set(tour, didascalie);
-  emotionLaurent = emotionDepuisReplique(parole);
+  emotionPersonnage = emotionDepuisReplique(parole);
   if (!elPortrait.classList.contains("cache")) {
-    const portrait = imagePourEmotionLaurent(vue.personnage.portraits ?? {}, emotionLaurent);
+    const portrait = imagePourEmotion(vue.personnage.portraits ?? {}, emotionPersonnage);
     if (portrait) elPortraitImage.src = portrait;
   }
   flux?.noeud?.remove();
@@ -384,7 +393,7 @@ async function traiterInteraction(message, intention) {
   rendreDialogueDOM();
   let rep;
   try {
-    rep = await fetch("/api/interagir", {
+    rep = await fetch(`${apiBase}/interagir`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ contexte: etat.contexte, intention, recus: etat.recus }),
@@ -395,7 +404,7 @@ async function traiterInteraction(message, intention) {
   }
   const data = await rep.json().catch(() => ({}));
   if (!rep.ok) {
-    narration(data.erreur ?? "Cette action est impossible.");
+    narration(messageErreurApi(data.erreur, "Cette action est impossible."));
     return;
   }
   etat = ajouterRecus(etat, data.recus);
@@ -409,13 +418,13 @@ async function traiterInteraction(message, intention) {
 }
 
 async function traiterDialogue(message) {
-  const historique = historiquePourLaurent(etat);
-  etat = ajouterDialogue(etat, "joueur", message, "laurent");
+  const historique = historiquePourPersonnage(etat);
+  etat = ajouterDialogue(etat, "joueur", message, etat.personnageId);
   rendreDialogueDOM();
   demarrerAttente();
   let rep;
   try {
-    rep = await fetch("/api/chat", {
+    rep = await fetch(`${apiBase}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, contexte: etat.contexte, recus: etat.recus, historique }),
@@ -430,14 +439,14 @@ async function traiterDialogue(message) {
     arreterAttente();
     etat = recanaliserDernierTour(etat, "scene");
     const data = await rep.json().catch(() => ({}));
-    narration(data.erreur ?? "Erreur de communication.");
+    narration(messageErreurApi(data.erreur, "Erreur de communication."));
     return;
   }
   await consommerFlux(rep);
 }
 
 function appliquerContexte(contexte) {
-  if (contexte?.type === "personnage" && contexte.id === "laurent") {
+  if (contexte?.type === "personnage" && contexte.id === etat.personnageId) {
     rendrePerso();
     return true;
   }
@@ -457,7 +466,7 @@ async function interpreterEntree(message) {
   demarrerAttente("Vous réfléchissez");
   let rep;
   try {
-    rep = await fetch("/api/interpreter", {
+    rep = await fetch(`${apiBase}/interpreter`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, contexte: etat.contexte, recus: etat.recus }),
@@ -470,13 +479,13 @@ async function interpreterEntree(message) {
   const data = await rep.json().catch(() => ({}));
   if (!rep.ok) {
     arreterAttente();
-    narration(data.erreur ?? "L'interprète est indisponible pour le moment.");
+    narration(messageErreurApi(data.erreur, "L'interprète est indisponible pour le moment."));
     return;
   }
   arreterAttente();
   const decision = data.decision;
   if (!decision || typeof decision.type !== "string") {
-    narration("Que souhaitez-vous observer, faire ou demander à Laurent ?");
+    narration(`Que souhaitez-vous observer, faire ou demander à ${vue.personnage.nom} ?`);
     return;
   }
   if (decision.type === "observer" && appliquerContexte(decision.contexte)) {
@@ -494,10 +503,10 @@ async function interpreterEntree(message) {
   if (decision.type === "clarifier") {
     etat = ajouterDialogue(etat, "joueur", message, "scene");
     rendreDialogueDOM();
-    narration(decision.question ?? "Que souhaitez-vous observer, faire ou demander à Laurent ?");
+    narration(decision.question ?? `Que souhaitez-vous observer, faire ou demander à ${vue.personnage.nom} ?`);
     return;
   }
-  narration("Que souhaitez-vous observer, faire ou demander à Laurent ?");
+  narration(`Que souhaitez-vous observer, faire ou demander à ${vue.personnage.nom} ?`);
 }
 
 async function traiterEntreeChat(message) {
@@ -525,6 +534,7 @@ elForm.addEventListener("submit", async (event) => {
 });
 
 const ouvrirDebrief = creerDebrief({
+  apiBase,
   obtenirVue: () => vue,
   conteneur: elModaleContenu,
   modale: elModale,
@@ -546,12 +556,15 @@ brancherControlesVoix({
 
 async function init() {
   try {
-    const rep = await fetch("/api/scenario");
+    const rep = await fetch(`${apiBase}/scenario`);
+    if (!rep.ok) throw new Error("Enquête indisponible.");
     vue = await rep.json();
+    if (!vue?.personnage || !vue?.zones) throw new Error("Vue d'enquête invalide.");
   } catch {
     elVisuel.textContent = "Impossible de charger le scénario.";
     return;
   }
+  etat = etatInitial(vue.personnage.id ?? "laurent");
   etat = ajouterDialogue(etat, "systeme", vue.intro, "scene");
   rendrePerso();
   rendreSac();

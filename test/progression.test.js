@@ -1,6 +1,7 @@
 import { describe, test, expect } from "vitest";
 import {
   creerRecu,
+  emettreRecu,
   verifierRecus,
   empreinteRecu,
   MAX_RECUS,
@@ -26,6 +27,19 @@ function chaineValide() {
 }
 
 describe("reçus de progression", () => {
+  test("lie chaque reçu à une enquête et à une révision", () => {
+    const contexteAgent = { type: "personnage", id: "camille" };
+    const options = { scenarioId: "enquete-a", revision: "rev-1", personnageId: "camille" };
+    const vide = verifierRecus(secret, [], options);
+    const recu = emettreRecu(secret, vide, { type: "dialogue", cible: "aveu", contexte: contexteAgent });
+
+    expect(verifierRecus(secret, [recu], options).ok).toBe(true);
+    expect(verifierRecus(secret, [recu], { ...options, scenarioId: "enquete-b" }).ok).toBe(false);
+    expect(verifierRecus(secret, [recu], { ...options, revision: "rev-2" }).ok).toBe(false);
+    expect(verifierRecus(secret, [recu], { ...options, personnageId: "autre" }).ok).toBe(false);
+    expect(verifierRecus(secret, [recu]).ok).toBe(false);
+    expect(verifierRecus(secret, chaineValide(), options).ok).toBe(false);
+  });
   test("accepte une chaîne vide et une chaîne valide", () => {
     expect(verifierRecus(secret, [])).toMatchObject({ ok: true, evenements: [] });
     const resultat = verifierRecus(secret, chaineValide());

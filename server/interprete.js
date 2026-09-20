@@ -5,9 +5,9 @@ import { deriverEtatPublic } from "./etat.js";
 
 const ACTIONS = new Set(["fouiller", "examiner", "ramasser", "donner"]);
 
-function clarification(choix = []) {
+function clarification(choix = [], nomPersonnage = "Laurent") {
   const libelles = choix.map((choix) => choix.libelle);
-  let question = "Que souhaitez-vous observer, faire ou demander à Laurent ?";
+  let question = `Que souhaitez-vous observer, faire ou demander à ${nomPersonnage} ?`;
   if (libelles.length === 1) question = `Parlez-vous de ${libelles[0]} ?`;
   if (libelles.length === 2) question = `Parlez-vous de ${libelles[0]} ou de ${libelles[1]} ?`;
   return { type: "clarifier", choix, question };
@@ -96,18 +96,19 @@ export function construireCatalogueInterprete(scenario, evenements = [], context
 }
 
 export function validerDecisionInterprete(brut, catalogue) {
-  if (!brut || typeof brut !== "object" || typeof brut.type !== "string") return clarification();
+  const clarifier = (choix = []) => clarification(choix, catalogue.personnage.nom);
+  if (!brut || typeof brut !== "object" || typeof brut.type !== "string") return clarifier();
   if (brut.type === "observer") {
     const contexte = contexteValide(brut.contexte, catalogue);
-    return contexte ? { type: "observer", contexte } : clarification();
+    return contexte ? { type: "observer", contexte } : clarifier();
   }
-  if (brut.type === "interagir") return interactionValide(brut, catalogue) ?? clarification();
+  if (brut.type === "interagir") return interactionValide(brut, catalogue) ?? clarifier();
   if (brut.type === "dialoguer") {
     const contexte = contexteValide(brut.contexte, catalogue);
-    return contexte?.type === "personnage" ? { type: "dialoguer", contexte } : clarification();
+    return contexte?.type === "personnage" ? { type: "dialoguer", contexte } : clarifier();
   }
-  if (brut.type === "clarifier") return clarification(choixPublics(brut.choix, catalogue));
-  return clarification();
+  if (brut.type === "clarifier") return clarifier(choixPublics(brut.choix, catalogue));
+  return clarifier();
 }
 
 const OUTIL_INTENTION = {
@@ -152,7 +153,7 @@ function promptInterprete(catalogue) {
     "Tu interprètes une intention dans un jeu d'enquête. Tu n'es ni narrateur ni personnage.",
     "Réponds obligatoirement avec l'outil resoudre_intention. Une phrase produit une seule décision.",
     "N'utilise que les identifiants présents dans le catalogue. Renseigne toujours contexte ; pour clarifier, reprends le contexte courant. Si elle est ambiguë, utilise clarifier avec zéro à deux choix publics.",
-    "Une observation ne produit aucun geste. Une interaction vise un objet déjà connu ou la fouille d'une zone. Un dialogue vise uniquement Laurent.",
+    `Une observation ne produit aucun geste. Une interaction vise un objet déjà connu ou la fouille d'une zone. Un dialogue vise uniquement ${catalogue.personnage.nom}.`,
     "Si le message cite le nom ou un alias d'une unique zone, choisis cette zone. Une question sur ce qui se trouve dans, sur ou près d'une zone est une fouille de cette zone ; « ici » ou « cette zone » désigne le contexte courant lorsqu'il est une zone. Ne clarifie que si aucune cible publique ne permet de trancher.",
     `Catalogue public : ${JSON.stringify(catalogue)}`,
   ].join("\n\n");

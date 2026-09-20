@@ -3,7 +3,7 @@
 // requis sont présents dans `flags` sont injectées. Le reste n'existe pas pour le
 // modèle — donc impossible à soutirer, même par « ignore tes instructions ».
 
-import { DIDASCALIES_AUTORISEES } from "./replique.js";
+import { didascaliesPourPersonnage } from "./replique.js";
 
 function connaissancesDebloquees(scenario, flags) {
   const acquis = new Set(flags);
@@ -26,7 +26,7 @@ export function construitProjectionPrompt(scenario, flags = []) {
     `Toute réponse est de la parole destinée au joueur. Tu peux, de façon ` +
       `optionnelle, la faire précéder d'une unique première ligne strictement ` +
       `au format « DIDASCALIE: <geste> », avec l'un de ces gestes exacts :\n` +
-      DIDASCALIES_AUTORISEES.map((didascalie) => `- ${didascalie}`).join("\n") +
+      didascaliesPourPersonnage(nom).map((didascalie) => `- ${didascalie}`).join("\n") +
       `\nN'ajoute aucune autre didascalie. Une didascalie est purement décorative : ` +
       `aucune information, émotion probante, intention, objet, hypothèse ou fait ` +
       `n'y figure jamais ; tout élément de jeu doit être dans la parole.`,

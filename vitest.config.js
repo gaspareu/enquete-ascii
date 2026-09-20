@@ -12,10 +12,12 @@ export default defineConfig({
       // car un fichier sous-testé n'est jamais à 100 %, donc toujours compté.
       all: true,
       reporter: ["text", "text-summary"],
-      // Périmètre : la logique métier. On exclut ce qui n'est pas testable en
-      // unitaire (bootstrap serveur, code DOM navigateur) et les données pures.
+      // Périmètre : la logique métier, y compris le modèle pur de l'atelier.
+      // On exclut le bootstrap serveur, le code DOM navigateur et les données pures.
       include: [
         "server/**/*.js",
+        "editeur/state.js",
+        "editeur/graph.js",
         "public/state.js",
         "public/render.js",
         "public/game.js",

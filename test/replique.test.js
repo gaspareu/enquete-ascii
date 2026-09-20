@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { DIDASCALIES_AUTORISEES, creerFiltreReplique } from "../server/replique.js";
+import { DIDASCALIES_AUTORISEES, creerFiltreReplique, didascaliesPourPersonnage } from "../server/replique.js";
 
 function filtrer(morceaux) {
   const evenements = [];
@@ -10,6 +10,15 @@ function filtrer(morceaux) {
 }
 
 describe("creerFiltreReplique", () => {
+  test("adapte la liste autorisée au personnage sans accepter une autre didascalie", () => {
+    const gestes = didascaliesPourPersonnage("Camille");
+    const evenements = [];
+    const filtre = creerFiltreReplique((evenement) => evenements.push(evenement), gestes);
+    filtre.ajouter(`DIDASCALIE: ${gestes[0]}\nBonjour.`);
+    filtre.terminer();
+    expect(evenements).toEqual([{ type: "didascalie", texte: gestes[0] }, { type: "delta", texte: "Bonjour." }]);
+    expect(gestes.join(" ")).not.toContain("Laurent");
+  });
   test("n'autorise pas de geste d'assentiment dans le répertoire décoratif", () => {
     expect(DIDASCALIES_AUTORISEES).toContain("Laurent ajuste le pli de sa manche.");
     expect(DIDASCALIES_AUTORISEES).not.toContain("Laurent hoche lentement la tête.");
