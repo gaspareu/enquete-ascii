@@ -1,0 +1,60 @@
+body {
+  margin: 0;
+  background: var(--c-fond);
+  color: var(--c-ambre);
+  font-family: var(--police);
+  font-size: var(--taille-base);
+}
+
+.catalogue {
+  box-sizing: border-box;
+  max-width: 62rem;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: var(--esp-3xl);
+}
+
+.surtitre {
+  color: var(--c-vert);
+  letter-spacing: var(--interlettre-titre);
+}
+
+.catalogue h1 {
+  margin: var(--esp-lg) 0;
+}
+
+#liste-enquetes {
+  display: grid;
+  gap: var(--esp-md);
+  padding: 0;
+  list-style: none;
+}
+
+#liste-enquetes li {
+  border: var(--trait) solid var(--c-bordure);
+  background: var(--c-fond-panneau);
+}
+
+#liste-enquetes a {
+  display: block;
+  padding: var(--esp-lg);
+  color: var(--c-ambre);
+  text-decoration: none;
+}
+
+#liste-enquetes a:hover,
+#liste-enquetes a:focus-visible {
+  background: var(--c-surface-survol);
+  outline: var(--trait) solid var(--c-vert);
+  outline-offset: var(--trait);
+}
+
+#liste-enquetes strong,
+#liste-enquetes span {
+  display: block;
+}
+
+#liste-enquetes span {
+  margin-top: var(--esp-sm);
+  color: var(--c-ambre-faible);
+}

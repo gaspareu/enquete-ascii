@@ -3,7 +3,7 @@
 // dans `repondreEnFlux` pour rester testable sans appel réseau.
 
 import Anthropic from "@anthropic-ai/sdk";
-import { creerFiltreReplique } from "./replique.js";
+import { creerFiltreReplique, didascaliesPourPersonnage } from "./replique.js";
 
 export function creerClient() {
   return new Anthropic(); // lit process.env.ANTHROPIC_API_KEY
@@ -24,7 +24,7 @@ function construireMessages(historique, message) {
 // attend finalMessage() (clôt le flux et fait remonter une éventuelle erreur).
 export async function repondreEnFlux(
   client,
-  { system, historique = [], message, model, maxTokens = 512, evenementsAutorises = [] },
+  { system, historique = [], message, model, maxTokens = 512, evenementsAutorises = [], personnageNom = "Laurent" },
   onEvenement,
 ) {
   const autorises = [...new Set(evenementsAutorises.filter((evenement) => typeof evenement === "string"))];
@@ -47,7 +47,7 @@ export async function repondreEnFlux(
     }];
   }
   const stream = client.messages.stream(options);
-  const filtre = creerFiltreReplique(onEvenement);
+  const filtre = creerFiltreReplique(onEvenement, didascaliesPourPersonnage(personnageNom));
   for await (const event of stream) {
     if (event.type === "content_block_delta" && event.delta?.type === "text_delta") {
       filtre.ajouter(event.delta.text);

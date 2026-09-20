@@ -5,14 +5,24 @@ import {
   observerPersonnage,
   ajouterDialogue,
   historiquePourLaurent,
+  historiquePourPersonnage,
   ajouterRecus,
   remplacerEtatPublic,
   recanaliserDernierTour,
 } from "../public/state.js";
 
 describe("etatInitial", () => {
+  test("accepte l'identifiant du personnage de l'enquête", () => {
+    const etat = etatInitial("camille");
+    expect(etat.contexte).toEqual({ type: "personnage", id: "camille" });
+    expect(observerPersonnage(observerZone(etat, "N")).contexte.id).toBe("camille");
+    const avecTour = ajouterDialogue(etat, "joueur", "Bonjour", "camille");
+    expect(historiquePourPersonnage(avecTour, "camille")).toHaveLength(1);
+    expect(historiquePourPersonnage(avecTour, "laurent")).toHaveLength(0);
+  });
   test("démarre face à Laurent avec un sac, les objets connus, un historique et des reçus vides", () => {
     expect(etatInitial()).toEqual({
+      personnageId: "laurent",
       contexte: { type: "personnage", id: "laurent" },
       sac: [],
       objetsConnus: [],

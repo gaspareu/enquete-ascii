@@ -35,9 +35,14 @@ export function vuePublique(scenario) {
     titre: scenario.titre,
     intro: scenario.intro,
     personnage: {
+      id: scenario.personnage.id ?? "laurent",
       nom: scenario.personnage.nom,
       visage: scenario.personnage.visage,
-      portraits: scenario.personnage.portraits,
+      portraits: Object.fromEntries(
+        ["neutre", "mefiant", "irrite", "inquiet"].map((humeur) => [
+          humeur, scenario.personnage.portraits?.[humeur] ?? "",
+        ]),
+      ),
     },
     zones,
     debrief: {
@@ -56,7 +61,7 @@ function messageRefus(capacite) {
   return "Cette action n'est pas possible pour le moment.";
 }
 
-function signerEvenementsDialogue(secret, verification, evenements) {
+function signerEvenementsDialogue(secret, verification, evenements, personnageId, identite) {
   let courant = verification;
   const chaine = [...verification.recus];
   const nouveaux = [];
@@ -64,10 +69,10 @@ function signerEvenementsDialogue(secret, verification, evenements) {
     const recu = emettreRecu(secret, courant, {
       type: "dialogue",
       cible: evenement,
-      contexte: { type: "personnage", id: "laurent" },
+      contexte: { type: "personnage", id: personnageId },
     });
     chaine.push(recu);
-    courant = verifierRecus(secret, chaine);
+    courant = verifierRecus(secret, chaine, identite);
     if (!courant.ok) throw new Error("Chaîne de progression invalide.");
     nouveaux.push(recu);
   }
@@ -77,6 +82,8 @@ function signerEvenementsDialogue(secret, verification, evenements) {
 export function creerRouteur({
   scenario,
   secret,
+  scenarioId,
+  revision,
   client,
   model,
   voix = null,
@@ -86,7 +93,12 @@ export function creerRouteur({
   resoudreIntentionFn = resoudreIntention,
   modelInterprete = model,
 }) {
+  if ((scenarioId === undefined) !== (revision === undefined)) {
+    throw new TypeError("L'identifiant et la révision de l'enquête sont requis ensemble.");
+  }
   const routeur = express.Router();
+  const personnageId = scenario.personnage?.id ?? "laurent";
+  const identite = { scenarioId, revision, personnageId };
   const idsDebrief = new Set(scenario.debrief.questions.map((q) => q.id));
 
   routeur.get("/scenario", (_req, res) => res.json(vuePublique(scenario)));
@@ -94,7 +106,7 @@ export function creerRouteur({
   routeur.post("/interpreter", async (req, res) => {
     const demande = valideRequeteInterprete(req.body, scenario);
     if (!demande.ok) return res.status(400).json({ erreur: demande.erreur });
-    const verification = verifierRecus(secret, demande.valeur.recus);
+    const verification = verifierRecus(secret, demande.valeur.recus, identite);
     if (!verification.ok) return res.status(400).json({ erreur: "Reçus invalides." });
     if (!client) {
       return res.status(503).json({
@@ -118,7 +130,7 @@ export function creerRouteur({
   routeur.post("/interagir", (req, res) => {
     const demande = valideRequeteInteraction(req.body, scenario);
     if (!demande.ok) return res.status(400).json({ erreur: demande.erreur });
-    const verification = verifierRecus(secret, demande.valeur.recus);
+    const verification = verifierRecus(secret, demande.valeur.recus, identite);
     if (!verification.ok) return res.status(400).json({ erreur: "Reçus invalides." });
 
     const resultat = executerInteraction({
@@ -129,7 +141,7 @@ export function creerRouteur({
       intention: demande.valeur.intention,
     });
     if (!resultat.ok) return res.status(403).json({ erreur: messageRefus(resultat) });
-    const verificationApres = verifierRecus(secret, [...verification.recus, ...resultat.recus]);
+    const verificationApres = verifierRecus(secret, [...verification.recus, ...resultat.recus], identite);
     if (!verificationApres.ok) {
       console.error("Erreur de signature après interaction.");
       return res.status(500).json({ erreur: "Cette action est impossible pour le moment." });
@@ -145,13 +157,13 @@ export function creerRouteur({
   routeur.post("/chat", async (req, res) => {
     const demande = valideRequeteChat(req.body, scenario);
     if (!demande.ok) return res.status(400).json({ erreur: demande.erreur });
-    const verification = verifierRecus(secret, demande.valeur.recus);
+    const verification = verifierRecus(secret, demande.valeur.recus, identite);
     if (!verification.ok) return res.status(400).json({ erreur: "Reçus invalides." });
 
     const etat = deriverEtat(scenario, verification.evenements);
     const capacite = evaluerCapacite(scenario, etat, {
       contexte: demande.valeur.contexte,
-      intention: { action: "dialoguer", cible: "laurent" },
+      intention: { action: "dialoguer", cible: personnageId },
     });
     if (!capacite.ok) return res.status(403).json({ erreur: messageRefus(capacite) });
     if (!client) {
@@ -188,6 +200,7 @@ export function creerRouteur({
         message: demande.valeur.message,
         model,
         evenementsAutorises,
+        personnageNom: scenario.personnage.nom,
       }, (evenement) => {
         if (evenement?.type === "didascalie" && typeof evenement.texte === "string") {
           ecrire(`event: didascalie\ndata: ${JSON.stringify({ texte: evenement.texte })}\n\n`);
@@ -200,9 +213,9 @@ export function creerRouteur({
       );
       const uniques = [...new Set(exprimes)];
       const recus = verification.recus.length + uniques.length <= MAX_RECUS
-        ? signerEvenementsDialogue(secret, verification, uniques)
+        ? signerEvenementsDialogue(secret, verification, uniques, personnageId, identite)
         : [];
-      const verificationApres = verifierRecus(secret, [...verification.recus, ...recus]);
+      const verificationApres = verifierRecus(secret, [...verification.recus, ...recus], identite);
       const flagsApres = verificationApres.ok
         ? deriverFlagsVisibles(scenario, verificationApres.evenements)
         : deriverFlagsVisibles(scenario, verification.evenements);

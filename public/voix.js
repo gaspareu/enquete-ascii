@@ -4,7 +4,7 @@
 // silencieusement (le texte reste affiché). Le `play` audio est injecté (`jouer`)
 // pour garder ce module testable sans API navigateur.
 
-export function creerModeVocal({ fetchFn = fetch, jouer } = {}) {
+export function creerModeVocal({ fetchFn = fetch, jouer, apiBase = "/api" } = {}) {
   let actif = false;
   return {
     estActif: () => actif,
@@ -17,7 +17,7 @@ export function creerModeVocal({ fetchFn = fetch, jouer } = {}) {
     async dire(texte) {
       if (!actif || !texte) return;
       try {
-        const rep = await fetchFn("/api/voix", {
+        const rep = await fetchFn(`${apiBase}/voix`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ texte }),

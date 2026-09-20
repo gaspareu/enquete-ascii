@@ -1,33 +1,33 @@
-# Enquête ASCII — huis clos conversationnel
+# Enquête ASCII — framework d'enquêtes conversationnelles
 
-Jeu d'enquête web rétro en français. Le joueur explore une pièce en plan 3 × 3,
-collecte des indices et interroge Laurent, le seul témoin de la mort d'Hélène.
-Le dialogue est généré par Claude et le personnage ne révèle que ce que les
-actions du joueur lui permettent réellement de savoir.
+Framework local d'enquêtes web rétro en français. Chaque enquête définit une
+pièce en plan 3 × 3, huit zones, un interlocuteur, des objets, des faits de
+progression et un débrief. L'affaire d'Hélène reste l'exemple fourni. Le
+dialogue est généré par Claude et le personnage ne reçoit que les connaissances
+que les actions du joueur ont réellement révélées.
 
 ## Cible du projet
 
-Proposer une enquête courte, rejouable et entièrement jouable au clavier : une
-scène unique dense, un dialogue crédible, des révélations progressives et un
-débrief final qui évalue le raisonnement plutôt qu'un simple choix de coupable.
-L'identité recherchée reste celle d'un huis clos rétro ; la prochaine évolution
-visuelle vise des pièces davantage proches du pixel art, sans perdre la lisibilité
-ni l'accessibilité du terminal actuel.
+Permettre à un auteur de créer localement une enquête indépendante, de la
+prévisualiser, de vérifier ses règles et de la proposer au joueur. Le moteur
+garde les secrets et la progression côté serveur. Cette première version accepte
+une pièce et un interlocuteur central par enquête.
 
 ## État actuel
 
-Le socle jouable est en place :
+Le socle jouable et l'atelier local sont en place :
 
 - exploration de huit zones autour d'un interlocuteur central, objets examinables
   et inventaire, décrits en langage libre à un agent d'interprétation dédié ;
 - scénario à embranchements : les interactions acceptées produisent des reçus
   HMAC chaînés ; le serveur en dérive inventaire, flags et révélations sans
   exposer les secrets au navigateur ;
-- dialogue Claude en streaming, contextuel : Laurent ne reçoit que les échanges
-  tenus face à lui ;
+- dialogue Claude en streaming, contextuel : l'interlocuteur ne reçoit que les
+  échanges tenus face à lui ;
 - débrief final noté par un second appel au modèle, avec score, rang et retours ;
 - mode vocal optionnel : synthèse ElevenLabs pour les réponses et saisie par
   micro quand le navigateur propose Web Speech API ;
+- sélection des enquêtes prêtes et atelier de création pour les brouillons ;
 - tests automatisés et seuils de couverture appliqués.
 
 Le chantier produit en cours est **T-10** : rendre toutes les interactions
@@ -48,7 +48,37 @@ cp .env.example .env
 npm start
 ```
 
-Ouvrez ensuite <http://localhost:3000>.
+Ouvrez ensuite <http://localhost:3000> pour choisir une enquête prête.
+
+### Créer une enquête localement
+
+```bash
+npm run editor
+```
+
+Ouvrez <http://127.0.0.1:3000/editeur/>. Créez un brouillon ou dupliquez
+l'exemple d'Hélène, renseignez les sections de l'atelier, puis utilisez
+**Enregistrer**, **Vérifier l'enquête** et **Prévisualiser la partie**.
+Une enquête complète peut être marquée **prête** ; elle apparaît alors dans la
+sélection du jeu. Hélène est en lecture seule, mais duplicable.
+Les portraits et les illustrations sont facultatifs : sans image, le jeu affiche
+le visage ASCII et la description de la zone.
+
+Dans **Pièce**, choisissez une zone puis **Ajouter des éléments avec l’IA**.
+Indiquez de 1 à 8 objets et, si besoin, une instruction particulière. Anthropic
+utilise le titre, l'introduction, le nom du personnage et le contexte de cette
+zone pour proposer des objets avec leur description et leur caractère ramassable.
+Relisez les propositions dans **Objets**, puis enregistrez le brouillon. La
+génération nécessite `ANTHROPIC_API_KEY` et ne crée pas de règles de progression.
+
+Les scénarios sont enregistrés sous `data/enquetes/<id>/scenario.json` et les
+images importées sous `public/images/enquetes/<id>/`. L'API d'écriture n'existe
+que dans le mode éditeur lié à `127.0.0.1`. Les brouillons et les secrets ne
+sont pas servis dans le catalogue public. Une partie de prévisualisation utilise
+la révision enregistrée : après une modification, relancez une nouvelle partie.
+Le [format des enquêtes](docs/FORMAT-ENQUETE.md) explique chaque objet et le
+graphe de progression ; le [plan de l'atelier](docs/superpowers/plans/2026-09-17-editeur-local-enquetes.md)
+décrit les choix de cette première version.
 
 Complétez au minimum ce fichier `.env` :
 
@@ -64,7 +94,7 @@ indisponibles. La clé reste côté serveur et `.env` est ignoré par git.
 
 ### Voix et micro (facultatifs)
 
-Ajoutez ces variables pour activer la synthèse vocale de Laurent :
+Ajoutez ces variables pour activer la synthèse vocale de l'interlocuteur :
 
 ```dotenv
 ELEVENLABS_API_KEY=
@@ -98,9 +128,11 @@ ce qu'il laisse échapper.
 ## Architecture
 
 ```
-data/scenario.js    scénario complet, indices, règles et barème (serveur uniquement)
-server/             Express, reçus HMAC, capacités, interactions, prompts, streaming, débrief et voix
-public/             interface statique ASCII (HTML/CSS/JS ESM, sans étape de build)
+data/enquetes/      scénarios JSON privés et versionnés ; Hélène est l'exemple fourni
+data/scenario.js    scénario historique conservé pour les anciennes routes
+editeur/            atelier local de création (HTML/CSS/JS ESM)
+server/             dépôt, validation, Express, reçus HMAC, progression et dialogue
+public/             jeu et sélection des enquêtes (HTML/CSS/JS ESM, sans build)
 test/               tests Vitest unitaires et de routes
 docs/superpowers/   décisions de conception et plans historiques
 ```
@@ -115,7 +147,7 @@ des règles spatiales et des conditions de progression ; une cible hors zone ou
 hors inventaire ne peut donc pas être lue.
 
 Le journal affiché reste global, mais le navigateur ne transmet à Claude que les
-tours canalisés `laurent`, et `/api/chat` exige le contexte central. Le scénario
+tours canalisés vers l'interlocuteur courant, et la route de dialogue exige le contexte central. Le scénario
 complet, la solution, les conditions, les événements futurs, le barème et les
 révélations restent côté serveur.
 
@@ -137,6 +169,10 @@ zones, objets, connaissances conditionnelles, déclencheurs, préconditions,
 conditions d'action et questions de débrief. Gardez les secrets dans ce fichier et
 ajoutez les tests qui garantissent qu'ils ne figurent ni dans la vue publique ni
 dans un prompt trop tôt.
+
+Le [format détaillé de l'enquête](docs/FORMAT-ENQUETE.md) décrit les types,
+les interactions et le graphe de progression de l'enquête actuelle, ainsi que
+les éléments à généraliser pour accueillir plusieurs enquêtes.
 
 Pour verrouiller une action, ajoutez une condition secrète utilisant tous les
 événements canoniques nécessaires, par exemple fictif :

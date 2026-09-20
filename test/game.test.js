@@ -105,11 +105,14 @@ function monterFetch(reponses = {}) {
   let sequence = 0;
   let sac = [];
   return vi.fn(async (url, opts) => {
-    if (url === "/api/scenario") {
+    const chemin = reponses.apiPrefix && url.startsWith(`${reponses.apiPrefix}/`)
+      ? `/api${url.slice(reponses.apiPrefix.length)}` : url;
+    if (chemin === "/api/scenario") {
       if (reponses.scenarioErreur) throw new Error("réseau");
+      if (reponses.scenarioRejete) return rep({ erreur: "Enquête indisponible." }, false);
       return rep(reponses.scenario ?? VUE);
     }
-    if (url === "/api/interpreter") {
+    if (chemin === "/api/interpreter") {
       if (reponses.interpreterErreur) throw new Error("réseau");
       if (reponses.interpreterOk === false) {
         return rep(reponses.interpreter ?? { erreur: "L'interprète est indisponible." }, false);
@@ -120,7 +123,7 @@ function monterFetch(reponses = {}) {
       }
       return rep({ decision: reponses.interpreter ?? DECISION_LAURENT });
     }
-    if (url === "/api/interagir") {
+    if (chemin === "/api/interagir") {
       if (reponses.interagirErreur) throw new Error("réseau");
       const corps = JSON.parse(opts.body);
       if (reponses.interagirOk === false) {
@@ -140,14 +143,14 @@ function monterFetch(reponses = {}) {
         etatPublic: { sac, objetsConnus: reponses.objetsConnus ?? OBJETS_CONNUS },
       });
     }
-    if (url === "/api/chat") {
+    if (chemin === "/api/chat") {
       if (reponses.chatErreur) throw new Error("réseau");
       if (reponses.chatOk === false) return rep(reponses.chat ?? { erreur: "Erreur." }, false);
       if (reponses.chatBody) return { ok: true, body: reponses.chatBody };
       const frames = reponses.chatTrames ?? tramesDelta(reponses.chatTexte ?? "Je n'ai rien à dire.");
       return { ok: true, body: fluxSSE(frames) };
     }
-    if (url === "/api/debrief") {
+    if (chemin === "/api/debrief") {
       if (reponses.debriefErreur) throw new Error("réseau");
       if (reponses.debriefOk === false) return rep(reponses.debrief ?? { erreur: "Réponses invalides." }, false);
       return rep(
@@ -159,7 +162,7 @@ function monterFetch(reponses = {}) {
         },
       );
     }
-    if (url === "/api/voix") {
+    if (chemin === "/api/voix") {
       return { ok: true, blob: async () => new Blob(["audio"]) };
     }
     throw new Error(`URL non mockée : ${url}`);
@@ -176,7 +179,7 @@ async function charger(reponses = {}) {
   await import("../public/game.js");
   // init() est asynchrone (fetch + json) : on attend qu'il ait fini de peindre
   // (succès → intro dans le dialogue ; échec → message d'erreur dans le visuel).
-  if (reponses.scenarioErreur) {
+  if (reponses.scenarioErreur || reponses.scenarioRejete) {
     await vi.waitFor(() =>
       expect($("visuel").textContent).toBe("Impossible de charger le scénario."),
     );
@@ -193,9 +196,29 @@ const boutonParTexte = (conteneur, texte) =>
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
+  window.history.replaceState({}, "", "/");
 });
 
 describe("init", () => {
+  test("charge l'enquête sélectionnée et dirige dialogue, débrief et voix vers son API", async () => {
+    window.history.replaceState({}, "", "/jouer/enquete-test");
+    const prefix = "/api/enquetes/enquete-test";
+    await charger({
+      apiPrefix: prefix,
+      scenario: { ...VUE, personnage: { ...VUE.personnage, id: "camille", nom: "Camille" } },
+      interpreter: { type: "dialoguer", contexte: { type: "personnage", id: "camille" } },
+      chatTrames: tramesDelta("Bonjour."),
+    });
+    expect(global.fetch.mock.calls[0][0]).toBe(`${prefix}/scenario`);
+    $("message").value = "Bonjour";
+    $("saisie").dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() => expect(global.fetch.mock.calls.some(([url]) => url === `${prefix}/chat`)).toBe(true));
+    const appel = global.fetch.mock.calls.find(([url]) => url === `${prefix}/chat`);
+    expect(JSON.parse(appel[1].body).contexte.id).toBe("camille");
+    $("btn-accuser").click();
+    $("form-debrief").dispatchEvent(new Event("submit", { cancelable: true }));
+    await vi.waitFor(() => expect(global.fetch.mock.calls.some(([url]) => url === `${prefix}/debrief`)).toBe(true));
+  });
   test("peint le perso, le plan, le sac et l'intro au chargement", async () => {
     await charger();
     expect($("visuel").textContent).toContain("Victor");
@@ -214,6 +237,11 @@ describe("init", () => {
 
   test("affiche un message d'erreur si le scénario ne se charge pas", async () => {
     await charger({ scenarioErreur: true });
+    expect($("visuel").textContent).toBe("Impossible de charger le scénario.");
+  });
+
+  test("affiche un message si le brouillon cesse d'être prévisualisable", async () => {
+    await charger({ scenarioRejete: true });
     expect($("visuel").textContent).toBe("Impossible de charger le scénario.");
   });
 
@@ -349,6 +377,17 @@ describe("exploration d'une zone", () => {
 
     await vi.waitFor(() => expect($("dialogue").textContent).toContain("Cet objet n'est pas dans la zone."));
     expect(global.fetch.mock.calls.some(([u]) => u === "/api/chat")).toBe(false);
+  });
+
+  test("explique qu'une prévisualisation doit redémarrer après modification", async () => {
+    await charger({
+      interagirOk: false,
+      interagir: { erreur: "Reçus invalides." },
+      interpreter: { type: "interagir", contexte: { type: "zone", id: "N" }, action: "fouiller", cibleId: "N" },
+    });
+    await ouvrirZoneNord();
+    envoyerMessage("Je fouille la zone.");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Recommencez la partie"));
   });
 
   test("sérialise les soumissions pour ne pas créer deux reçus frères", async () => {

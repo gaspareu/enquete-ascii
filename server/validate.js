@@ -17,9 +17,9 @@ export function valideContexte(brut, scenario) {
   if (!estObjet(brut) || typeof brut.id !== "string") {
     return { ok: false, erreur: "Contexte invalide." };
   }
-  const laurent = scenario.personnage?.id ?? "laurent";
-  if (brut.type === "personnage" && brut.id === laurent) {
-    return { ok: true, valeur: { type: "personnage", id: laurent } };
+  const personnageId = scenario.personnage?.id ?? "laurent";
+  if (brut.type === "personnage" && brut.id === personnageId) {
+    return { ok: true, valeur: { type: "personnage", id: personnageId } };
   }
   if (brut.type === "zone" && scenario.zones?.[brut.id]) {
     return { ok: true, valeur: { type: "zone", id: brut.id } };
@@ -82,8 +82,9 @@ export function valideRequeteChat(body, scenario) {
   if (!Array.isArray(historiqueBrut) || historiqueBrut.length > MAX_HISTORIQUE) {
     return { ok: false, erreur: "Historique invalide." };
   }
+  const personnageId = scenario.personnage?.id ?? "laurent";
   const historique = historiqueBrut
-    .filter((tour) => estObjet(tour) && tour.canal === "laurent")
+    .filter((tour) => estObjet(tour) && tour.canal === personnageId)
     .map((tour) => ({
       role: tour.role === "personnage" ? "personnage" : "joueur",
       texte: String(tour.texte ?? "").slice(0, MAX_MESSAGE),

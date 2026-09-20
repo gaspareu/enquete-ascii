@@ -26,16 +26,16 @@ function signatureValide(secret, payload, signature) {
   return attendue.length === recue.length && timingSafeEqual(attendue, recue);
 }
 
-function estContexte(contexte) {
+function estContexte(contexte, personnageId = "laurent") {
   return (
     contexte &&
     typeof contexte === "object" &&
     ((contexte.type === "zone" && typeof contexte.id === "string") ||
-      (contexte.type === "personnage" && contexte.id === "laurent"))
+      (contexte.type === "personnage" && contexte.id === personnageId))
   );
 }
 
-function estEvenement(evenement) {
+function estEvenement(evenement, personnageId = "laurent") {
   return (
     evenement &&
     typeof evenement === "object" &&
@@ -43,7 +43,7 @@ function estEvenement(evenement) {
     typeof evenement.cible === "string" &&
     evenement.cible.length > 0 &&
     evenement.cible.length <= 200 &&
-    estContexte(evenement.contexte)
+    estContexte(evenement.contexte, personnageId)
   );
 }
 
@@ -53,14 +53,21 @@ export function empreinteRecu(recu) {
 
 export function creerRecu(
   secret,
-  { partie, sequence, precedent, evenement, version = VERSION_RECU },
+  { partie, sequence, precedent, evenement, version = VERSION_RECU, scenarioId, revision },
 ) {
+  if ((scenarioId === undefined) !== (revision === undefined)) {
+    throw new TypeError("L'identifiant et la révision doivent être fournis ensemble.");
+  }
   const contenu = { version, partie, sequence, precedent, evenement };
+  if (scenarioId !== undefined) {
+    contenu.scenarioId = scenarioId;
+    contenu.revision = revision;
+  }
   const payload = encoder(contenu);
   return `${payload}.${signer(secret, payload)}`;
 }
 
-function lireRecu(secret, recu) {
+function lireRecu(secret, recu, personnageId) {
   if (typeof recu !== "string" || recu.length === 0 || recu.length > MAX_TAILLE_RECU) return null;
   const segments = recu.split(".");
   if (segments.length !== 2 || !signatureValide(secret, segments[0], segments[1])) return null;
@@ -74,7 +81,10 @@ function lireRecu(secret, recu) {
       !Number.isInteger(contenu.sequence) ||
       contenu.sequence < 1 ||
       (contenu.precedent !== null && typeof contenu.precedent !== "string") ||
-      !estEvenement(contenu.evenement)
+      !estEvenement(contenu.evenement, personnageId) ||
+      ((contenu.scenarioId !== undefined || contenu.revision !== undefined) &&
+        (typeof contenu.scenarioId !== "string" || !contenu.scenarioId || contenu.scenarioId.length > 100 ||
+          typeof contenu.revision !== "string" || !contenu.revision || contenu.revision.length > 200))
     ) return null;
     return contenu;
   } catch {
@@ -82,8 +92,9 @@ function lireRecu(secret, recu) {
   }
 }
 
-export function verifierRecus(secret, recus) {
+export function verifierRecus(secret, recus, { scenarioId, revision, personnageId = "laurent" } = {}) {
   if (!Array.isArray(recus) || recus.length > MAX_RECUS) return { ok: false };
+  if ((scenarioId === undefined) !== (revision === undefined)) return { ok: false };
   let partie = null;
   let precedent = null;
   const vus = new Set();
@@ -93,11 +104,13 @@ export function verifierRecus(secret, recus) {
     const recu = recus[index];
     if (vus.has(recu)) return { ok: false };
     vus.add(recu);
-    const contenu = lireRecu(secret, recu);
+    const contenu = lireRecu(secret, recu, personnageId);
     if (
       !contenu ||
       contenu.sequence !== index + 1 ||
       (partie !== null && contenu.partie !== partie) ||
+      contenu.scenarioId !== scenarioId ||
+      contenu.revision !== revision ||
       contenu.precedent !== precedent
     ) return { ok: false };
     partie = contenu.partie;
@@ -105,15 +118,17 @@ export function verifierRecus(secret, recus) {
     evenements.push(contenu.evenement);
   }
 
-  return { ok: true, partie, precedent, recus: [...recus], evenements };
+  return { ok: true, partie, precedent, recus: [...recus], evenements, scenarioId, revision, personnageId };
 }
 
 export function emettreRecu(secret, verification, evenement) {
-  if (!verification?.ok || !estEvenement(evenement)) throw new TypeError("Événement invalide.");
+  if (!verification?.ok || !estEvenement(evenement, verification.personnageId)) throw new TypeError("Événement invalide.");
   return creerRecu(secret, {
     partie: verification.partie ?? randomUUID(),
     sequence: verification.evenements.length + 1,
     precedent: verification.precedent,
     evenement,
+    scenarioId: verification.scenarioId,
+    revision: verification.revision,
   });
 }

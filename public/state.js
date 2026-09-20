@@ -2,10 +2,8 @@
 // visible et les reçus opaques fournis par le serveur. Il ne déduit jamais de
 // flags ni d'inventaire à partir d'une action locale.
 
-const CONTEXTE_LAURENT = Object.freeze({ type: "personnage", id: "laurent" });
-
-export function etatInitial() {
-  return { contexte: { ...CONTEXTE_LAURENT }, sac: [], objetsConnus: [], historique: [], recus: [] };
+export function etatInitial(personnageId = "laurent") {
+  return { personnageId, contexte: { type: "personnage", id: personnageId }, sac: [], objetsConnus: [], historique: [], recus: [] };
 }
 
 export function observerZone(etat, id) {
@@ -13,7 +11,7 @@ export function observerZone(etat, id) {
 }
 
 export function observerPersonnage(etat) {
-  return { ...etat, contexte: { ...CONTEXTE_LAURENT } };
+  return { ...etat, contexte: { type: "personnage", id: etat.personnageId ?? "laurent" } };
 }
 
 export function ajouterDialogue(etat, role, texte, canal = "scene") {
@@ -21,14 +19,16 @@ export function ajouterDialogue(etat, role, texte, canal = "scene") {
   return { ...etat, historique: [...etat.historique, tour] };
 }
 
-// Laurent ne doit entendre que les échanges tenus face à lui : le journal affiché
-// reste global, mais sa projection ne retient jamais narration, refus ou fouille.
-export function historiquePourLaurent(etat) {
-  return etat.historique.filter((tour) => tour.canal === "laurent");
+// Le personnage ne reçoit que les échanges tenus face à lui.
+export function historiquePourPersonnage(etat, personnageId = etat.personnageId ?? "laurent") {
+  return etat.historique.filter((tour) => tour.canal === personnageId);
 }
 
+// Alias de compatibilité pour les usages historiques.
+export const historiquePourLaurent = historiquePourPersonnage;
+
 // Une tentative qui échoue avant toute réponse reste visible dans le journal mais
-// devient une entrée de scène : elle ne pollue pas le prochain échange avec Laurent.
+// devient une entrée de scène : elle ne pollue pas le prochain échange.
 export function recanaliserDernierTour(etat, canal) {
   if (etat.historique.length === 0) return etat;
   const index = etat.historique.length - 1;

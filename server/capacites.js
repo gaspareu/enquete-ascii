@@ -9,7 +9,7 @@ function aDansSac(etat, cible) {
   return etat.sac?.includes(cible) ?? false;
 }
 
-function estLaurent(scenario, contexte) {
+function estPersonnage(scenario, contexte) {
   return contexte?.type === "personnage" && contexte.id === (scenario.personnage?.id ?? "laurent");
 }
 
@@ -23,18 +23,19 @@ export function evaluerCapacite(scenario, etat, { contexte, intention }) {
   const { action, cible } = intention ?? {};
   let spatialementAutorise = false;
 
-  if (estLaurent(scenario, contexte)) {
-    if (action === "dialoguer") spatialementAutorise = cible === "laurent";
+  if (estPersonnage(scenario, contexte)) {
+    if (action === "dialoguer") spatialementAutorise = cible === (scenario.personnage?.id ?? "laurent");
     else if (["examiner", "donner"].includes(action)) spatialementAutorise = aDansSac(etat, cible);
     else if (action === "fouiller") return { ok: false, code: "CONTEXTE_INTERDIT" };
   } else if (contexte?.type === "zone" && scenario.zones?.[contexte.id]) {
     if (action === "dialoguer" || action === "donner") return { ok: false, code: "CONTEXTE_INTERDIT" };
     if (action === "fouiller") spatialementAutorise = cible === contexte.id;
+    const zoneFouillee = etat.actionsEffectuees?.includes(`fouiller:${contexte.id}`) ?? false;
     if (action === "examiner") {
-      spatialementAutorise = dansZone(scenario, contexte.id, cible) || aDansSac(etat, cible);
+      spatialementAutorise = (zoneFouillee && dansZone(scenario, contexte.id, cible)) || aDansSac(etat, cible);
     }
     if (action === "ramasser") {
-      spatialementAutorise = dansZone(scenario, contexte.id, cible) && scenario.objets?.[cible]?.ramassable === true;
+      spatialementAutorise = zoneFouillee && dansZone(scenario, contexte.id, cible) && scenario.objets?.[cible]?.ramassable === true;
     }
   } else {
     return { ok: false, code: "CONTEXTE_INTERDIT" };

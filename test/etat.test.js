@@ -22,8 +22,19 @@ const contexte = { type: "zone", id: "N" };
 const e = (type, cible, autreContexte = contexte) => ({ type, cible, contexte: autreContexte });
 
 describe("deriverEtat", () => {
+  test("accepte les événements du personnage configuré et ignore ceux d'un autre", () => {
+    const autre = { ...scenario, personnage: { id: "camille" } };
+    const dialogue = (id) => e("dialogue", "fait", { type: "personnage", id });
+    expect(deriverEtat(autre, [dialogue("camille")]).actionsEffectuees).toEqual(["fait"]);
+    expect(deriverEtat(autre, [dialogue("laurent")]).actionsEffectuees).toEqual([]);
+  });
   test("un journal vérifié vide donne un état vide", () => {
     expect(deriverEtat(scenario, [])).toEqual({ sac: [], flags: [], actionsEffectuees: [] });
+  });
+
+  test("une fouille signée devient un prérequis d'action vérifiable", () => {
+    expect(deriverEtat(scenario, [e("fouiller", "N")]).actionsEffectuees).toContain("fouiller:N");
+    expect(deriverEtat(scenario, [e("fouiller", "S")]).actionsEffectuees).toEqual([]);
   });
 
   test("dérive le sac et les flags depuis les seuls événements canoniques", () => {

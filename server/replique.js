@@ -10,6 +10,10 @@ export const DIDASCALIES_AUTORISEES = Object.freeze([
   "Laurent regarde un instant vers la fenêtre.",
 ]);
 
+export function didascaliesPourPersonnage(nom = "Laurent") {
+  return DIDASCALIES_AUTORISEES.map((geste) => geste.replace("Laurent", nom));
+}
+
 const ENTETE_STRICT = "DIDASCALIE:";
 const ENTETE_RECONNU = /^\s*didascalie\s*:\s*(.*)\s*$/iu;
 const MARQUEUR_DIDASCALIE = /^\s*didascalie\b/iu;
@@ -19,9 +23,9 @@ function texteCanonique(texte) {
   return texte.trim().replace(/\s+/gu, " ");
 }
 
-function didascalieAutorisee(texte) {
+function didascalieAutorisee(texte, didascalies) {
   const candidate = texteCanonique(texte);
-  return DIDASCALIES_AUTORISEES.find((didascalie) => didascalie === candidate) ?? null;
+  return didascalies.find((didascalie) => didascalie === candidate) ?? null;
 }
 
 function estUnDebutDeDidascalie(texte) {
@@ -35,7 +39,7 @@ function estUnDebutDeDidascalie(texte) {
 // retenus jusqu'au saut de ligne afin que le marqueur ne fuite jamais dans `delta`.
 // Dès qu'il ne peut plus s'agir d'une didascalie, les fragments redeviennent
 // immédiatement streamables, y compris pour une réponse sans saut de ligne.
-export function creerFiltreReplique(emetteur) {
+export function creerFiltreReplique(emetteur, didascalies = DIDASCALIES_AUTORISEES) {
   let tampon = "";
   let premiereLigneTraitee = false;
   let termine = false;
@@ -55,7 +59,7 @@ export function creerFiltreReplique(emetteur) {
     // Une variante d'en-tête ou un geste hors répertoire est retiré entièrement :
     // une didascalie invalide ne peut pas devenir un indice via les paroles.
     const didascalie = ligne.startsWith(ENTETE_STRICT)
-      ? didascalieAutorisee(correspondance[1])
+      ? didascalieAutorisee(correspondance[1], didascalies)
       : null;
     if (didascalie) emetteur({ type: "didascalie", texte: didascalie });
   };

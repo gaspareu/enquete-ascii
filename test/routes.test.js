@@ -53,6 +53,31 @@ describe("GET /scenario", () => {
   });
 });
 
+describe("routes liées à une enquête", () => {
+  test("refuse sur une autre enquête ou révision les reçus d'une interaction", async () => {
+    const autreScenario = { ...scenario, personnage: { ...scenario.personnage, id: "camille", nom: "Camille" } };
+    const monter = (id, revision) => {
+      const app = express();
+      app.use(express.json());
+      app.use(`/api/enquetes/${id}`, creerRouteur({ scenario: autreScenario, secret, scenarioId: id, revision }));
+      return app;
+    };
+    const appA = monter("a", "rev-1");
+    const contexte = { type: "zone", id: "N" };
+    const corps = { contexte, intention: { action: "fouiller", cible: "N" }, recus: [] };
+    const premier = await request(appA).post("/api/enquetes/a/interagir").send(corps);
+    expect(premier.status).toBe(200);
+    const suite = { ...corps, recus: premier.body.recus };
+
+    expect((await request(appA).post("/api/enquetes/a/interagir").send(suite)).status).toBe(200);
+    expect((await request(monter("b", "rev-1")).post("/api/enquetes/b/interagir").send(suite)).status).toBe(400);
+    expect((await request(monter("a", "rev-2")).post("/api/enquetes/a/interagir").send(suite)).status).toBe(400);
+    expect((await request(monter("a", "rev-1")).post("/api/enquetes/a/interagir").send({
+      contexte: { type: "personnage", id: "laurent" }, intention: { action: "examiner", cible: "distinction" }, recus: [],
+    })).status).toBe(400);
+  });
+});
+
 describe("POST /interpreter", () => {
   test("vérifie les reçus et transmet une décision structurée construite depuis le catalogue public", async () => {
     const resoudreIntentionFn = vi.fn(async (_client, args) => {
@@ -148,39 +173,39 @@ describe("POST /interagir", () => {
   });
 
   test("exécute une interaction autorisée et fournit un reçu vérifiable", async () => {
-    const res = await request(faireApp()).post("/api/interagir").send({
+    const app = faireApp();
+    const fouille = await request(app).post("/api/interagir").send({
+      contexte: nord, intention: { action: "fouiller", cible: "N" }, recus: [],
+    });
+    const res = await request(app).post("/api/interagir").send({
       contexte: nord,
       intention: { action: "examiner", cible: "distinction" },
-      recus: [],
+      recus: fouille.body.recus,
     });
     expect(res.status).toBe(200);
     expect(res.body.narration).toBe(scenario.objets.distinction.description);
-    expect(res.body.etatPublic).toEqual({
-      sac: [],
-      objetsConnus: [
-        {
-          id: "distinction",
-          nom: "Distinction d'architecture",
-          aliases: [],
-          ramassable: false,
-        },
-      ],
-    });
-    expect(verifierRecus(secret, res.body.recus).ok).toBe(true);
+    expect(res.body.etatPublic.sac).toEqual([]);
+    expect(res.body.etatPublic.objetsConnus).toEqual(expect.arrayContaining([{
+      id: "distinction", nom: "Distinction d'architecture", aliases: [], ramassable: false,
+    }]));
+    expect(verifierRecus(secret, [...fouille.body.recus, ...res.body.recus]).ok).toBe(true);
     expect(res.body.pistes).toEqual(["Comment avez-vous vécu la récente réussite d'Hélène ?"]);
   });
 
   test("le sac et la remise sont reconstruits à partir des reçus", async () => {
     const app = faireApp();
+    const fouille = await request(app).post("/api/interagir").send({
+      contexte: { type: "zone", id: "NO" }, intention: { action: "fouiller", cible: "NO" }, recus: [],
+    });
     const ramassage = await request(app).post("/api/interagir").send({
       contexte: { type: "zone", id: "NO" },
       intention: { action: "ramasser", cible: "grand_cru" },
-      recus: [],
+      recus: fouille.body.recus,
     });
     const remise = await request(app).post("/api/interagir").send({
       contexte: laurent,
       intention: { action: "donner", cible: "grand_cru" },
-      recus: ramassage.body.recus,
+      recus: [...fouille.body.recus, ...ramassage.body.recus],
     });
     expect(ramassage.body.etatPublic.sac).toEqual(["grand_cru"]);
     expect(remise.status).toBe(200);
@@ -203,15 +228,22 @@ describe("POST /interagir", () => {
 
   test("n'affiche pas une piste issue d'une révélation conditionnelle non relue", async () => {
     const app = faireApp();
+    const fouilleSE = await request(app).post("/api/interagir").send({
+      contexte: { type: "zone", id: "SE" }, intention: { action: "fouiller", cible: "SE" }, recus: [],
+    });
     const plaquette = await request(app).post("/api/interagir").send({
       contexte: { type: "zone", id: "SE" },
       intention: { action: "examiner", cible: "plaquette_somniferes" },
-      recus: [],
+      recus: fouilleSE.body.recus,
+    });
+    const fouilleE = await request(app).post("/api/interagir").send({
+      contexte: { type: "zone", id: "E" }, intention: { action: "fouiller", cible: "E" },
+      recus: [...fouilleSE.body.recus, ...plaquette.body.recus],
     });
     const theiere = await request(app).post("/api/interagir").send({
       contexte: { type: "zone", id: "E" },
       intention: { action: "examiner", cible: "theiere" },
-      recus: plaquette.body.recus,
+      recus: [...fouilleSE.body.recus, ...plaquette.body.recus, ...fouilleE.body.recus],
     });
 
     expect(plaquette.body.narration).toContain("la version de Laurent se tient");

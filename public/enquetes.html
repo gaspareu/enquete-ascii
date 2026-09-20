@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Enquêtes disponibles</title>
+    <link rel="stylesheet" href="/tokens.css" />
+    <link rel="stylesheet" href="/enquetes.css" />
+  </head>
+  <body>
+    <main class="catalogue">
+      <header>
+        <p class="surtitre">ENQUÊTE ASCII</p>
+        <h1>Choisir une enquête</h1>
+        <p>Chaque affaire est indépendante. Choisissez celle que vous voulez explorer.</p>
+      </header>
+      <p id="statut-enquetes" role="status">Chargement des enquêtes…</p>
+      <ul id="liste-enquetes" aria-label="Enquêtes disponibles"></ul>
+    </main>
+    <script type="module" src="/enquetes.js"></script>
+  </body>
+</html>

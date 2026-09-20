@@ -84,6 +84,18 @@ describe("valideRequeteInteraction", () => {
 });
 
 describe("valideRequeteChat", () => {
+  test("ne transmet au nouveau personnage que les tours de son canal", () => {
+    const autre = { ...scenario, personnage: { id: "camille" } };
+    const resultat = valideRequeteChat({
+      message: "Bonjour",
+      contexte: { type: "personnage", id: "camille" },
+      historique: [
+        { role: "joueur", texte: "Secret ancien", canal: "laurent" },
+        { role: "joueur", texte: "Salut", canal: "camille" },
+      ],
+    }, autre);
+    expect(resultat.valeur.historique).toEqual([{ role: "joueur", texte: "Salut" }]);
+  });
   test("accepte une requête face à Laurent et retire les tours de scène", () => {
     const r = valideRequeteChat(
       {

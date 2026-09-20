@@ -25,6 +25,16 @@ describe("vuePublique", () => {
     expect(vue.personnage.portraits[EmotionLaurent.NEUTRE]).toBe("/images/laurent-neutre.png");
   });
 
+  test("n'expose pas de propriété de portrait ajoutée par erreur", () => {
+    const scenarioAvecNote = {
+      ...scenario,
+      personnage: { ...scenario.personnage, portraits: { ...scenario.personnage.portraits, notePrivee: "Secret" } },
+    };
+    const publique = vuePublique(scenarioAvecNote);
+    expect(publique.personnage.portraits.notePrivee).toBeUndefined();
+    expect(JSON.stringify(publique)).not.toContain("Secret");
+  });
+
   test("ne dévoile aucun catalogue d'objets avant leur découverte", () => {
     expect(vue.objets).toBeUndefined();
     const json = JSON.stringify(vue).toLowerCase();
