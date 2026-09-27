@@ -72,7 +72,7 @@ describe("API locale de l'éditeur", () => {
 
   test("génère seulement en mode éditeur, avec jeton et demande bornée", async () => {
     const client = { messages: { create: vi.fn(async () => ({ content: [{ type: "tool_use", name: "proposer_objets", input: {
-      objets: [{ nom: "Une clé", description: "Une clé sur le bureau.", ramassable: true }],
+      objets: [{ nom: "Une clé", description: "Une clé sur le bureau.", observations: ["Le métal est froid.", "L’anneau est rayé."], ramassable: true }],
     } }] })) } };
     const { app, depot } = construireApp({ client });
     const corps = { direction: "N", nombre: 1, instruction: "Une trace de fête", contexte: {
@@ -87,6 +87,7 @@ describe("API locale de l'éditeur", () => {
       .set("X-Editor-Token", JETON).send(corps);
     expect(reponse.status).toBe(200);
     expect(reponse.body.objets[0].nom).toBe("Une clé");
+    expect(reponse.body.objets[0].observations).toHaveLength(2);
     expect(depot.lire).toHaveBeenCalledWith("exemple", { inclureBrouillons: true });
     expect((await request(app).post("/api/editeur/enquetes/helene/generation-objets")
       .set("X-Editor-Token", JETON).send(corps)).status).toBe(403);

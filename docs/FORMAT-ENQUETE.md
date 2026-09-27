@@ -69,6 +69,7 @@ enregistré. Les types ci-dessous décrivent le contrat d'auteur.
 type Id = string;
 type Flag = string;
 type Direction = "N" | "NE" | "E" | "SE" | "S" | "SO" | "O" | "NO";
+type AngleObservation = "aspect" | "date" | "cause" | "identite" | "autre";
 type CleAction = `${"examiner" | "ramasser" | "donner"}:${Id}`;
 
 type Scenario = {
@@ -111,7 +112,9 @@ type Objet = {
   nom: string;
   aliases?: string[];
   apercu?: string;             // texte non révélateur si précondition manquante
-  description: string;         // texte de l'examen révélé
+  description: string;         // texte de l’examen révélé
+  observations?: Record<Id, string>; // au moins deux détails d’ambiance anodins
+  limites?: Partial<Record<AngleObservation, string>>; // réponse prudente approuvée
   ramassable: boolean;
 };
 
@@ -143,7 +146,9 @@ type Debrief = {
 | Champ | Relation et effet |
 | --- | --- |
 | `zones[direction].objetsCaches` | Référence les clés de `objets`. `fouiller` révèle leurs **noms** à l'interprète et au joueur, sans les examiner. |
-| `objets[id].ramassable` | Autorise `ramasser`, qui place l'objet dans le sac. Seul un objet du sac peut être `donner` au personnage. |
+| `objets[id].observations` | Détails d’ambiance approuvés, alternés lors des examens répétés. Ils ne doivent contenir ni indice verrouillé ni fait inventé. |
+| `objets[id].limites` | Réponses prudentes facultatives, ajoutées lorsque l’angle de la question (`date`, `cause`, `identite`, etc.) ne peut pas être établi. |
+| `objets[id].ramassable` | Autorise `ramasser`, qui place l’objet dans le sac. Seul un objet du sac peut être `donner` au personnage. |
 | `declencheurs["action:id"]` | Convertit un examen, ramassage ou don accepté en un flag privé. Une action peut aussi ne produire aucun flag. |
 | `preconditions["action:id"]` | Liste des flags nécessaires pour que ce déclencheur produise son flag ; **tous** sont requis. Sans entrée, aucun prérequis. |
 | `connaissances[].requiert` | Sélectionne les faits ajoutés au prompt du personnage quand tous les flags sont **visibles**. |

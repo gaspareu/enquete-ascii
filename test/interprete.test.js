@@ -39,10 +39,43 @@ describe("catalogue de l'interprète", () => {
 
     expect(resultat.objetsConnus).toContainEqual(expect.objectContaining({ id: "distinction" }));
     expect(resultat.objetsConnus).not.toContainEqual(expect.objectContaining({ id: "grand_cru" }));
+    expect(resultat.objetsConnus).toContainEqual(expect.objectContaining({ id: "distinction", zoneId: "N" }));
   });
 });
 
 describe("resoudreIntention", () => {
+  test("normalise une observation ciblant un objet connu en examen, même avec un contexte de zone obsolète", () => {
+    const resultat = validerDecisionInterprete({
+      type: "observer",
+      contexte: { type: "zone", id: "O" },
+      cibleId: "distinction",
+      angle: "aspect",
+    }, catalogue([{ type: "fouiller", cible: "N", contexte: nord }]));
+
+    expect(resultat).toEqual({
+      type: "interagir", contexte: nord, action: "examiner", cibleId: "distinction", angle: "aspect",
+    });
+  });
+
+  test("refuse de transformer en examen une cible encore cachée", () => {
+    const resultat = validerDecisionInterprete({ type: "observer", contexte: nord, cibleId: "distinction" }, catalogue());
+    expect(resultat.type).toBe("clarifier");
+  });
+
+  test("une observation de zone reste une observation si le modèle répète l'id de la zone", () => {
+    expect(validerDecisionInterprete({ type: "observer", contexte: nord, cibleId: "N" }, catalogue()))
+      .toEqual({ type: "observer", contexte: nord });
+  });
+
+  test("conserve l'angle temporel sans laisser le modèle choisir une révélation", () => {
+    const resultat = validerDecisionInterprete({
+      type: "interagir", contexte: nord, action: "examiner", cibleId: "plante_fanee", angle: "date",
+    }, catalogue([{ type: "fouiller", cible: "N", contexte: nord }]));
+    expect(resultat).toEqual({
+      type: "interagir", contexte: nord, action: "examiner", cibleId: "plante_fanee", angle: "date",
+    });
+  });
+
   test("force un outil fermé, borné, sans envoyer de secret", async () => {
     const client = fauxClient({ type: "observer", contexte: nord });
     const resultat = await resoudreIntention(client, {
@@ -65,9 +98,10 @@ describe("resoudreIntention", () => {
       input_schema: { additionalProperties: false },
     });
     expect(options.tools[0].input_schema.properties.choix).not.toHaveProperty("maxItems");
-    expect(options.tools[0].input_schema.required).toEqual(["type", "contexte"]);
+    expect(options.tools[0].input_schema.required).toEqual(["type", "contexte", "angle", "cibleId"]);
     expect(options.system).toContain("nom ou un alias d'une unique zone");
     expect(JSON.stringify(options)).not.toContain("Grand cru");
+    expect(JSON.stringify(options)).not.toContain("plante_fanee");
     expect(JSON.stringify(options)).not.toContain("Au nom de Laurent");
     expect(JSON.stringify(options)).not.toContain("declencheurs");
   });

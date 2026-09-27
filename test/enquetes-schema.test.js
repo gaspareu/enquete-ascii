@@ -13,6 +13,20 @@ describe("format versionné des enquêtes", () => {
     expect(validerEnquete(helene).erreurs).toEqual([]);
   });
 
+  test("valide les détails d’ambiance et les limites de réponse", () => {
+    const enquete = copie();
+    enquete.objets.distinction.observations = { cadre: "", verre: 42 };
+    enquete.objets.distinction.limites = { secret: "Texte arbitraire" };
+    const chemins = validerEnquete(enquete).erreurs.map(({ path }) => path);
+    expect(chemins).toContain("objets.distinction.observations.cadre");
+    expect(chemins).toContain("objets.distinction.observations.verre");
+    expect(chemins).toContain("objets.distinction.limites.secret");
+
+    const limiteVide = copie();
+    limiteVide.objets.distinction.limites = { date: "" };
+    expect(validerEnquete(limiteVide).erreurs).toEqual([]);
+  });
+
   test("autorise une enquête jouable avec un visage ASCII et sans images", () => {
     const enquete = copie();
     enquete.id = "enquete_ascii";

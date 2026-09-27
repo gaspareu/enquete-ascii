@@ -28,13 +28,14 @@ describe("aide Anthropic pour les objets d'une zone", () => {
   test("ajoute la consigne au contexte global et à la zone et exige deux objets structurés", async () => {
     const create = vi.fn(async () => ({ content: [{ type: "tool_use", name: "proposer_objets", input: {
       objets: [
-        { nom: "Une clé", description: "Une clé porte une date gravée.", ramassable: true },
-        { nom: "Un carnet", description: "Un carnet contient des notes anciennes.", ramassable: false },
+        { nom: "Une clé", description: "Une clé porte une date gravée.", observations: ["Le métal est froid.", "Une rayure traverse l’anneau."], ramassable: true },
+        { nom: "Un carnet", description: "Un carnet contient des notes anciennes.", observations: ["La couverture est souple.", "Les coins sont usés."], ramassable: false },
       ],
     } }] }));
     const objets = await genererObjets({ messages: { create } }, { ...demande, model: "modele-test" });
     expect(objets).toHaveLength(2);
     expect(objets[0].nom).toBe("Une clé");
+    expect(objets[0].observations).toEqual(["Le métal est froid.", "Une rayure traverse l’anneau."]);
     const options = create.mock.calls[0][0];
     expect(options.tool_choice).toEqual({ type: "tool", name: "proposer_objets" });
     expect(options.messages[0].content).toContain("Le dernier soir");
@@ -54,8 +55,8 @@ describe("aide Anthropic pour les objets d'une zone", () => {
   test("écarte les champs secrets ajoutés au contexte avant l'appel Anthropic", async () => {
     const create = vi.fn(async () => ({ content: [{ type: "tool_use", name: "proposer_objets", input: {
       objets: [
-        { nom: "Une clé", description: "Une clé usée.", ramassable: true },
-        { nom: "Un carnet", description: "Un carnet fermé.", ramassable: false },
+        { nom: "Une clé", description: "Une clé usée.", observations: ["Le métal est froid.", "L’anneau est terne."], ramassable: true },
+        { nom: "Un carnet", description: "Un carnet fermé.", observations: ["La toile est rêche.", "Les pages sont épaisses."], ramassable: false },
       ],
     } }] }));
     await genererObjets({ messages: { create } }, { ...demande,

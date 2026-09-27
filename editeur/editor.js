@@ -361,7 +361,10 @@ function gererClic(event) {
       if (!/^[a-z][a-z0-9_-]{0,63}$/.test(id)) throw new Error("Donnez un identifiant d’objet valide.");
       if (Object.hasOwn(etat.enquete.objets ?? {}, id)) throw new Error("Cet objet existe déjà.");
       etat.objet = id;
-      return modifier(mettreAJour(etat.enquete, ["objets", id], { nom: "", aliases: [], apercu: "", description: "", ramassable: false }), true);
+      return modifier(mettreAJour(etat.enquete, ["objets", id], {
+        nom: "", aliases: [], apercu: "", description: "",
+        observations: { detail_1: "", detail_2: "" }, limites: {}, ramassable: false,
+      }), true);
     }
     if (action === "supprimer-objet") return supprimerObjet(cible.dataset.cle);
     if (action === "ajouter-declencheur") return ajouterGeste("declencheur");

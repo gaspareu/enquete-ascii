@@ -90,6 +90,10 @@ export function rendreObjets(enquete, selection) {
     return { lateral, principal };
   }
   const objet = enquete.objets[id];
+  const observations = Object.entries(objet.observations ?? {});
+  const details = observations.length > 0 ? observations : [["detail_1", ""], ["detail_2", ""]];
+  const champsDetails = details.map(([cle, valeur], index) =>
+    champ(`Détail d’ambiance ${index + 1}`, ["objets", id, "observations", cle], valeur, { multiligne: true }));
   principal.append(titre(objet.nom || id), zoneAide("L’identifiant peut être renommé ; les liens de l’enquête sont alors mis à jour."));
   const champId = champ("Identifiant stable", ["objets", id, "id"], id);
   const entreeId = champId.querySelector("input");
@@ -102,6 +106,14 @@ export function rendreObjets(enquete, selection) {
     champ("Aperçu avant révélation", ["objets", id, "apercu"], objet.apercu ?? "", { multiligne: true,
       aide: "Facultatif. Affiché si le fait de l’examen attend une précondition. Un second examen sera nécessaire après son acquisition." }),
     champ("Description révélée", ["objets", id, "description"], objet.description, { multiligne: true, long: true }),
+    titre("Détails d’ambiance", 3),
+    zoneAide("Deux détails sensoriels anodins enrichissent les examens répétés sans ajouter d’indice."),
+    ...champsDetails,
+    titre("Réponses prudentes", 3),
+    zoneAide("Ces phrases sont ajoutées lorsque la question demande un fait que le scénario ne permet pas d’établir."),
+    champ("Date inconnue", ["objets", id, "limites", "date"], objet.limites?.date ?? "", { multiligne: true }),
+    champ("Cause inconnue", ["objets", id, "limites", "cause"], objet.limites?.cause ?? "", { multiligne: true }),
+    champ("Identité inconnue", ["objets", id, "limites", "identite"], objet.limites?.identite ?? "", { multiligne: true }),
     champ("Ramassable", ["objets", id, "ramassable"], objet.ramassable, { booleen: true }),
   ));
   const places = DIRECTIONS.filter((dir) => enquete.zones[dir].objetsCaches.includes(id));

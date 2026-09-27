@@ -15,11 +15,14 @@ describe("modèle du brouillon", () => {
     avant.objets.cle = { nom: "Ancienne clé", description: "", aliases: [], apercu: "", ramassable: true };
     avant.zones.N.objetsCaches = ["cle"];
     const apres = ajouterObjetsGeneres(avant, "N", [
-      { nom: "Clé", description: "Une autre clé.", ramassable: true },
-      { nom: "Clé", description: "Une troisième clé.", ramassable: false },
+      { nom: "Clé", description: "Une autre clé.", observations: ["Le métal est froid.", "L’anneau est rayé."], ramassable: true },
+      { nom: "Clé", description: "Une troisième clé.", observations: ["La tige est courte.", "Les dents sont polies."], ramassable: false },
     ]);
     expect(apres.zones.N.objetsCaches).toEqual(["cle", "cle_2", "cle_3"]);
-    expect(apres.objets.cle_2).toMatchObject({ nom: "Clé", description: "Une autre clé.", ramassable: true });
+    expect(apres.objets.cle_2).toMatchObject({
+      nom: "Clé", description: "Une autre clé.",
+      observations: { detail_1: "Le métal est froid.", detail_2: "L’anneau est rayé." }, ramassable: true,
+    });
     expect(apres.objets.cle_3.ramassable).toBe(false);
     expect(apres.statut).toBe("brouillon");
     expect(avant.zones.N.objetsCaches).toEqual(["cle"]);

@@ -7,6 +7,7 @@ export const ID_SUR = /^[a-z][a-z0-9_-]{0,63}$/;
 
 const EST_OBJET = (valeur) => valeur !== null && typeof valeur === "object" && !Array.isArray(valeur);
 const ACTIONS_OBJET = new Set(["examiner", "ramasser", "donner"]);
+const ANGLES_OBSERVATION = new Set(["aspect", "date", "cause", "identite", "autre"]);
 const PORTRAITS = ["neutre", "mefiant", "irrite", "inquiet"];
 const MAX_TEXTE = 20_000;
 const MAX_ELEMENTS = 500;
@@ -173,6 +174,21 @@ export function validerEnquete(enquete, { complete = true } = {}) {
     texte(objet.apercu, `objets.${id}.apercu`, { obligatoire: false });
     if (typeof objet.ramassable !== "boolean") erreur(`objets.${id}.ramassable`, "Booléen requis.");
     liste(objet.aliases, `objets.${id}.aliases`, false).forEach((alias, i) => texte(alias, `objets.${id}.aliases.${i}`, { max: 200 }));
+    if (objet.observations !== undefined) {
+      const observations = dictionnaire(objet.observations, `objets.${id}.observations`);
+      if (Object.keys(observations).length < 2) erreur(`objets.${id}.observations`, "Au moins deux détails d’ambiance sont requis.");
+      for (const [cle, detail] of Object.entries(observations)) {
+        if (!ID_SUR.test(cle)) erreur(`objets.${id}.observations.${cle}`, "Identifiant de détail invalide.");
+        texte(detail, `objets.${id}.observations.${cle}`, { max: 1000 });
+      }
+    }
+    if (objet.limites !== undefined) {
+      const limites = dictionnaire(objet.limites, `objets.${id}.limites`);
+      for (const [angle, limite] of Object.entries(limites)) {
+        if (!ANGLES_OBSERVATION.has(angle)) erreur(`objets.${id}.limites.${angle}`, "Angle de réponse inconnu.");
+        else texte(limite, `objets.${id}.limites.${angle}`, { obligatoire: false, max: 1000 });
+      }
+    }
   }
 
   const declencheurs = dictionnaire(enquete.declencheurs, "declencheurs");

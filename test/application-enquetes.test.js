@@ -5,6 +5,7 @@ import { join } from "node:path";
 import request from "supertest";
 import { creerApplication } from "../server/app.js";
 import { creerDepotEnquetes } from "../server/enquetes-store.js";
+import helene from "../data/enquetes/helene/scenario.json" with { type: "json" };
 
 const temporaires = [];
 
@@ -61,6 +62,19 @@ describe("application multi-enquêtes", () => {
     expect(vue.body.objets).toBeUndefined();
     expect(vue.body.solution).toBeUndefined();
     expect(vue.body.declencheurs).toBeUndefined();
+  });
+
+  test("sert les observations immersives depuis le scénario JSON actif", async () => {
+    const { app } = await preparer();
+    const contexte = { type: "zone", id: "N" };
+    const fouille = await request(app).post("/api/enquetes/helene/interagir").send({
+      contexte, intention: { action: "fouiller", cible: "N" }, recus: [],
+    });
+    const examen = await request(app).post("/api/enquetes/helene/interagir").send({
+      contexte, intention: { action: "examiner", cible: "distinction" }, recus: fouille.body.recus,
+    });
+    expect(examen.status).toBe(200);
+    expect(examen.body.narration).toContain(helene.objets.distinction.observations.cadre);
   });
 
   test("lie les reçus à l'enquête et à sa révision enregistrée", async () => {

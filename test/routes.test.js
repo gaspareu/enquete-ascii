@@ -141,6 +141,37 @@ describe("POST /interpreter", () => {
 });
 
 describe("POST /interagir", () => {
+  test("ne compose une observation qu'après autorisation d'examiner l'objet", async () => {
+    const composerObservationFn = vi.fn((args) => {
+      expect(args.texteVisible).toBe(scenario.objets.plante_fanee.description);
+      expect(args.observations).toEqual(scenario.objets.plante_fanee.observations);
+      expect(args.angle).toBe("date");
+      return `${args.texteVisible}\n${args.observations.terre}\n${args.limites.date}`;
+    });
+    const app = faireApp({ composerObservationFn });
+    const interdit = await request(app).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "examiner", cible: "plaquette_somniferes" },
+      angle: "date",
+      recus: [],
+    });
+    expect(interdit.status).toBe(403);
+    expect(composerObservationFn).not.toHaveBeenCalled();
+
+    const fouille = await request(app).post("/api/interagir").send({
+      contexte: nord, intention: { action: "fouiller", cible: "N" }, recus: [],
+    });
+    const permis = await request(app).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "examiner", cible: "plante_fanee" },
+      angle: "date",
+      recus: fouille.body.recus,
+    });
+    expect(permis.status).toBe(200);
+    expect(permis.body.narration).toContain("Rien ne permet de dire depuis quand");
+    expect(composerObservationFn).toHaveBeenCalledOnce();
+  });
+
   test("rejette une requête ou une chaîne de reçus malformée avec 400", async () => {
     const invalide = await request(faireApp()).post("/api/interagir").send({});
     const falsifie = await request(faireApp()).post("/api/interagir").send({
@@ -183,7 +214,8 @@ describe("POST /interagir", () => {
       recus: fouille.body.recus,
     });
     expect(res.status).toBe(200);
-    expect(res.body.narration).toBe(scenario.objets.distinction.description);
+    expect(res.body.narration).toContain(scenario.objets.distinction.description);
+    expect(res.body.narration).toContain(scenario.objets.distinction.observations.cadre);
     expect(res.body.etatPublic.sac).toEqual([]);
     expect(res.body.etatPublic.objetsConnus).toEqual(expect.arrayContaining([{
       id: "distinction", nom: "Distinction d'architecture", aliases: [], ramassable: false,
@@ -221,9 +253,49 @@ describe("POST /interagir", () => {
     expect(res.status).toBe(200);
     expect(res.body.narration).toContain("Distinction d'architecture");
     expect(res.body.narration).not.toContain("ENCORE elle");
+    expect(res.body.narration).not.toContain(scenario.objets.plante_fanee.observations.feuilles);
     expect(res.body.recus).toHaveLength(1);
     expect(verifierRecus(secret, res.body.recus).evenements[0].type).toBe("fouiller");
     expect(res.body.pistes).toEqual([]);
+  });
+
+  test("deux examens de la plante varient le détail mais gardent la même incertitude", async () => {
+    const app = faireApp();
+    const requete = (recus) => request(app).post("/api/interagir").send({
+      contexte: nord,
+      intention: { action: "examiner", cible: "plante_fanee" },
+      angle: "date",
+      recus,
+    });
+    const fouille = await request(app).post("/api/interagir").send({
+      contexte: nord, intention: { action: "fouiller", cible: "N" }, recus: [],
+    });
+    const premier = await requete(fouille.body.recus);
+    const second = await requete([...fouille.body.recus, ...premier.body.recus]);
+
+    expect(premier.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(premier.body.narration).toContain(scenario.objets.plante_fanee.observations.feuilles);
+    expect(second.body.narration).toContain(scenario.objets.plante_fanee.observations.terre);
+    expect(premier.body.narration).toContain(scenario.objets.plante_fanee.limites.date);
+    expect(second.body.narration).toContain(scenario.objets.plante_fanee.limites.date);
+  });
+
+  test("un indice à bascule reste caché lors d'un examen prématuré", async () => {
+    const app = faireApp();
+    const contexte = { type: "zone", id: "SE" };
+    const fouille = await request(app).post("/api/interagir").send({
+      contexte, intention: { action: "fouiller", cible: "SE" }, recus: [],
+    });
+    const res = await request(app).post("/api/interagir").send({
+      contexte,
+      intention: { action: "examiner", cible: "plaquette_somniferes" },
+      angle: "aspect",
+      recus: fouille.body.recus,
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.narration).toContain(scenario.objets.plaquette_somniferes.apercu);
+    expect(res.body.narration).not.toContain("au nom de Laurent Vasseur");
   });
 
   test("n'affiche pas une piste issue d'une révélation conditionnelle non relue", async () => {

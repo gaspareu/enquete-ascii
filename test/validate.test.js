@@ -57,6 +57,13 @@ describe("valideRecus", () => {
 });
 
 describe("valideRequeteInteraction", () => {
+  test("accepte seulement un angle d'examen borné", () => {
+    const base = { contexte: { type: "zone", id: "N" }, intention: { action: "examiner", cible: "tableau" }, recus: [] };
+    expect(valideRequeteInteraction({ ...base, angle: "date" }, scenario).valeur.angle).toBe("date");
+    expect(valideRequeteInteraction({ ...base, angle: "secret" }, scenario).ok).toBe(false);
+    expect(valideRequeteInteraction({ ...base, intention: { action: "fouiller", cible: "N" }, angle: "date" }, scenario).ok).toBe(false);
+  });
+
   test("accepte et normalise uniquement le contrat contextuel", () => {
     const r = valideRequeteInteraction(
       {
