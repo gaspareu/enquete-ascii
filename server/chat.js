@@ -20,6 +20,7 @@ import { noterDebrief } from "./juge.js";
 import { repondreEnFlux } from "./claude.js";
 import { synthetiserVoix } from "./voix.js";
 import { pistesPourFlags } from "./pistes.js";
+import { composerObservation } from "./observations.js";
 
 function vueZonePublique(zone) {
   const { nom, article, aliases, description, illustration } = zone;
@@ -92,6 +93,7 @@ export function creerRouteur({
   synthetiserFn = synthetiserVoix,
   resoudreIntentionFn = resoudreIntention,
   modelInterprete = model,
+  composerObservationFn = composerObservation,
 }) {
   if ((scenarioId === undefined) !== (revision === undefined)) {
     throw new TypeError("L'identifiant et la révision de l'enquête sont requis ensemble.");
@@ -146,8 +148,22 @@ export function creerRouteur({
       console.error("Erreur de signature après interaction.");
       return res.status(500).json({ erreur: "Cette action est impossible pour le moment." });
     }
+    let narration = resultat.narration;
+    if (demande.valeur.intention.action === "examiner") {
+      const cible = demande.valeur.intention.cible;
+      const objet = scenario.objets[cible];
+      const examenNumero = verification.evenements.filter((evenement) =>
+        evenement.type === "examiner" && evenement.cible === cible).length + 1;
+      narration = composerObservationFn({
+        texteVisible: resultat.narration,
+        observations: objet.observations ?? {},
+        limites: objet.limites ?? {},
+        angle: demande.valeur.angle ?? "aspect",
+        examenNumero,
+      });
+    }
     return res.json({
-      narration: resultat.narration,
+      narration,
       recus: resultat.recus,
       etatPublic: resultat.etatPublic,
       pistes: pistesPourFlags(scenario, deriverFlagsVisibles(scenario, verificationApres.evenements)),

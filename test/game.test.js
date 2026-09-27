@@ -465,7 +465,7 @@ describe("exploration d'une zone", () => {
 });
 
 describe("examen d'une cible", () => {
-  test("ouvre une modale avec le texte renvoyé par le serveur", async () => {
+  test("affiche le détail dans le journal sans modale redondante et transmet l'angle", async () => {
     await charger({
       interagir: { narration: "Une clé ancienne, gravée d'initiales." },
       interpreter: {
@@ -473,16 +473,17 @@ describe("examen d'une cible", () => {
         contexte: { type: "zone", id: "N" },
         action: "examiner",
         cibleId: "cle",
+        angle: "aspect",
       },
     });
     await ouvrirZoneNord();
     envoyerMessage("J'examine la Petite clé.");
 
-    await vi.waitFor(() => expect($("modale").classList.contains("cache")).toBe(false));
-    expect($("modale-contenu").textContent).toContain("Une clé ancienne");
-    // « Fermer » referme la modale.
-    boutonParTexte($("modale-contenu"), "Fermer").click();
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Une clé ancienne"));
     expect($("modale").classList.contains("cache")).toBe(true);
+    const appel = global.fetch.mock.calls.find(([url]) => url === "/api/interagir");
+    expect(JSON.parse(appel[1].body)).not.toHaveProperty("question");
+    expect(JSON.parse(appel[1].body).angle).toBe("aspect");
   });
 
   test("permet d'examiner un objet ramassé depuis le chat", async () => {
@@ -510,7 +511,7 @@ describe("examen d'une cible", () => {
 
     envoyerMessage("Je regarde la Petite clé.");
 
-    await vi.waitFor(() => expect($("modale-contenu").textContent).toContain("trace de cire"));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("trace de cire"));
   });
 
   test("signale l'échec réseau d'une interaction sans ouvrir de modale", async () => {

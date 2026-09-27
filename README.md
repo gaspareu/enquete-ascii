@@ -30,9 +30,9 @@ Le socle jouable et l'atelier local sont en place :
 - sélection des enquêtes prêtes et atelier de création pour les brouillons ;
 - tests automatisés et seuils de couverture appliqués.
 
-Le chantier produit en cours est **T-10** : rendre toutes les interactions
-naturelles, sans imposer de mots-clés au joueur. Son cadrage et son critère
-d'acceptation vivent dans le [backlog](BACKLOG.md).
+Le chantier produit en cours est **T-11** : rendre les observations d'objets
+plus précises et immersives. Son cadrage et ses critères d'acceptation vivent
+dans le [backlog](BACKLOG.md).
 
 ## Prérequis
 
@@ -67,8 +67,10 @@ le visage ASCII et la description de la zone.
 Dans **Pièce**, choisissez une zone puis **Ajouter des éléments avec l’IA**.
 Indiquez de 1 à 8 objets et, si besoin, une instruction particulière. Anthropic
 utilise le titre, l'introduction, le nom du personnage et le contexte de cette
-zone pour proposer des objets avec leur description et leur caractère ramassable.
-Relisez les propositions dans **Objets**, puis enregistrez le brouillon. La
+zone pour proposer des objets avec leur description, deux détails d’ambiance anodins
+et leur caractère ramassable. Relisez ces propositions dans **Objets**, où les
+réponses prudentes aux dates, causes ou identités inconnues peuvent aussi être
+rédigées, puis enregistrez le brouillon. La
 génération nécessite `ANTHROPIC_API_KEY` et ne crée pas de règles de progression.
 
 Les scénarios sont enregistrés sous `data/enquetes/<id>/scenario.json` et les
@@ -114,6 +116,9 @@ transcription : vérifiez leur politique avant de l'utiliser.
   y a sur le bureau ? », « Je prends le grand cru » ou « Demandez à Laurent
   pourquoi il ment. » L'interprète ouvre la bonne scène, déclenche une action ou
   revient à Laurent ; en cas d'ambiguïté, il vous demande de préciser.
+- Après une fouille, demandez plus de détails sur un objet trouvé. L'examen
+  affiche une observation propre à cet objet dans le journal. Si le scénario ne
+  permet pas de dater un état, la réponse le dit sans inventer de date.
 - Le plan reste un raccourci pour observer une zone. Sa case verte indique toujours
   la scène affichée.
 - Laurent ne reçoit que les demandes qui lui sont destinées. Ses réponses
@@ -145,6 +150,12 @@ il vérifie la chaîne puis dérive le sac, les objets déjà rencontrés, les f
 les actions effectivement réalisées. `server/capacites.js` est l'unique arbitre
 des règles spatiales et des conditions de progression ; une cible hors zone ou
 hors inventaire ne peut donc pas être lue.
+
+Pour une question sur un objet connu, l'interprète fournit seulement une cible
+et un angle de question (`aspect`, `date`, `cause`, `identite`, `autre`). Le serveur
+valide l'examen, puis compose une réponse avec la description actuellement
+autorisée et un détail d'ambiance approuvé dans le scénario. Aucun texte d'objet
+n'est envoyé à l'interprète et aucun second appel IA n'est nécessaire.
 
 Le journal affiché reste global, mais le navigateur ne transmet à Claude que les
 tours canalisés vers l'interlocuteur courant, et la route de dialogue exige le contexte central. Le scénario

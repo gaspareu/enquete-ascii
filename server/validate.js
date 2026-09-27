@@ -8,6 +8,7 @@ const MAX_REPONSE = 1000;
 const MAX_TEXTE_VOIX = 2000;
 const MAX_HISTORIQUE = 100;
 const ACTIONS_OBJET = new Set(["examiner", "ramasser", "donner"]);
+const ANGLES = new Set(["aspect", "date", "cause", "identite", "autre"]);
 
 function estObjet(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -62,9 +63,15 @@ export function valideRequeteInteraction(body, scenario) {
   if (!intention.ok) return intention;
   const recus = valideRecus(body.recus);
   if (!recus.ok) return recus;
+  if (body.angle !== undefined && (intention.valeur.action !== "examiner" || !ANGLES.has(body.angle))) {
+    return { ok: false, erreur: "Angle invalide." };
+  }
   return {
     ok: true,
-    valeur: { contexte: contexte.valeur, intention: intention.valeur, recus: recus.valeur },
+    valeur: {
+      contexte: contexte.valeur, intention: intention.valeur, recus: recus.valeur,
+      ...(body.angle ? { angle: body.angle } : {}),
+    },
   };
 }
 

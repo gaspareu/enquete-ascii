@@ -193,6 +193,8 @@ describe("atelier d’auteur", () => {
     document.querySelector("#nouvel-objet").value = "cle";
     document.querySelector('[data-action="ajouter-objet"]').click(); await tour();
     expect(document.querySelector('[data-action="choisir-objet"][data-cle="cle"]')).toBeTruthy();
+    expect([...document.querySelectorAll("[data-path]")].some((element) =>
+      element.dataset.path === JSON.stringify(["objets", "cle", "observations", "detail_1"]))).toBe(true);
     const placement = document.querySelector('[data-action="deplacer-objet"]');
     placement.value = "N";
     placement.dispatchEvent(new Event("change", { bubbles: true })); await tour();
@@ -245,8 +247,8 @@ describe("atelier d’auteur", () => {
       if (url === "/api/editeur/enquetes") return rep({ enquetes: [{ id: "maison", titre: "Maison", statut: "brouillon", revision: "r1" }] });
       if (url === "/api/editeur/enquetes/maison" && !options.method) return rep({ enquete, revision: "r1" });
       if (url === "/api/editeur/enquetes/maison/generation-objets") return rep({ objets: [
-        { nom: "Une clé", description: "Une date est gravée dessus.", ramassable: true },
-        { nom: "Un carnet", description: "Les pages sont annotées.", ramassable: false },
+        { nom: "Une clé", description: "Une date est gravée dessus.", observations: ["Le métal est froid.", "Une rayure marque l’anneau."], ramassable: true },
+        { nom: "Un carnet", description: "Les pages sont annotées.", observations: ["La toile est rêche.", "Les coins sont usés."], ramassable: false },
       ] });
       throw new Error(`Route inattendue : ${url}`);
     });

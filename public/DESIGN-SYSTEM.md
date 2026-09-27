@@ -82,6 +82,8 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   ses retours de paragraphe avec `white-space: pre-wrap`. Une didascalie de l'interlocuteur
   validée par le serveur est un nœud `<em>` décoratif distinct de sa parole ; elle
   n'est jamais fusionnée à l'historique ni à la synthèse vocale.
+  Les réponses aux examens d'objets restent dans ce journal et ne sont pas
+  répétées dans une modale ; les tours de scène ne sont pas envoyés à Laurent.
 - **Pistes d'interrogatoire** : sous le compositeur, `#pistes` ne présente que les
   questions déjà autorisées par le serveur et seulement en face-à-face avec l'interlocuteur.
   Chaque question est un bouton `.piste-interrogatoire` pleine largeur, discret (ambre

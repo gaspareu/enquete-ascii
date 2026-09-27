@@ -2,6 +2,15 @@ import { describe, test, expect } from "vitest";
 import { scenario } from "../data/scenario.js";
 
 describe("contrat de scénario", () => {
+  test("chaque objet propose des détails d'ambiance approuvés", () => {
+    for (const [id, objet] of Object.entries(scenario.objets)) {
+      expect(Object.keys(objet.observations ?? {}), id).toHaveLength(2);
+      expect(Object.values(objet.observations).every((texte) => typeof texte === "string" && texte.length > 15), id).toBe(true);
+    }
+    expect(scenario.objets.plante_fanee.limites.date).toContain("depuis quand");
+    expect(scenario.objets.plante_fanee.description).not.toContain("ces derniers jours");
+  });
+
   test("déclare les conditions d'action comme un contrat secret et vide pour l'enquête actuelle", () => {
     expect(scenario.conditionsActions).toEqual({});
   });

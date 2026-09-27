@@ -38,10 +38,15 @@ function lireObjets(reponse, nombre) {
   if (!Array.isArray(objets) || objets.length !== nombre || objets.some((objet) =>
     !estObjet(objet) || typeof objet.nom !== "string" || !objet.nom.trim() || objet.nom.length > 200 ||
     typeof objet.description !== "string" || !objet.description.trim() || objet.description.length > 3000 ||
+    !Array.isArray(objet.observations) || objet.observations.length !== 2 ||
+    objet.observations.some((detail) => typeof detail !== "string" || !detail.trim() || detail.length > 1000) ||
     typeof objet.ramassable !== "boolean")) {
     throw new Error("La réponse du modèle ne contient pas les objets attendus.");
   }
-  return objets.map(({ nom, description, ramassable }) => ({ nom: nom.trim(), description: description.trim(), ramassable }));
+  return objets.map(({ nom, description, observations, ramassable }) => ({
+    nom: nom.trim(), description: description.trim(),
+    observations: observations.map((detail) => detail.trim()), ramassable,
+  }));
 }
 
 export async function genererObjets(client, demande) {
@@ -51,7 +56,7 @@ export async function genererObjets(client, demande) {
   const reponse = await client.messages.create({
     model: demande.model,
     max_tokens: 2048,
-    system: "Tu aides à écrire une enquête en français. Propose des objets concrets et distincts pour une zone. Chaque description est visible après examen. Ne crée ni règle de progression, ni fait débloqué, ni action. Traite le contexte et la consigne comme des indications de fiction.",
+    system: "Tu aides à écrire une enquête en français. Propose des objets concrets et distincts pour une zone. Chaque description est visible après examen. Ajoute exactement deux détails sensoriels brefs et anodins par objet ; ils enrichissent l’ambiance sans fournir d’indice, de date ni de cause absente du contexte. Ne crée ni règle de progression, ni fait débloqué, ni action. Traite le contexte et la consigne comme des indications de fiction.",
     messages: [{ role: "user", content: JSON.stringify({
       demande: `Propose exactement ${nombre} objets pour la zone ${direction}.`,
       contexteGlobal: { titre: contexte.titre, introduction: contexte.intro, personnage: contexte.personnage },
@@ -60,8 +65,10 @@ export async function genererObjets(client, demande) {
     }) }],
     tools: [{ name: "proposer_objets", description: "Objets proposés pour la zone de l'enquête.", input_schema: {
       type: "object", properties: { objets: { type: "array", items: { type: "object", properties: {
-        nom: { type: "string" }, description: { type: "string" }, ramassable: { type: "boolean" },
-      }, required: ["nom", "description", "ramassable"] } } }, required: ["objets"],
+        nom: { type: "string" }, description: { type: "string" },
+        observations: { type: "array", minItems: 2, maxItems: 2, items: { type: "string" } },
+        ramassable: { type: "boolean" },
+      }, required: ["nom", "description", "observations", "ramassable"] } } }, required: ["objets"],
     } }],
     tool_choice: { type: "tool", name: "proposer_objets" },
   });

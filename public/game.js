@@ -388,7 +388,7 @@ function fermerModale() {
   elModaleContenu.replaceChildren();
 }
 
-async function traiterInteraction(message, intention) {
+async function traiterInteraction(message, intention, angle) {
   etat = ajouterDialogue(etat, "joueur", message, "scene");
   rendreDialogueDOM();
   let rep;
@@ -396,7 +396,12 @@ async function traiterInteraction(message, intention) {
     rep = await fetch(`${apiBase}/interagir`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contexte: etat.contexte, intention, recus: etat.recus }),
+      body: JSON.stringify({
+        contexte: etat.contexte,
+        intention,
+        recus: etat.recus,
+        ...(intention.action === "examiner" && angle ? { angle } : {}),
+      }),
     });
   } catch {
     narration("Impossible d'agir (réseau).");
@@ -412,9 +417,6 @@ async function traiterInteraction(message, intention) {
   rendreSac();
   narration(data.narration ?? "Rien de particulier ici.");
   rendrePistes(data.pistes);
-  if (intention.action === "examiner") {
-    ouvrirModale(data.narration ?? "Rien de particulier ici.", [["Fermer", fermerModale]]);
-  }
 }
 
 async function traiterDialogue(message) {
@@ -495,7 +497,7 @@ async function interpreterEntree(message) {
     return;
   }
   if (decision.type === "interagir" && appliquerContexte(decision.contexte)) {
-    return traiterInteraction(message, { action: decision.action, cible: decision.cibleId });
+    return traiterInteraction(message, { action: decision.action, cible: decision.cibleId }, decision.angle);
   }
   if (decision.type === "dialoguer" && appliquerContexte(decision.contexte)) {
     return traiterDialogue(message);

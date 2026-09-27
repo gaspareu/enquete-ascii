@@ -13,21 +13,19 @@ vers un pixel art rétro assumé.
 
 ## En cours
 
-### T-10 · Agent d'interprétation des actions libres
+### T-11 · Observations d'objets immersives
 
-Permettre au joueur de décrire naturellement une observation, une action ou une
-demande à Laurent, sans apprendre de mots-clés. Un agent distinct de Laurent
-renvoie une décision structurée et le serveur conserve l'autorité exclusive sur
-les actions, la progression et les révélations.
+Une question portant sur un objet trouvé doit ouvrir son examen et donner une
+description propre à cet objet. Chaque objet possède des détails d'ambiance sans
+effet sur les indices. Les réponses à une date ou une cause inconnue doivent
+rester prudentes ; les révélations restent sous le contrôle du serveur.
 
 Critères d'acceptation :
 
-- aucune intention visible n'est déterminée par regex ou dictionnaire de verbes ;
-- l'interprète ne reçoit que des zones publiques et des objets déjà rencontrés ;
-- chaque décision est validée, puis une action reste contrôlée par les capacités
-  et les reçus HMAC côté serveur ;
-- les ambiguïtés deviennent des précisions locales, sans fuite ni appel à Laurent ;
-- les tests, la couverture, le rendu mobile et l'accessibilité restent verts.
+- les questions sur la distinction et la plante ne retombent plus sur la table ;
+- tous les objets trouvés ont des détails d'ambiance, sans révélation à la fouille ;
+- l'examen répété peut varier le détail tout en conservant les faits établis ;
+- tests, couverture, accessibilité et parcours mobile restent verts.
 
 ### T-07 · 🟢 Mode vocal
 

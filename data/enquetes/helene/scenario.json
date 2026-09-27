@@ -157,185 +157,332 @@
     "distinction": {
       "nom": "Distinction d'architecture",
       "description": "Le prix décerné à Hélène le mois dernier, encadré. Dans la marge de l'article de presse épinglé à côté, une main rageuse a souligné « ENCORE elle ».",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "cadre": "Une fine poussière s'est logée dans les angles du cadre.",
+        "verre": "Le verre porte une petite rayure visible dans la lumière de l'atelier."
+      }
     },
     "agenda": {
       "nom": "Agenda d'Hélène",
       "apercu": "Un agenda de bureau. Reviennent des rendez-vous notés en abrégé : « 19h — M. », « confirmer M. », « régler le solde ». Discret, presque clandestin.",
       "description": "Recoupés avec les messages du téléphone, les rendez-vous se déchiffrent : « M. » est Maurel, le traiteur ; « le solde », la facture d'un buffet. Les rencontres clandestines étaient les préparatifs d'une fête, pas les rendez-vous d'un amant.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "couverture": "La couverture souple a blanchi le long de la tranche.",
+        "elastique": "L'élastique qui le ferme a perdu un peu de sa tension."
+      }
     },
     "theiere": {
       "nom": "Plateau à tisane",
       "description": "Le plateau du soir : la théière encore à demi pleine et, près d'elle, DEUX tasses utilisées. Hélène n'a pas pris sa tisane seule ce soir-là.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "ceramique": "Une minuscule ébréchure marque le bord de la théière.",
+        "anse": "L'anse est lisse à force d'être saisie au même endroit."
+      }
     },
     "plaquette_somniferes": {
       "nom": "Plaquette de somnifères",
       "apercu": "Une plaquette de somnifères, entièrement vide, jetée à la corbeille. De quoi faire une surdose… la version de Laurent se tient.",
       "description": "En retournant la plaquette, un ticket de pharmacie y est agrafé : trois boîtes de ce somnifère, achetées il y a une semaine — au nom de Laurent Vasseur.",
-      "ramassable": true
+      "ramassable": true,
+      "observations": {
+        "plastique": "Le plastique transparent est froissé sur un côté.",
+        "aluminium": "La feuille d'aluminium crépite doucement quand on la retourne."
+      }
     },
     "mot_manuscrit": {
       "nom": "Mot manuscrit",
       "apercu": "Quelques lignes d'une écriture nerveuse : « je n'en peux plus de me cacher… pardonne-moi ». On dirait un mot d'adieu.",
       "description": "Couvert de ratures, ce n'est pas un adieu mais le brouillon d'un discours : « …pardonne-moi mes cachotteries de ces dernières semaines. Ce soir, tous ceux qui t'aiment sont réunis pour toi. » Le mot de la fête surprise.",
-      "ramassable": true
+      "ramassable": true,
+      "observations": {
+        "papier": "Le papier a été plié deux fois puis déplié à plat.",
+        "encre": "Une petite tache d'encre épaissit la fin d'un trait."
+      }
     },
     "cadeau_cache": {
       "nom": "Paquet caché",
       "description": "Au fond du placard, un paquet soigneusement emballé — l'étiquette dit « Pour mon Laurent » — et, dans un sac, des guirlandes et des ballons pliés. Hélène préparait une fête.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "papier": "Le papier d'emballage forme un pli de travers sur un coin.",
+        "ruban": "Un ruban légèrement vrillé retient le paquet."
+      }
     },
     "telephone": {
       "nom": "Téléphone d'Hélène",
       "description": "Un fil de messages avec « Maurel Traiteur » et avec sa sœur, à propos d'une organisation tenue secrète. L'historique montre aussi que quelqu'un a récemment fouillé l'appareil : saisies répétées du code, consultations nocturnes.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "ecran": "Des traces de doigts s'effacent en biais sur l'écran.",
+        "coque": "La coque est polie aux endroits où la main la tient."
+      }
     },
     "grand_cru": {
       "nom": "Grand cru",
       "description": "Une bouteille du grand cru préféré de Laurent, à son nom sur l'étiquette de cave. De quoi flatter l'amateur qu'il est.",
-      "ramassable": true
+      "ramassable": true,
+      "observations": {
+        "col": "La cire autour du goulot présente une légère craquelure.",
+        "verre": "Le verre sombre laisse à peine deviner le vin à l'intérieur."
+      }
     },
     "lettre_dettes": {
       "nom": "Lettre de la banque",
       "description": "Une lettre adressée à Laurent : découvert aggravé, échéances impayées, menace de saisie. En marge, des chiffres griffonnés — et le montant du prix qu'Hélène venait de toucher, entouré.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "enveloppe": "Le bord de l'enveloppe est découpé de façon irrégulière.",
+        "pli": "La feuille garde un pli net au milieu."
+      }
     },
     "maquette": {
       "nom": "Maquette",
       "description": "Une maquette en carton-plume d'un bâtiment courbe, signée de la main d'Hélène. Le travail d'une vie.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "carton": "Les arêtes du carton-plume ont été reprises au cutter avec soin.",
+        "colle": "Un point de colle translucide dépasse sous une façade."
+      }
     },
     "crayons_plans": {
       "nom": "Crayons et plans",
       "description": "Un pot débordant de crayons et de tire-lignes, des plans roulés. L'ordre méticuleux d'une créatrice.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "crayons": "Plusieurs crayons sont taillés très court, presque jusqu'au bois.",
+        "papier": "Les bords des plans roulés ont pris une courbe tenace."
+      }
     },
     "plante_fanee": {
       "nom": "Plante fanée",
-      "description": "Une plante verte sur le rebord, un peu fanée faute d'arrosage ces derniers jours.",
-      "ramassable": false
+      "description": "Une plante verte sur le rebord, aux feuilles flétries et à la terre sèche.",
+      "ramassable": false,
+      "observations": {
+        "feuilles": "Les feuilles se recourbent sur les bords et pendent vers la vitre.",
+        "terre": "La terre s'effrite par petites plaques sous la surface."
+      },
+      "limites": {
+        "date": "Rien ne permet de dire depuis quand elle est ainsi."
+      }
     },
     "monographies": {
       "nom": "Monographies",
       "description": "Une rangée de monographies d'architectes vénérés. Quelques pages sont cornées.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "reliures": "Les dos des ouvrages sont légèrement décolorés par le soleil.",
+        "pages": "Quelques pages épaisses résistent quand on les tourne."
+      }
     },
     "revues_deco": {
       "nom": "Revues de déco",
       "description": "Une pile de revues de décoration, certaines hérissées de Post-it enthousiastes.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "couvertures": "Les couvertures glacées glissent les unes sur les autres.",
+        "coins": "Les coins de la pile sont inégalement alignés."
+      }
     },
     "presse_papier": {
       "nom": "Presse-papier",
       "description": "Un presse-papier en laiton en forme d'équerre. Lourd, sans plus.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "metal": "Le laiton a gardé une chaleur mate sous la lampe.",
+        "base": "La base laisse un cercle propre sur une tablette poussiéreuse."
+      }
     },
     "boite_tisanes": {
       "nom": "Boîte à tisanes",
       "description": "Une boîte à compartiments : verveine, camomille, tilleul. Le rituel du soir.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "bois": "Le couvercle en bois frotte légèrement à l'ouverture.",
+        "odeur": "Une odeur végétale discrète s'en échappe."
+      }
     },
     "napperon": {
       "nom": "Napperon brodé",
       "description": "Un napperon brodé sous le plateau, souvenir d'un voyage, dirait-on.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "fil": "Le fil blanc est devenu crème par endroits.",
+        "bord": "Un bord du tissu se soulève à peine sous le plateau."
+      }
     },
     "cuillere_argent": {
       "nom": "Cuillère en argent",
       "description": "Une petite cuillère en argent, ternie par le temps.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "manche": "Le manche porte de fines rayures d'usage.",
+        "reflet": "Son reflet est trouble là où l'argent a terni."
+      }
     },
     "brouillons_froisses": {
       "nom": "Brouillons froissés",
       "description": "Des brouillons de plans raturés puis abandonnés. Le rebut ordinaire d'un atelier.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "plis": "Les plis du papier gardent la marque de doigts pressés.",
+        "mines": "De la poussière de graphite reste prise dans les froissures."
+      }
     },
     "brochure_vente_appartement": {
       "nom": "Brochure de vente de l'appartement",
       "description": "Une brochure d'agence immobilière, froissée au coin. Le bien présenté est l'appartement des Vasseur ; les annotations au crayon parlent d'une mise en vente rapide.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "papier": "Le papier glacé a perdu son brillant au niveau du pli.",
+        "agrafe": "Une agrafe un peu de travers retient les feuillets."
+      }
     },
     "courrier_syndic_dechire": {
       "nom": "Courrier du syndic déchiré",
       "description": "Les morceaux d'un courrier du syndic évoquent des travaux de copropriété à venir. Une note rageuse de Laurent barre le montant estimé.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "morceaux": "Les morceaux se recouvrent mal quand on les rapproche.",
+        "encre": "L'encre imprimée a pâli près des déchirures."
+      }
     },
     "enveloppe_pub": {
       "nom": "Enveloppe publicitaire",
       "description": "Une enveloppe de publicité déchirée pour une cuisine équipée. Sans intérêt.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "colle": "La bande de colle a jauni près du rabat.",
+        "papier": "Le papier mince se déchire facilement entre les doigts."
+      }
     },
     "trognon_pomme": {
       "nom": "Trognon de pomme",
       "description": "Un trognon de pomme oublié. Hélène travaillait tard, semble-t-il.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "peau": "Un reste de peau rouge adhère encore au trognon.",
+        "pepins": "Deux pépins sont restés pris dans la chair sèche."
+      }
     },
     "photos_mariage": {
       "nom": "Photos de mariage",
       "description": "Des photos de mariage encadrées : Hélène et Laurent, rayonnants, il y a quelques années. Difficile de les regarder en sachant comment l'histoire finit.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "cadres": "Les cadres ne sont pas tout à fait de la même taille.",
+        "verre": "La lumière du salon accroche une trace sur le verre."
+      }
     },
     "plaid": {
       "nom": "Plaid",
       "description": "Un plaid en laine jeté sur l'accoudoir, là où l'on se love pour lire.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "laine": "La laine bouloche un peu aux extrémités.",
+        "frange": "Une frange s'est prise entre les coussins du canapé."
+      }
     },
     "roman_corne": {
       "nom": "Roman corné",
       "description": "Un roman corné, marque-page glissé aux deux tiers. Une lecture qu'elle ne finira pas.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "couverture": "La couverture s'ouvre d'elle-même à force d'avoir été tenue.",
+        "pages": "Les pages près du marque-page sont légèrement gondolées."
+      }
     },
     "manteaux": {
       "nom": "Manteaux",
       "description": "Des manteaux et des écharpes suspendus, imprégnés d'un parfum discret.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "tissu": "Le tissu d'un manteau garde la forme du cintre.",
+        "boutons": "Un bouton de manteau pend au bout d'un fil."
+      }
     },
     "cartons_archives": {
       "nom": "Cartons d'archives",
       "description": "Des cartons étiquetés par année : dossiers de chantiers anciens.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "carton": "Les poignées découpées ont ramolli avec l'usage.",
+        "etiquette": "Une étiquette se décolle sur un angle."
+      }
     },
     "raquette_tennis": {
       "nom": "Raquette de tennis",
       "description": "Une vieille raquette au cordage détendu, reléguée au fond.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "manche": "Le grip du manche s'effrite un peu au toucher.",
+        "cordage": "Une corde vibre plus bas que les autres quand on l'effleure."
+      }
     },
     "courrier": {
       "nom": "Courrier",
       "description": "Une pile de courrier : factures, relevés, un magazine professionnel. Rien de notable.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "enveloppes": "Les enveloppes ne sont pas rangées par taille.",
+        "papier": "Un coin de magazine dépasse de la pile."
+      }
     },
     "stylo_plume": {
       "nom": "Stylo plume",
       "description": "Un stylo plume à capuchon, posé sur un sous-main. L'encre a un peu séché.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "plume": "La pointe de la plume a gardé une trace d'encre sombre.",
+        "capuchon": "Le capuchon se referme avec un petit clic sec."
+      }
     },
     "cartes_postales": {
       "nom": "Cartes postales",
       "description": "Quelques cartes postales de voyages passés, coincées dans le sous-main.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "bords": "Les bords cartonnés se sont adoucis à force d'être manipulés.",
+        "couleurs": "Les couleurs de deux cartes ont pâli au soleil."
+      }
     },
     "cactus": {
       "nom": "Cactus",
       "description": "Un petit cactus sur le rebord de la fenêtre, increvable lui.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "pot": "Une trace blanche marque le bord du pot en terre cuite.",
+        "epines": "Ses petites épines accrochent la lumière de la fenêtre."
+      }
     },
     "verres_whisky": {
       "nom": "Verres à whisky",
       "description": "Deux verres à whisky en cristal, soigneusement alignés. Laurent reçoit, dit-on.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "cristal": "Le cristal est épais au fond de chaque verre.",
+        "reflets": "Les facettes projettent de petits reflets sur le meuble-bar."
+      }
     },
     "coffret_cigares": {
       "nom": "Coffret de cigares",
       "description": "Un coffret de cigares entamé, réservé aux grandes occasions de Laurent.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "bois": "Le bois du couvercle est plus clair à l'intérieur.",
+        "charniere": "La charnière gémit légèrement quand on soulève le couvercle."
+      }
     },
     "trophee_golf": {
       "nom": "Trophée de golf",
       "description": "Un trophée de tournoi de golf amateur, au nom de Laurent, bien en évidence. Il y tient.",
-      "ramassable": false
+      "ramassable": false,
+      "observations": {
+        "socle": "Le socle porte une petite éraflure sur un côté.",
+        "metal": "Le métal a été poli plus souvent sur la face avant."
+      }
     }
   },
   "connaissances": [

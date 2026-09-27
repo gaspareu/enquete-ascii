@@ -41,7 +41,8 @@ function narrationFouille(scenario, contexte, cibles) {
   const trouvailles = cibles
     .map((cible) => `• ${scenario.objets[cible].nom}`)
     .join("\n");
-  return `En cherchant dans ${nomZone}, vous trouvez :\n${trouvailles}`;
+  const ambiance = zone.description ?? `Vous parcourez ${nomZone}.`;
+  return `${ambiance}\nVous y découvrez :\n${trouvailles}`;
 }
 
 export function executerInteraction({ scenario, secret, verification, contexte, intention }) {

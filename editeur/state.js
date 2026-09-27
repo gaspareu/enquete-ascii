@@ -59,7 +59,10 @@ export function ajouterObjetsGeneres(enquete, direction, propositions) {
   copie.zones[direction].objetsCaches = [...(copie.zones[direction].objetsCaches ?? [])];
   for (const proposition of propositions) {
     if (typeof proposition?.nom !== "string" || !proposition.nom.trim() ||
-      typeof proposition.description !== "string" || typeof proposition.ramassable !== "boolean") {
+      typeof proposition.description !== "string" ||
+      !Array.isArray(proposition.observations) || proposition.observations.length !== 2 ||
+      proposition.observations.some((detail) => typeof detail !== "string" || !detail.trim()) ||
+      typeof proposition.ramassable !== "boolean") {
       throw new Error("Un objet proposé est invalide.");
     }
     const base = proposerId(proposition.nom).slice(0, 64);
@@ -69,8 +72,13 @@ export function ajouterObjetsGeneres(enquete, direction, propositions) {
       const suffixe = `_${numero++}`;
       id = `${base.slice(0, 64 - suffixe.length)}${suffixe}`;
     }
-    copie.objets[id] = { nom: proposition.nom.trim(), aliases: [], apercu: "",
-      description: proposition.description.trim(), ramassable: proposition.ramassable };
+    copie.objets[id] = {
+      nom: proposition.nom.trim(), aliases: [], apercu: "",
+      description: proposition.description.trim(),
+      observations: Object.fromEntries(proposition.observations.map((detail, index) =>
+        [`detail_${index + 1}`, detail.trim()])),
+      limites: {}, ramassable: proposition.ramassable,
+    };
     copie.zones[direction].objetsCaches.push(id);
   }
   copie.statut = "brouillon";

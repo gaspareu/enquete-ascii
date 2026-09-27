@@ -81,7 +81,8 @@ describe("bascules HTTP /interagir", () => {
       intention: { action: "examiner", cible: "mot_manuscrit" },
       recus: fouilleS,
     });
-    expect(froid.body.narration).toBe(scenario.objets.mot_manuscrit.apercu);
+    expect(froid.body.narration.startsWith(scenario.objets.mot_manuscrit.apercu)).toBe(true);
+    expect(froid.body.narration).not.toContain("fête surprise");
 
     const recus = recusPour([
       e("fouiller", "S", { type: "zone", id: "S" }),
@@ -93,7 +94,7 @@ describe("bascules HTTP /interagir", () => {
       intention: { action: "examiner", cible: "mot_manuscrit" },
       recus,
     });
-    expect(chaud.body.narration).toBe(scenario.objets.mot_manuscrit.description);
+    expect(chaud.body.narration.startsWith(scenario.objets.mot_manuscrit.description)).toBe(true);
   });
 
   test("l'agenda est éclairci après le téléphone dans une chaîne signée", async () => {
@@ -106,7 +107,7 @@ describe("bascules HTTP /interagir", () => {
         e("examiner", "telephone", { type: "zone", id: "O" }),
       ]),
     });
-    expect(chaud.body.narration).toBe(scenario.objets.agenda.description);
+    expect(chaud.body.narration.startsWith(scenario.objets.agenda.description)).toBe(true);
   });
 });
 

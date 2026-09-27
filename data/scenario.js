@@ -142,6 +142,10 @@ export const scenario = {
     // ----- Objets utiles -----
     distinction: {
       nom: "Distinction d'architecture",
+      observations: {
+        cadre: "Une fine poussière s'est logée dans les angles du cadre.",
+        verre: "Le verre porte une petite rayure visible dans la lumière de l'atelier.",
+      },
       description:
         "Le prix décerné à Hélène le mois dernier, encadré. Dans la marge de " +
         "l'article de presse épinglé à côté, une main rageuse a souligné « ENCORE elle ».",
@@ -149,6 +153,10 @@ export const scenario = {
     },
     agenda: {
       nom: "Agenda d'Hélène",
+      observations: {
+        couverture: "La couverture souple a blanchi le long de la tranche.",
+        elastique: "L'élastique qui le ferme a perdu un peu de sa tension.",
+      },
       apercu:
         "Un agenda de bureau. Reviennent des rendez-vous notés en abrégé : « 19h — M. », " +
         "« confirmer M. », « régler le solde ». Discret, presque clandestin.",
@@ -160,6 +168,10 @@ export const scenario = {
     },
     theiere: {
       nom: "Plateau à tisane",
+      observations: {
+        ceramique: "Une minuscule ébréchure marque le bord de la théière.",
+        anse: "L'anse est lisse à force d'être saisie au même endroit.",
+      },
       description:
         "Le plateau du soir : la théière encore à demi pleine et, près d'elle, DEUX " +
         "tasses utilisées. Hélène n'a pas pris sa tisane seule ce soir-là.",
@@ -167,6 +179,10 @@ export const scenario = {
     },
     plaquette_somniferes: {
       nom: "Plaquette de somnifères",
+      observations: {
+        plastique: "Le plastique transparent est froissé sur un côté.",
+        aluminium: "La feuille d'aluminium crépite doucement quand on la retourne.",
+      },
       apercu:
         "Une plaquette de somnifères, entièrement vide, jetée à la corbeille. De quoi " +
         "faire une surdose… la version de Laurent se tient.",
@@ -177,6 +193,10 @@ export const scenario = {
     },
     mot_manuscrit: {
       nom: "Mot manuscrit",
+      observations: {
+        papier: "Le papier a été plié deux fois puis déplié à plat.",
+        encre: "Une petite tache d'encre épaissit la fin d'un trait.",
+      },
       apercu:
         "Quelques lignes d'une écriture nerveuse : « je n'en peux plus de me cacher… " +
         "pardonne-moi ». On dirait un mot d'adieu.",
@@ -188,6 +208,10 @@ export const scenario = {
     },
     cadeau_cache: {
       nom: "Paquet caché",
+      observations: {
+        papier: "Le papier d'emballage forme un pli de travers sur un coin.",
+        ruban: "Un ruban légèrement vrillé retient le paquet.",
+      },
       description:
         "Au fond du placard, un paquet soigneusement emballé — l'étiquette dit « Pour " +
         "mon Laurent » — et, dans un sac, des guirlandes et des ballons pliés. Hélène " +
@@ -196,6 +220,10 @@ export const scenario = {
     },
     telephone: {
       nom: "Téléphone d'Hélène",
+      observations: {
+        ecran: "Des traces de doigts s'effacent en biais sur l'écran.",
+        coque: "La coque est polie aux endroits où la main la tient.",
+      },
       description:
         "Un fil de messages avec « Maurel Traiteur » et avec sa sœur, à propos d'une " +
         "organisation tenue secrète. L'historique montre aussi que quelqu'un a " +
@@ -204,6 +232,10 @@ export const scenario = {
     },
     grand_cru: {
       nom: "Grand cru",
+      observations: {
+        col: "La cire autour du goulot présente une légère craquelure.",
+        verre: "Le verre sombre laisse à peine deviner le vin à l'intérieur.",
+      },
       description:
         "Une bouteille du grand cru préféré de Laurent, à son nom sur l'étiquette de " +
         "cave. De quoi flatter l'amateur qu'il est.",
@@ -211,6 +243,10 @@ export const scenario = {
     },
     lettre_dettes: {
       nom: "Lettre de la banque",
+      observations: {
+        enveloppe: "Le bord de l'enveloppe est découpé de façon irrégulière.",
+        pli: "La feuille garde un pli net au milieu.",
+      },
       description:
         "Une lettre adressée à Laurent : découvert aggravé, échéances impayées, menace " +
         "de saisie. En marge, des chiffres griffonnés — et le montant du prix qu'Hélène " +
@@ -221,6 +257,10 @@ export const scenario = {
     // ----- Objets d'ambiance (sans valeur d'enquête) -----
     maquette: {
       nom: "Maquette",
+      observations: {
+        carton: "Les arêtes du carton-plume ont été reprises au cutter avec soin.",
+        colle: "Un point de colle translucide dépasse sous une façade.",
+      },
       description:
         "Une maquette en carton-plume d'un bâtiment courbe, signée de la main d'Hélène. " +
         "Le travail d'une vie.",
@@ -228,6 +268,10 @@ export const scenario = {
     },
     crayons_plans: {
       nom: "Crayons et plans",
+      observations: {
+        crayons: "Plusieurs crayons sont taillés très court, presque jusqu'au bois.",
+        papier: "Les bords des plans roulés ont pris une courbe tenace.",
+      },
       description:
         "Un pot débordant de crayons et de tire-lignes, des plans roulés. L'ordre " +
         "méticuleux d'une créatrice.",
@@ -235,46 +279,83 @@ export const scenario = {
     },
     plante_fanee: {
       nom: "Plante fanée",
-      description: "Une plante verte sur le rebord, un peu fanée faute d'arrosage ces derniers jours.",
+      observations: {
+        feuilles: "Les feuilles se recourbent sur les bords et pendent vers la vitre.",
+        terre: "La terre s'effrite par petites plaques sous la surface.",
+      },
+      limites: { date: "Rien ne permet de dire depuis quand elle est ainsi." },
+      description: "Une plante verte sur le rebord, aux feuilles flétries et à la terre sèche.",
       ramassable: false,
     },
     monographies: {
       nom: "Monographies",
+      observations: {
+        reliures: "Les dos des ouvrages sont légèrement décolorés par le soleil.",
+        pages: "Quelques pages épaisses résistent quand on les tourne.",
+      },
       description: "Une rangée de monographies d'architectes vénérés. Quelques pages sont cornées.",
       ramassable: false,
     },
     revues_deco: {
       nom: "Revues de déco",
+      observations: {
+        couvertures: "Les couvertures glacées glissent les unes sur les autres.",
+        coins: "Les coins de la pile sont inégalement alignés.",
+      },
       description: "Une pile de revues de décoration, certaines hérissées de Post-it enthousiastes.",
       ramassable: false,
     },
     presse_papier: {
       nom: "Presse-papier",
+      observations: {
+        metal: "Le laiton a gardé une chaleur mate sous la lampe.",
+        base: "La base laisse un cercle propre sur une tablette poussiéreuse.",
+      },
       description: "Un presse-papier en laiton en forme d'équerre. Lourd, sans plus.",
       ramassable: false,
     },
     boite_tisanes: {
       nom: "Boîte à tisanes",
+      observations: {
+        bois: "Le couvercle en bois frotte légèrement à l'ouverture.",
+        odeur: "Une odeur végétale discrète s'en échappe.",
+      },
       description: "Une boîte à compartiments : verveine, camomille, tilleul. Le rituel du soir.",
       ramassable: false,
     },
     napperon: {
       nom: "Napperon brodé",
+      observations: {
+        fil: "Le fil blanc est devenu crème par endroits.",
+        bord: "Un bord du tissu se soulève à peine sous le plateau.",
+      },
       description: "Un napperon brodé sous le plateau, souvenir d'un voyage, dirait-on.",
       ramassable: false,
     },
     cuillere_argent: {
       nom: "Cuillère en argent",
+      observations: {
+        manche: "Le manche porte de fines rayures d'usage.",
+        reflet: "Son reflet est trouble là où l'argent a terni.",
+      },
       description: "Une petite cuillère en argent, ternie par le temps.",
       ramassable: false,
     },
     brouillons_froisses: {
       nom: "Brouillons froissés",
+      observations: {
+        plis: "Les plis du papier gardent la marque de doigts pressés.",
+        mines: "De la poussière de graphite reste prise dans les froissures.",
+      },
       description: "Des brouillons de plans raturés puis abandonnés. Le rebut ordinaire d'un atelier.",
       ramassable: false,
     },
     brochure_vente_appartement: {
       nom: "Brochure de vente de l'appartement",
+      observations: {
+        papier: "Le papier glacé a perdu son brillant au niveau du pli.",
+        agrafe: "Une agrafe un peu de travers retient les feuillets.",
+      },
       description:
         "Une brochure d'agence immobilière, froissée au coin. Le bien présenté est " +
         "l'appartement des Vasseur ; les annotations au crayon parlent d'une mise en vente rapide.",
@@ -282,6 +363,10 @@ export const scenario = {
     },
     courrier_syndic_dechire: {
       nom: "Courrier du syndic déchiré",
+      observations: {
+        morceaux: "Les morceaux se recouvrent mal quand on les rapproche.",
+        encre: "L'encre imprimée a pâli près des déchirures.",
+      },
       description:
         "Les morceaux d'un courrier du syndic évoquent des travaux de copropriété à venir. " +
         "Une note rageuse de Laurent barre le montant estimé.",
@@ -289,16 +374,28 @@ export const scenario = {
     },
     enveloppe_pub: {
       nom: "Enveloppe publicitaire",
+      observations: {
+        colle: "La bande de colle a jauni près du rabat.",
+        papier: "Le papier mince se déchire facilement entre les doigts.",
+      },
       description: "Une enveloppe de publicité déchirée pour une cuisine équipée. Sans intérêt.",
       ramassable: false,
     },
     trognon_pomme: {
       nom: "Trognon de pomme",
+      observations: {
+        peau: "Un reste de peau rouge adhère encore au trognon.",
+        pepins: "Deux pépins sont restés pris dans la chair sèche.",
+      },
       description: "Un trognon de pomme oublié. Hélène travaillait tard, semble-t-il.",
       ramassable: false,
     },
     photos_mariage: {
       nom: "Photos de mariage",
+      observations: {
+        cadres: "Les cadres ne sont pas tout à fait de la même taille.",
+        verre: "La lumière du salon accroche une trace sur le verre.",
+      },
       description:
         "Des photos de mariage encadrées : Hélène et Laurent, rayonnants, il y a quelques " +
         "années. Difficile de les regarder en sachant comment l'histoire finit.",
@@ -306,61 +403,109 @@ export const scenario = {
     },
     plaid: {
       nom: "Plaid",
+      observations: {
+        laine: "La laine bouloche un peu aux extrémités.",
+        frange: "Une frange s'est prise entre les coussins du canapé.",
+      },
       description: "Un plaid en laine jeté sur l'accoudoir, là où l'on se love pour lire.",
       ramassable: false,
     },
     roman_corne: {
       nom: "Roman corné",
+      observations: {
+        couverture: "La couverture s'ouvre d'elle-même à force d'avoir été tenue.",
+        pages: "Les pages près du marque-page sont légèrement gondolées.",
+      },
       description: "Un roman corné, marque-page glissé aux deux tiers. Une lecture qu'elle ne finira pas.",
       ramassable: false,
     },
     manteaux: {
       nom: "Manteaux",
+      observations: {
+        tissu: "Le tissu d'un manteau garde la forme du cintre.",
+        boutons: "Un bouton de manteau pend au bout d'un fil.",
+      },
       description: "Des manteaux et des écharpes suspendus, imprégnés d'un parfum discret.",
       ramassable: false,
     },
     cartons_archives: {
       nom: "Cartons d'archives",
+      observations: {
+        carton: "Les poignées découpées ont ramolli avec l'usage.",
+        etiquette: "Une étiquette se décolle sur un angle.",
+      },
       description: "Des cartons étiquetés par année : dossiers de chantiers anciens.",
       ramassable: false,
     },
     raquette_tennis: {
       nom: "Raquette de tennis",
+      observations: {
+        manche: "Le grip du manche s'effrite un peu au toucher.",
+        cordage: "Une corde vibre plus bas que les autres quand on l'effleure.",
+      },
       description: "Une vieille raquette au cordage détendu, reléguée au fond.",
       ramassable: false,
     },
     courrier: {
       nom: "Courrier",
+      observations: {
+        enveloppes: "Les enveloppes ne sont pas rangées par taille.",
+        papier: "Un coin de magazine dépasse de la pile.",
+      },
       description: "Une pile de courrier : factures, relevés, un magazine professionnel. Rien de notable.",
       ramassable: false,
     },
     stylo_plume: {
       nom: "Stylo plume",
+      observations: {
+        plume: "La pointe de la plume a gardé une trace d'encre sombre.",
+        capuchon: "Le capuchon se referme avec un petit clic sec.",
+      },
       description: "Un stylo plume à capuchon, posé sur un sous-main. L'encre a un peu séché.",
       ramassable: false,
     },
     cartes_postales: {
       nom: "Cartes postales",
+      observations: {
+        bords: "Les bords cartonnés se sont adoucis à force d'être manipulés.",
+        couleurs: "Les couleurs de deux cartes ont pâli au soleil.",
+      },
       description: "Quelques cartes postales de voyages passés, coincées dans le sous-main.",
       ramassable: false,
     },
     cactus: {
       nom: "Cactus",
+      observations: {
+        pot: "Une trace blanche marque le bord du pot en terre cuite.",
+        epines: "Ses petites épines accrochent la lumière de la fenêtre.",
+      },
       description: "Un petit cactus sur le rebord de la fenêtre, increvable lui.",
       ramassable: false,
     },
     verres_whisky: {
       nom: "Verres à whisky",
+      observations: {
+        cristal: "Le cristal est épais au fond de chaque verre.",
+        reflets: "Les facettes projettent de petits reflets sur le meuble-bar.",
+      },
       description: "Deux verres à whisky en cristal, soigneusement alignés. Laurent reçoit, dit-on.",
       ramassable: false,
     },
     coffret_cigares: {
       nom: "Coffret de cigares",
+      observations: {
+        bois: "Le bois du couvercle est plus clair à l'intérieur.",
+        charniere: "La charnière gémit légèrement quand on soulève le couvercle.",
+      },
       description: "Un coffret de cigares entamé, réservé aux grandes occasions de Laurent.",
       ramassable: false,
     },
     trophee_golf: {
       nom: "Trophée de golf",
+      observations: {
+        socle: "Le socle porte une petite éraflure sur un côté.",
+        metal: "Le métal a été poli plus souvent sur la face avant.",
+      },
       description:
         "Un trophée de tournoi de golf amateur, au nom de Laurent, bien en évidence. Il y tient.",
       ramassable: false,

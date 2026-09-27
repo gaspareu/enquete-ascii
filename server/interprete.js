@@ -4,6 +4,7 @@
 import { deriverEtatPublic } from "./etat.js";
 
 const ACTIONS = new Set(["fouiller", "examiner", "ramasser", "donner"]);
+const ANGLES = new Set(["aspect", "date", "cause", "identite", "autre"]);
 
 function clarification(choix = [], nomPersonnage = "Laurent") {
   const libelles = choix.map((choix) => choix.libelle);
@@ -43,7 +44,7 @@ function choixPublics(bruts, catalogue) {
 }
 
 function objetConnu(id, catalogue) {
-  return catalogue.objetsConnus.some((objet) => objet.id === id);
+  return catalogue.objetsConnus.find((objet) => objet.id === id);
 }
 
 function interactionValide(brut, catalogue) {
@@ -58,9 +59,8 @@ function interactionValide(brut, catalogue) {
       cibleId: brut.cibleId,
     };
   }
-  if (!objetConnu(brut.cibleId, catalogue)) {
-    return null;
-  }
+  const objet = objetConnu(brut.cibleId, catalogue);
+  if (!objet) return null;
   if (brut.action === "donner") {
     return {
       type: "interagir",
@@ -69,11 +69,16 @@ function interactionValide(brut, catalogue) {
       cibleId: brut.cibleId,
     };
   }
-  const contexte = contexteValide(brut.contexte, catalogue);
-  if (!contexte || (brut.action === "ramasser" && contexte.type !== "zone")) {
-    return null;
-  }
-  return { type: "interagir", contexte, action: brut.action, cibleId: brut.cibleId };
+  const propose = contexteValide(brut.contexte, catalogue);
+  const source = objet.zoneId ? { type: "zone", id: objet.zoneId } : null;
+  const dansSac = catalogue.sac.includes(objet.id);
+  const contexte = brut.action === "ramasser" ? source :
+    dansSac ? (propose ?? source) : source;
+  if (!contexte) return null;
+  return {
+    type: "interagir", contexte, action: brut.action, cibleId: brut.cibleId,
+    ...(brut.action === "examiner" && ANGLES.has(brut.angle) ? { angle: brut.angle } : {}),
+  };
 }
 
 export function construireCatalogueInterprete(scenario, evenements = [], contexte) {
@@ -91,7 +96,12 @@ export function construireCatalogueInterprete(scenario, evenements = [], context
       description: zone.description,
     })),
     sac: [...etatPublic.sac],
-    objetsConnus: etatPublic.objetsConnus.map((objet) => ({ ...objet, aliases: [...objet.aliases] })),
+    objetsConnus: etatPublic.objetsConnus.map((objet) => ({
+      ...objet,
+      aliases: [...objet.aliases],
+      zoneId: Object.entries(scenario.zones ?? {}).find(([, zone]) =>
+        zone.objetsCaches?.includes(objet.id))?.[0] ?? null,
+    })),
   };
 }
 
@@ -99,6 +109,13 @@ export function validerDecisionInterprete(brut, catalogue) {
   const clarifier = (choix = []) => clarification(choix, catalogue.personnage.nom);
   if (!brut || typeof brut !== "object" || typeof brut.type !== "string") return clarifier();
   if (brut.type === "observer") {
+    if (brut.cibleId !== undefined && brut.cibleId !== "") {
+      const contexte = contexteValide(brut.contexte, catalogue);
+      if (contexte?.type === "zone" && brut.cibleId === contexte.id) {
+        return { type: "observer", contexte };
+      }
+      return interactionValide({ ...brut, action: "examiner" }, catalogue) ?? clarifier();
+    }
     const contexte = contexteValide(brut.contexte, catalogue);
     return contexte ? { type: "observer", contexte } : clarifier();
   }
@@ -130,6 +147,7 @@ const OUTIL_INTENTION = {
         required: ["type", "id"],
       },
       action: { type: "string", enum: ["fouiller", "examiner", "ramasser", "donner"] },
+      angle: { type: "string", enum: ["aspect", "date", "cause", "identite", "autre"] },
       cibleId: { type: "string" },
       choix: {
         type: "array",
@@ -144,7 +162,7 @@ const OUTIL_INTENTION = {
         },
       },
     },
-    required: ["type", "contexte"],
+    required: ["type", "contexte", "angle", "cibleId"],
   },
 };
 
@@ -153,8 +171,11 @@ function promptInterprete(catalogue) {
     "Tu interprètes une intention dans un jeu d'enquête. Tu n'es ni narrateur ni personnage.",
     "Réponds obligatoirement avec l'outil resoudre_intention. Une phrase produit une seule décision.",
     "N'utilise que les identifiants présents dans le catalogue. Renseigne toujours contexte ; pour clarifier, reprends le contexte courant. Si elle est ambiguë, utilise clarifier avec zéro à deux choix publics.",
-    `Une observation ne produit aucun geste. Une interaction vise un objet déjà connu ou la fouille d'une zone. Un dialogue vise uniquement ${catalogue.personnage.nom}.`,
+    `Observer sans cibleId sert seulement à regarder une zone ou ${catalogue.personnage.nom}. Toute question portant sur un objet déjà connu (son aspect, ses détails, son état, sa date, sa cause) est interagir/examiner avec cibleId de cet objet. Si tu as choisi observer pour un objet, renseigne cibleId : le serveur le convertira en examen. Un dialogue vise uniquement ${catalogue.personnage.nom}.`,
+    "Renseigne angle pour chaque décision : date si la question demande quand ou depuis quand, cause si elle demande pourquoi, identite si elle demande qui, aspect pour les autres détails d’objet, autre ailleurs. L’angle ne fournit aucun fait : le serveur ne l’utilise que pour une phrase d’incertitude déjà écrite.",
+    "Renseigne toujours cibleId. Pour fouiller, cibleId est l’identifiant de la zone. Pour examiner, ramasser ou donner, cibleId est l’identifiant de l’objet connu. Pour observer, dialoguer ou clarifier sans objet, utilise une chaîne vide.",
     "Si le message cite le nom ou un alias d'une unique zone, choisis cette zone. Une question sur ce qui se trouve dans, sur ou près d'une zone est une fouille de cette zone ; « ici » ou « cette zone » désigne le contexte courant lorsqu'il est une zone. Ne clarifie que si aucune cible publique ne permet de trancher.",
+    "Exemples : « Qu'est-ce qu'il y a sur cette zone ? » = interagir/fouiller cette zone ; « Observer plus en détail cet objet déjà trouvé » = interagir/examiner cet objet, angle aspect ; « Depuis quand cet objet déjà trouvé est-il abîmé ? » = interagir/examiner cet objet, angle date. Ne choisis jamais un objet absent du catalogue.",
     `Catalogue public : ${JSON.stringify(catalogue)}`,
   ].join("\n\n");
 }
