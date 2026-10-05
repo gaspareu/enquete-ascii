@@ -21,6 +21,8 @@ export default defineConfig({
         "public/state.js",
         "public/render.js",
         "public/game.js",
+        "public/journal-scroll.js",
+        "public/saisie-chat.js",
         "public/voix.js",
         "public/micro.js",
       ],

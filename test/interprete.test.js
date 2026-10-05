@@ -79,7 +79,7 @@ describe("resoudreIntention", () => {
   test("force un outil fermé, borné, sans envoyer de secret", async () => {
     const client = fauxClient({ type: "observer", contexte: nord });
     const resultat = await resoudreIntention(client, {
-      message: "Regardons le bureau.",
+      message: "Quel endroit dois-je observer ?",
       catalogue: catalogue(),
       model: "modele-interprete",
     });

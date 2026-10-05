@@ -28,7 +28,12 @@ Le socle jouable et l'atelier local sont en place :
 - mode vocal optionnel : synthèse ElevenLabs pour les réponses et saisie par
   micro quand le navigateur propose Web Speech API ;
 - sélection des enquêtes prêtes et atelier de création pour les brouillons ;
+- journal lisible, relecture préservée pendant le streaming et saisie multiligne
+  avec Envoyer (Entrée envoie, Maj+Entrée insère une ligne) ;
 - tests automatisés et seuils de couverture appliqués.
+
+Le suivi du journal et le clavier de la saisie sont isolés dans
+`public/journal-scroll.js` et `public/saisie-chat.js`.
 
 Le chantier produit en cours est **T-11** : rendre les observations d'objets
 plus précises et immersives. Son cadrage et ses critères d'acceptation vivent
@@ -86,9 +91,17 @@ Complétez au minimum ce fichier `.env` :
 
 ```dotenv
 ANTHROPIC_API_KEY=sk-ant-...
-MODEL=claude-sonnet-4-6
+MODEL=claude-sonnet-5-5
 PORT=3000
 ```
+
+Le modèle par défaut est Sonnet 5.5. Les appels utilisent `between_tools` et un
+effort `low` pour conserver les budgets de réponse courts. Sonnet 5.5 utilise
+le choix d’outil `auto` ; les résultats restent validés côté serveur. Le budget
+de l’interprète est de 512 tokens pour éviter les décisions tronquées.
+Les demandes locales privilégient la zone courante et le sac. Une cible absente
+ne provoque pas de déplacement implicite ; seuls les déplacements explicitement
+demandés permettent de changer de zone.
 
 Sans `ANTHROPIC_API_KEY`, l'interface et les décors démarrent quand même, mais
 l'interprète d'actions, le dialogue et le débrief indiquent qu'ils sont

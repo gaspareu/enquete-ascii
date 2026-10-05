@@ -1,3 +1,4 @@
+import { optionsModele } from "./model.js";
 // Wrapper mince autour du SDK officiel Anthropic. La clé est lue depuis
 // ANTHROPIC_API_KEY par le SDK ; elle reste côté serveur. Le client est injecté
 // dans `repondreEnFlux` pour rester testable sans appel réseau.
@@ -30,6 +31,7 @@ export async function repondreEnFlux(
   const autorises = [...new Set(evenementsAutorises.filter((evenement) => typeof evenement === "string"))];
   const options = {
     model,
+    ...optionsModele(model),
     max_tokens: maxTokens,
     system,
     messages: construireMessages(historique, message),

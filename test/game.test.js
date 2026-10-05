@@ -19,9 +19,11 @@ const MARKUP = `
   <div id="plan"></div>
   <ul id="sac"></ul>
   <button id="btn-accuser" type="button"></button>
-  <div id="dialogue" role="log"></div>
+  <div id="dialogue" role="log" tabindex="0"></div>
+  <button id="btn-nouvelle-reponse" type="button" hidden>Nouvelle réponse</button>
   <form id="saisie">
-    <input id="message" type="text" />
+    <textarea id="message" aria-label="Votre message"></textarea>
+    <button id="btn-envoyer" type="submit">Envoyer</button>
     <button id="btn-micro" type="button">🎙</button>
     <button id="btn-voix" type="button" aria-pressed="false">🔊</button>
   </form>
@@ -902,5 +904,69 @@ describe("mode vocal (T-07)", () => {
     expect($("message").value).toBe("où étais-tu hier soir");
 
     delete window.SpeechRecognition;
+  });
+});
+
+
+describe("absence d’une cible dans la zone courante", () => {
+  test("affiche la narration serveur et conserve la zone courante", async () => {
+    await charger({ interpreter: { type: "observer", contexte: { type: "zone", id: "N" }, narration: "Vous ne voyez pas de table dans cette zone. Une bibliothèque poussiéreuse." } });
+    await ouvrirZoneNord();
+    envoyerMessage("Examiner la table");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous ne voyez pas de table dans cette zone."));
+    expect(global.fetch.mock.calls.some(([url]) => url === "/api/interagir")).toBe(false);
+    expect(global.fetch.mock.calls.some(([url]) => url === "/api/chat")).toBe(false);
+  });
+});
+
+
+describe("lisibilité des observations", () => {
+  test("identifie une observation sans l’attribuer au personnage et conserve ses paragraphes", async () => {
+    await charger({ interpreter: { type: "interagir", contexte: { type: "zone", id: "N" }, action: "examiner", cibleId: "livre" }, interagir: { narration: "La couverture est usée.\n\nUne marque traverse le dos." } });
+    await ouvrirZoneNord();
+    envoyerMessage("Examiner le livre");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Une marque traverse le dos."));
+    const tour = [...$("dialogue").querySelectorAll(".tour--systeme")].find((tour) => tour.textContent.includes("La couverture"));
+    expect(tour.querySelector(".tour-repere")?.textContent).toBe("Observation");
+    expect(tour.querySelector(".tour-texte").textContent).toBe("La couverture est usée.\n\nUne marque traverse le dos.");
+    expect(tour.querySelector(".tour-auteur")).toBeNull();
+  });
+  test("sépare l’attente temporaire de la prose de scène", async () => {
+    let terminer;
+    await charger({ interpreterFn: () => new Promise((resolve) => { terminer = resolve; }) });
+    envoyerMessage("Bonjour");
+    await vi.waitFor(() => expect($("dialogue").querySelector(".tour--attente")).toBeTruthy());
+    expect($("dialogue").querySelector(".tour--attente .tour-repere")).toBeNull();
+    expect($("dialogue").querySelector(".tour--attente .tour-auteur")).toBeNull();
+    terminer({ decision: { type: "observer", contexte: { type: "zone", id: "N" } } });
+    await vi.waitFor(() => expect($("dialogue").querySelector(".tour--attente")).toBeNull());
+  });
+  test("présente une panne comme Information plutôt que comme une observation", async () => {
+    await charger({ interpreterErreur: true });
+    envoyerMessage("Examiner le livre");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("indisponible"));
+    expect($("dialogue").lastElementChild.querySelector(".tour-repere")?.textContent).toBe("Information");
+  });
+});
+
+
+describe("envoi multiligne", () => {
+  test("Entrée transmet les paragraphes et désactive Envoyer pendant la réponse", async () => {
+    const flux = fluxManuel();
+    await charger({ chatBody: flux.stream });
+    $("message").focus();
+    $("message").value = "Où étiez-vous ?\nQue faisiez-vous ?";
+    $("message").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect($("btn-envoyer").disabled).toBe(true));
+    await vi.waitFor(() => expect(global.fetch.mock.calls.some(([url]) => url === "/api/chat")).toBe(true));
+    const appel = global.fetch.mock.calls.find(([url]) => url === "/api/chat");
+    expect(JSON.parse(appel[1].body).message).toBe("Où étiez-vous ?\nQue faisiez-vous ?");
+    // Comme le navigateur réel, la désactivation retire le focus de la saisie.
+    $("message").blur();
+    flux.push('event: delta\ndata: {"texte":"Chez moi."}\n\n');
+    flux.push("event: fin\ndata: {}\n\n");
+    flux.fin();
+    await vi.waitFor(() => expect($("btn-envoyer").disabled).toBe(false));
+    expect(document.activeElement).toBe($("message"));
   });
 });

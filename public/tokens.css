@@ -32,9 +32,13 @@
   --largeur-illustration-max: 52rem;
   --hauteur-illustration-max: 48vh;
   --largeur-tour-max: 80%;
+  --largeur-observation-max: 68ch;
   --hauteur-modale-max: 90vh;
   --opacite-desactive: 0.5;
   --ratio-scene-mobile: 1.607;
+  --hauteur-dialogue-desktop: 18rem;
+  --hauteur-saisie-min: 2.8rem;
+  --hauteur-saisie-max: 6rem;
   --hauteur-dialogue-mobile-min: 18rem;
   --hauteur-dialogue-mobile: 34dvh;
 

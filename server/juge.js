@@ -1,3 +1,4 @@
+import { optionsModele } from "./model.js";
 // Appel du LLM-judge pour noter le débrief (T-06). Client injecté → testable
 // sans réseau (comme server/claude.js). Sortie structurée : Claude renvoie un
 // JSON conforme au schéma, on parse le bloc texte. On ne valide pas les bornes
@@ -31,6 +32,7 @@ export async function noterDebrief(client, { scenario, reponses, model }) {
   const reponse = await client.messages.create({
     model,
     max_tokens: 1024,
+    ...optionsModele(model),
     output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
     system,
     messages: [{ role: "user", content: message }],
