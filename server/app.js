@@ -1,3 +1,4 @@
+import { MODELE_PAR_DEFAUT } from "./model.js";
 // Assemblage HTTP des enquêtes ; la source privée reste hors de public/.
 
 import { randomBytes } from "node:crypto";
@@ -24,7 +25,7 @@ export function creerApplication({
   depotEnquetes = null,
   secret = randomBytes(32),
   client = null,
-  model = "claude-sonnet-4-6",
+  model = MODELE_PAR_DEFAUT,
   modelInterprete = model,
   voix = null,
   jetonEditeur,

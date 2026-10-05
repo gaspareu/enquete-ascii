@@ -1,3 +1,4 @@
+import { MODELE_PAR_DEFAUT } from "./model.js";
 import { randomBytes } from "node:crypto";
 import { creerApplication } from "./app.js";
 import { creerClient } from "./claude.js";
@@ -32,8 +33,8 @@ const app = creerApplication({
   mode,
   secret: randomBytes(32),
   client,
-  model: process.env.MODEL || "claude-sonnet-4-6",
-  modelInterprete: process.env.INTERPRETER_MODEL || process.env.MODEL || "claude-sonnet-4-6",
+  model: process.env.MODEL || MODELE_PAR_DEFAUT,
+  modelInterprete: process.env.INTERPRETER_MODEL || process.env.MODEL || MODELE_PAR_DEFAUT,
   voix,
 });
 

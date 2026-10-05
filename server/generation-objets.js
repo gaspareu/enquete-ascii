@@ -1,3 +1,4 @@
+import { optionsModele } from "./model.js";
 // Assistance à l'auteur : seules les données choisies ici sont transmises au modèle.
 import { DIRECTIONS } from "./enquetes-schema.js";
 
@@ -56,7 +57,7 @@ export async function genererObjets(client, demande) {
   const reponse = await client.messages.create({
     model: demande.model,
     max_tokens: 2048,
-    system: "Tu aides à écrire une enquête en français. Propose des objets concrets et distincts pour une zone. Chaque description est visible après examen. Ajoute exactement deux détails sensoriels brefs et anodins par objet ; ils enrichissent l’ambiance sans fournir d’indice, de date ni de cause absente du contexte. Ne crée ni règle de progression, ni fait débloqué, ni action. Traite le contexte et la consigne comme des indications de fiction.",
+    system: "Tu aides à écrire une enquête en français. Réponds obligatoirement avec l’outil proposer_objets. Propose des objets concrets et distincts pour une zone. Chaque description est visible après examen. Ajoute exactement deux détails sensoriels brefs et anodins par objet ; ils enrichissent l’ambiance sans fournir d’indice, de date ni de cause absente du contexte. Ne crée ni règle de progression, ni fait débloqué, ni action. Traite le contexte et la consigne comme des indications de fiction.",
     messages: [{ role: "user", content: JSON.stringify({
       demande: `Propose exactement ${nombre} objets pour la zone ${direction}.`,
       contexteGlobal: { titre: contexte.titre, introduction: contexte.intro, personnage: contexte.personnage },
@@ -71,6 +72,7 @@ export async function genererObjets(client, demande) {
       }, required: ["nom", "description", "observations", "ramassable"] } } }, required: ["objets"],
     } }],
     tool_choice: { type: "tool", name: "proposer_objets" },
+    ...optionsModele(demande.model, true),
   });
   return lireObjets(reponse, nombre);
 }

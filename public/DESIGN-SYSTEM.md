@@ -53,6 +53,11 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   reste cliquable pour revenir au face-à-face.
 - **Modale** : voile sombre + boîte `--c-fond-panneau` contour `--c-ambre`.
 - **Invite de saisie** : caret `>` en `--c-vert`, champ sans bordure ni fond.
+  Le champ est un textarea court (2 lignes), nommé « Votre message », avec une
+  aide clavier associée et un bouton « Envoyer ». Entrée envoie, Maj+Entrée
+  conserve un saut de ligne ; une composition clavier ne soumet jamais de message.
+  Champ, micro et bouton d’envoi sont désactivés pendant une demande.
+  La hauteur reste bornée par `--hauteur-saisie-min` et `--hauteur-saisie-max`.
   Sa consigne est universelle : le joueur peut décrire librement ce qu'il
   observe, fait ou demande. Une attente courte et accessible indique que
   l'interprète comprend la demande ; elle ne doit jamais être confondue avec
@@ -77,11 +82,24 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   éventuelles marges latérales restent le fond de scène, sans carte ni bordure.
 - **Journal d'interrogatoire** : chaque tour est un élément sémantique construit
   par nœuds DOM (`textContent`, jamais HTML injecté). L'interlocuteur est à gauche, le
-  joueur à droite, et la narration système est centrée, atténuée et en italique.
+  joueur à droite. La prose de scène et les examens sont alignés à gauche, droits
+  et en ambre principal, avec un repère discret « Scène » ou « Observation »
+  et un filet latéral. Leur largeur de lecture est bornée par
+  `--largeur-observation-max` (68 caractères) et la largeur disponible. Les erreurs
+  sont identifiées par « Information », les clarifications par « Précision ».
+  Les états temporaires utilisent `.tour--attente`, sans repère de prose, atténués
+  et en italique ; ils restent distincts des descriptions à lire.
   La largeur maximale d'un tour passe par `--largeur-tour-max`; le contenu garde
   ses retours de paragraphe avec `white-space: pre-wrap`. Une didascalie de l'interlocuteur
   validée par le serveur est un nœud `<em>` décoratif distinct de sa parole ; elle
   n'est jamais fusionnée à l'historique ni à la synthèse vocale.
+  Le défilement suit les nouveaux tours tant que le joueur reste près du bas.
+  Dès qu’il remonte pour relire, l’attente et les fragments SSE préservent sa
+  position. Le bouton « Nouvelle réponse » apparaît à l’arrivée d’une réponse ;
+  il revient au bas, réactive le suivi et place le focus sur le journal.
+  Le journal est accessible au clavier ; un focus visible accompagne journal
+  et champ. La piste desktop utilise `--hauteur-dialogue-desktop` pour garder
+  assez de place malgré la saisie multiligne.
   Les réponses aux examens d'objets restent dans ce journal et ne sont pas
   répétées dans une modale ; les tours de scène ne sont pas envoyés à Laurent.
 - **Pistes d'interrogatoire** : sous le compositeur, `#pistes` ne présente que les

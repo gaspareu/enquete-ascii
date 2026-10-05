@@ -48,7 +48,7 @@ body::after {
 #jeu {
   display: grid;
   grid-template-columns: 1fr 22rem;
-  grid-template-rows: 1fr 14rem;
+  grid-template-rows: 1fr var(--hauteur-dialogue-desktop);
   grid-template-areas:
     "scene cote"
     "dialogue cote";
@@ -260,7 +260,23 @@ button:disabled:hover {
   text-align: left;
 }
 .tour--systeme {
-  align-self: center;
+  align-self: flex-start;
+  width: var(--largeur-plein);
+  max-width: min(var(--largeur-plein), var(--largeur-observation-max));
+  padding-inline-start: var(--esp-xl);
+  border-inline-start: var(--trait) solid var(--c-bordure);
+  color: var(--c-ambre);
+  font-style: normal;
+  text-align: left;
+}
+.tour-repere {
+  display: block;
+  margin-block-end: var(--esp-xs);
+  color: var(--c-ambre-faible);
+  font-size: var(--taille-petite);
+}
+.tour--attente {
+  align-self: flex-start;
   color: var(--c-ambre-faible);
   font-style: italic;
   text-align: center;
@@ -269,8 +285,9 @@ button:disabled:hover {
   color: var(--c-vert);
 }
 #saisie {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: var(--esp-sm);
   border-top: var(--trait) dashed var(--c-bordure);
   padding-top: var(--esp-sm);
@@ -280,7 +297,11 @@ button:disabled:hover {
   animation: clignoter var(--duree-clignotement) steps(2, start) infinite;
 }
 #message {
-  flex: 1 1 auto;
+  width: var(--largeur-plein);
+  min-height: var(--hauteur-saisie-min);
+  max-height: var(--hauteur-saisie-max);
+  resize: vertical;
+  line-height: var(--interligne);
   min-width: 0;
   font-family: inherit;
   font-size: var(--taille-base);
@@ -288,6 +309,37 @@ button:disabled:hover {
   background: transparent;
   border: none;
   outline: none;
+}
+#message:focus-visible,
+#dialogue:focus-visible {
+  outline: var(--trait) solid var(--c-vert);
+  outline-offset: var(--esp-xs);
+}
+.saisie-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-sm);
+}
+.saisie-boutons {
+  display: flex;
+  align-items: center;
+  gap: var(--esp-sm);
+  margin-inline-start: auto;
+}
+#aide-saisie {
+  color: var(--c-ambre-faible);
+  font-size: var(--taille-petite);
+}
+#btn-nouvelle-reponse {
+  align-self: flex-end;
+  margin-block-end: var(--esp-sm);
+  color: var(--c-vert);
+}
+#btn-nouvelle-reponse[hidden] {
+  display: none;
 }
 #pistes {
   display: flex;

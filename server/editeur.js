@@ -1,3 +1,4 @@
+import { MODELE_PAR_DEFAUT } from "./model.js";
 // API locale de l'atelier. Les routes du jeu ne montent jamais ce routeur.
 
 import { randomBytes, timingSafeEqual } from "node:crypto";
@@ -37,7 +38,7 @@ function attraper(fn) {
   });
 }
 
-export function creerRouteurEditeur({ depot, client = null, model = "claude-sonnet-4-6", jeton = randomBytes(32).toString("base64url") }) {
+export function creerRouteurEditeur({ depot, client = null, model = MODELE_PAR_DEFAUT, jeton = randomBytes(32).toString("base64url") }) {
   const routeur = express.Router();
 
   routeur.use((req, res, next) => {

@@ -13,6 +13,22 @@ vers un pixel art rétro assumé.
 
 ## En cours
 
+### T-12 · Chat contextuel et lisibilité avec Sonnet 5.5
+
+Migration du modèle et amélioration de l’exploration via le chat. La tâche reste
+ouverte jusqu’à la fusion de la PR.
+
+Critères d’acceptation :
+
+- Sonnet 5.5 fonctionne pour dialogue, interprète, débrief et génération d’objets ;
+- une cible générique est résolue dans la zone courante, sans déplacement implicite ;
+- les observations sont lisibles et les états temporaires sont distincts ;
+- la relecture reste stable pendant le streaming et la saisie accepte plusieurs lignes ;
+- tests et couverture restent verts.
+
+Références : [plan](docs/plan-cibles-contextuelles.md) et
+[audit UX](docs/critique-ux-chat.md).
+
 ### T-11 · Observations d'objets immersives
 
 Une question portant sur un objet trouvé doit ouvrir son examen et donner une

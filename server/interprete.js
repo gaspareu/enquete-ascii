@@ -1,6 +1,8 @@
+import { optionsModele, MODELE_PAR_DEFAUT } from "./model.js";
 // Agent borné : il transforme une phrase libre en décision structurée, sans
 // connaître les révélations ni prendre de décision de progression.
 
+import { resoudreCibleLocale, recentrerDecision } from "./cibles-contextuelles.js";
 import { deriverEtatPublic } from "./etat.js";
 
 const ACTIONS = new Set(["fouiller", "examiner", "ramasser", "donner"]);
@@ -169,7 +171,8 @@ const OUTIL_INTENTION = {
 function promptInterprete(catalogue) {
   return [
     "Tu interprètes une intention dans un jeu d'enquête. Tu n'es ni narrateur ni personnage.",
-    "Réponds obligatoirement avec l'outil resoudre_intention. Une phrase produit une seule décision.",
+    "Le contexte du catalogue indique la zone où se trouve actuellement le joueur. Pour une demande sans déplacement ni localisation explicite, cherche la cible dans cette zone en priorité, puis dans le sac. Un nom générique partagé par plusieurs zones désigne celle du contexte courant. Ne déplace jamais le joueur vers une cible absente ici : choisis observer dans la zone courante, sans inventer de contenu. Une autre zone ne peut être choisie que si le joueur demande explicitement de s’y déplacer ou la désigne par sa localisation.",
+    "Réponds obligatoirement avec l'outil resoudre_intention, sans texte avant ou après. Une phrase produit une seule décision.",
     "N'utilise que les identifiants présents dans le catalogue. Renseigne toujours contexte ; pour clarifier, reprends le contexte courant. Si elle est ambiguë, utilise clarifier avec zéro à deux choix publics.",
     `Observer sans cibleId sert seulement à regarder une zone ou ${catalogue.personnage.nom}. Toute question portant sur un objet déjà connu (son aspect, ses détails, son état, sa date, sa cause) est interagir/examiner avec cibleId de cet objet. Si tu as choisi observer pour un objet, renseigne cibleId : le serveur le convertira en examen. Un dialogue vise uniquement ${catalogue.personnage.nom}.`,
     "Renseigne angle pour chaque décision : date si la question demande quand ou depuis quand, cause si elle demande pourquoi, identite si elle demande qui, aspect pour les autres détails d’objet, autre ailleurs. L’angle ne fournit aucun fait : le serveur ne l’utilise que pour une phrase d’incertitude déjà écrite.",
@@ -181,14 +184,18 @@ function promptInterprete(catalogue) {
 }
 
 export async function resoudreIntention(client, { message, catalogue, model }) {
+  const locale = resoudreCibleLocale(message, catalogue);
+  if (locale) return locale;
   const reponse = await client.messages.create({
     model,
-    max_tokens: 128,
+    max_tokens: model === MODELE_PAR_DEFAUT ? 512 : 128,
     system: promptInterprete(catalogue),
     messages: [{ role: "user", content: message }],
     tools: [OUTIL_INTENTION],
     tool_choice: { type: "tool", name: "resoudre_intention" },
+    ...optionsModele(model, true),
   });
   const appel = (reponse.content ?? []).find((bloc) => bloc.type === "tool_use" && bloc.name === "resoudre_intention");
-  return validerDecisionInterprete(appel?.input, catalogue);
+  const decision = validerDecisionInterprete(appel?.input, catalogue);
+  return recentrerDecision(decision, message, catalogue);
 }
