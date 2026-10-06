@@ -296,3 +296,15 @@ describe("atelier d’auteur", () => {
     expect(document.querySelector('[data-tab="cadre"]').getAttribute("aria-selected")).toBe("true");
   });
 });
+
+test("les hooks d'histoire sont éditables sans injecter le HTML des faits", async()=>{
+  const { rendreHooks }=await import("../editeur/sections-agents.js");
+  const enquete=creerEnqueteVide("Test","test");
+  enquete.faitsHistoire={f:{texte:"<img src=x onerror=alert(1)>"}};
+  enquete.hooksHistoire=[{id:"h",apres:"examiner:a",requiertTous:[],destinataire:{sceneId:"zone:N",role:"exploration"},ajouterFaits:["f"]}];
+  document.body.append(rendreHooks(enquete));
+  expect(document.body.querySelector("img")).toBeNull();
+  expect(document.body.querySelector('[data-action="ajouter-hook"]')).toBeTruthy();
+  expect([...document.body.querySelectorAll("select")].some(s=>s.value==="zone:N")).toBe(true);
+  expect([...document.body.querySelectorAll("textarea")].some(t=>t.value.includes("<img"))).toBe(true);
+});

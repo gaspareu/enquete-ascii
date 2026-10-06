@@ -128,3 +128,27 @@ describe("format versionné des enquêtes", () => {
     expect(validerEnquete(enquete).erreurs.map(({ path }) => path)).toContain("personnage.portraits.notePrivee");
   });
 });
+
+describe("faits et hooks de scène",()=>{
+  test("valide un fait réservé à un destinataire et rejette une référence inconnue",()=>{
+    const enquete=copie(); enquete.faitsHistoire={partage:{texte:"Un fait approuvé."}};
+    enquete.hooksHistoire=[{id:"transmettre",apres:"donner:livre_factures",requiertTous:[],destinataire:{sceneId:"personnage:laurent",role:"personnage"},ajouterFaits:["partage"]}];
+    // La cible réelle est choisie parmi les objets ramassables de l'enquête.
+    const cible=Object.keys(enquete.objets).find(id=>enquete.objets[id].ramassable);
+    enquete.hooksHistoire[0].apres=`donner:${cible}`;
+    expect(validerEnquete(enquete).erreurs).toEqual([]);
+    enquete.hooksHistoire[0].ajouterFaits=["inconnu"];
+    expect(validerEnquete(enquete).erreurs.some(e=>e.path.includes("ajouterFaits"))).toBe(true);
+  });
+  test.each([null,42,[{}]])("rejette un registre de faits mal formé %j",faitsHistoire=>{
+    expect(validerEnquete({...copie(),faitsHistoire}).erreurs.length).toBeGreaterThan(0);
+  });
+  test("rejette un rôle privé affecté à une zone, un hook arbitraire et un fait initial inexistant",()=>{
+    const enquete=copie();enquete.faitsHistoire={f:{texte:"Texte"}};
+    enquete.hooksHistoire=[{id:"h",apres:"inventer:secret",requiertTous:["secret"],destinataire:{sceneId:"zone:N",role:"personnage"},ajouterFaits:["f"]}];
+    enquete.contextesScenes={"zone:N":{exploration:["absent"]}};
+    const paths=validerEnquete(enquete).erreurs.map(e=>e.path);
+    expect(paths).toContain("hooksHistoire.0.destinataire");expect(paths).toContain("hooksHistoire.0.apres");
+    expect(paths.some(p=>p.startsWith("contextesScenes"))).toBe(true);
+  });
+});

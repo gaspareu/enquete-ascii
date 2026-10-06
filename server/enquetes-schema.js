@@ -1,3 +1,4 @@
+import { validerAgentsScene } from "./schema-agents.js";
 // Contrat d'auteur V1. La validation est pure : le dépôt vérifie séparément
 // l'existence réelle des images avant de rendre une enquête jouable.
 
@@ -302,5 +303,6 @@ export function validerEnquete(enquete, { complete = true } = {}) {
     texte(r.titre, `${path}.titre`, { max: 200 });
   });
   if (!seuils.has(0)) erreur("debrief.rangs", "Un rang de seuil 0 est requis.");
+  validerAgentsScene(enquete, erreur);
   return { erreurs, avertissements };
 }

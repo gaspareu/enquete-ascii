@@ -1,3 +1,4 @@
+import { rendreHooks } from "./sections-agents.js";
 import { bouton, champ, element, groupe, titre, zoneAide } from "./ui.js";
 
 function cartePliante(libelle) {
@@ -33,6 +34,7 @@ export function rendreDialogue(enquete) {
     ), bouton("Supprimer cette piste", "supprimer-piste", { index }));
     principal.append(carte);
   });
+  principal.append(rendreHooks(enquete));
   const apercu = element("aside", "", "panneau");
   apercu.append(titre("Contexte du personnage", 3), zoneAide("Choisissez des faits vus pour vérifier quelles connaissances seraient jointes au prompt. Cette projection reste dans l’atelier."));
   const cochees = element("div", "", "liste-cases");

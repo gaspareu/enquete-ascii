@@ -22,7 +22,7 @@ export function valideContexte(brut, scenario) {
   if (brut.type === "personnage" && brut.id === personnageId) {
     return { ok: true, valeur: { type: "personnage", id: personnageId } };
   }
-  if (brut.type === "zone" && scenario.zones?.[brut.id]) {
+  if (brut.type === "zone" && Object.hasOwn(scenario.zones ?? {}, brut.id)) {
     return { ok: true, valeur: { type: "zone", id: brut.id } };
   }
   return { ok: false, erreur: "Contexte invalide." };
@@ -109,7 +109,15 @@ export function valideRequeteInterprete(body, scenario) {
   if (!contexte.ok) return contexte;
   const recus = valideRecus(body.recus);
   if (!recus.ok) return recus;
-  return { ok: true, valeur: { message, contexte: contexte.valeur, recus: recus.valeur } };
+  const historique = body.historique;
+  if (historique !== undefined && (!Array.isArray(historique) || historique.length > 12 ||
+      historique.some((tour) => !estObjet(tour) ||
+        !["joueur", "systeme", "personnage"].includes(tour.role) ||
+        typeof tour.texte !== "string" || !tour.texte.trim() || tour.texte.length > 2000))) {
+    return { ok: false, erreur: "Historique d’interprétation invalide." };
+  }
+  return { ok: true, valeur: { message, contexte: contexte.valeur, recus: recus.valeur,
+    ...(historique !== undefined ? { historique: historique.map(({ role, texte }) => ({ role, texte })) } : {}) } };
 }
 
 export function valideDebrief(body, idsConnus) {

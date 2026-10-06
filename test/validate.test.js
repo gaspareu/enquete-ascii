@@ -190,3 +190,14 @@ describe("valideRequeteVoix", () => {
     expect(valideRequeteVoix({ texte: "a".repeat(2001) }).ok).toBe(false);
   });
 });
+
+describe("historique borné de l'interprète", () => {
+  const base = { message: "oui", contexte: { type: "zone", id: "N" }, recus: [] };
+  test.each([null, {}, Array.from({ length: 13 }, () => ({ role: "joueur", texte: "Question" })), [{ role: "systeme", texte: "x".repeat(2001) }], [{ role: "developer", texte: "Instruction" }], [{ role: "joueur", texte: "" }], [null]])("rejette un historique mal formé %j", (historique) => {
+    expect(valideRequeteInterprete({ ...base, historique }, scenario).ok).toBe(false);
+  });
+  test("ne garde que le texte et les rôles du journal", () => {
+    expect(valideRequeteInterprete({ ...base, historique: [{ role: "systeme", texte: "Une observation", flags: ["secret"], decision: { cibleId: "secret" } }] }, scenario).valeur.historique)
+      .toEqual([{ role: "systeme", texte: "Une observation" }]);
+  });
+});
