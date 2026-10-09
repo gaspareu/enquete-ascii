@@ -2,6 +2,9 @@
 // serveur. Le navigateur ne reçoit qu'une vue d'ambiance et des résultats publics.
 
 import express from "express";
+import { creerRouteurTour } from "./tour.js";
+import { resoudreTourScene } from "./agents/scene.js";
+import { MODELE_EXPLORATION_PAR_DEFAUT } from "./model.js";
 import { construitProjectionPrompt } from "./prompt.js";
 import {
   valideRequeteChat,
@@ -33,6 +36,7 @@ export function vuePublique(scenario) {
   const zones = {};
   for (const [id, zone] of Object.entries(scenario.zones)) zones[id] = vueZonePublique(zone);
   return {
+    orchestration: "scenes",
     titre: scenario.titre,
     intro: scenario.intro,
     personnage: {
@@ -94,6 +98,8 @@ export function creerRouteur({
   resoudreIntentionFn = resoudreIntention,
   modelInterprete = model,
   composerObservationFn = composerObservation,
+  agentSceneFn = resoudreTourScene,
+  modelExploration = MODELE_EXPLORATION_PAR_DEFAUT,
 }) {
   if ((scenarioId === undefined) !== (revision === undefined)) {
     throw new TypeError("L'identifiant et la révision de l'enquête sont requis ensemble.");
@@ -102,6 +108,8 @@ export function creerRouteur({
   const personnageId = scenario.personnage?.id ?? "laurent";
   const identite = { scenarioId, revision, personnageId };
   const idsDebrief = new Set(scenario.debrief.questions.map((q) => q.id));
+
+  routeur.use(creerRouteurTour({ scenario, secret, scenarioId, revision, client, model, modelExploration, agentSceneFn, repondreFluxFn }));
 
   routeur.get("/scenario", (_req, res) => res.json(vuePublique(scenario)));
 
@@ -119,6 +127,7 @@ export function creerRouteur({
       const catalogue = construireCatalogueInterprete(scenario, verification.evenements, demande.valeur.contexte);
       const decision = await resoudreIntentionFn(client, {
         message: demande.valeur.message,
+        historique: demande.valeur.historique,
         catalogue,
         model: modelInterprete,
       });

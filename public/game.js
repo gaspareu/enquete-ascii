@@ -2,16 +2,16 @@
 
 import {
   etatInitial,
-  observerZone,
-  observerPersonnage,
   ajouterDialogue,
-  historiquePourPersonnage,
-  recanaliserDernierTour,
+  recanaliserDernierJoueur,
   ajouterRecus,
   remplacerEtatPublic,
 } from "./state.js";
-import { artInterlocuteur, decouperReplique, toursDialogue } from "./render.js";
-import { decoupeTrames } from "./sse.js";
+import { decouperReplique } from "./render.js";
+import { lireEvenementsFlux } from "./flux-chat.js";
+import { creerTour, creerRenduDialogue } from "./journal-dom.js";
+import { creerParcoursHistorique } from "./chat-historique.js";
+import { creerRenduScenes } from "./scene-dom.js";
 import { creerModeVocal } from "./voix.js";
 import { creerDebrief } from "./debrief.js";
 import { creerSuiviJournal } from "./journal-scroll.js";
@@ -58,11 +58,21 @@ let minuteurAttente = null;
 let emotionPersonnage = EMOTION_PAR_DEFAUT;
 let entreeEnCours = false;
 let pistes = [];
+let memoireConversation = null;
 let attente = null;
 let flux = null;
-let historiqueAffiche = [];
 const didascalies = new WeakMap();
 const reperesTours = new WeakMap();
+
+const rendreDialogueDOM = creerRenduDialogue({ elDialogue, suiviJournal, obtenirEtat: () => etat,
+  obtenirVue: () => vue, didascalies, reperesTours });
+const { rendrePerso, ouvrirZone } = creerRenduScenes({ obtenirVue: () => vue, obtenirEtat: () => etat,
+  modifierEtat: (valeur) => { etat = valeur; }, obtenirEmotion: () => emotionPersonnage, GRILLE,
+  elPortrait, elPortraitImage, elIllustration, elIllustrationImage, elVisuel, elPlan,
+  mettreAJourPlaceholder, rendrePistes, narration, naviguerScene });
+const parcoursHistorique = creerParcoursHistorique({ apiBase, obtenirEtat: () => etat, modifierEtat: (valeur) => { etat = valeur; },
+  rendreDialogueDOM, narration, demarrerAttente, arreterAttente, consommerFlux, appliquerContexte,
+  decrireObservation, messageErreurApi, rendreSac, rendrePistes, nomPersonnage: () => vue.personnage.nom });
 
 const modeVocal = creerModeVocal({
   apiBase,
@@ -87,58 +97,6 @@ function mettreAJourPlaceholder() {
   elInput.placeholder = "Décrivez ce que vous observez, faites ou demandez…";
 }
 
-function creerTour(projection, didascalie = "", repere = "Observation") {
-  const article = document.createElement("article");
-  article.className = `tour tour--${projection.role}`;
-  if (projection.role === "systeme") {
-    const label = document.createElement("span");
-    label.className = "tour-repere";
-    label.textContent = repere;
-    article.appendChild(label);
-  }
-  if (didascalie) {
-    const geste = document.createElement("em");
-    geste.className = "didascalie";
-    geste.textContent = didascalie;
-    article.append(geste, document.createElement("br"));
-  }
-  const texte = document.createElement("p");
-  texte.className = "tour-texte";
-  if (["joueur", "personnage"].includes(projection.role)) {
-    const auteur = document.createElement("span");
-    auteur.className = "tour-auteur";
-    auteur.textContent = `${projection.auteur} : `;
-    texte.appendChild(auteur);
-  }
-  texte.append(projection.texte);
-  article.appendChild(texte);
-  return article;
-}
-
-function rendreDialogueDOM(historique = etat.historique) {
-  const nouveau = historique.slice(historiqueAffiche.length).some((tour) => tour.role !== "joueur");
-  suiviJournal.modifier(() => {
-    const prefixConserve = historiqueAffiche.length <= historique.length &&
-      historiqueAffiche.every((tour, index) => {
-        const suivant = historique[index];
-        return tour.role === suivant.role &&
-          tour.texte === suivant.texte &&
-          didascalies.get(tour) === didascalies.get(suivant);
-      });
-    if (!prefixConserve) {
-      elDialogue.replaceChildren();
-      historiqueAffiche = [];
-    }
-    const fragments = document.createDocumentFragment();
-    for (const tour of historique.slice(historiqueAffiche.length)) {
-      const projection = toursDialogue([tour], vue.personnage.nom)[0];
-      fragments.appendChild(creerTour(projection, didascalies.get(tour) ?? projection.didascalie, reperesTours.get(tour)));
-    }
-    elDialogue.appendChild(fragments);
-    historiqueAffiche = [...historique];
-  }, { nouveau });
-}
-
 function rendrePistes(nouvellesPistes = pistes) {
   pistes = Array.isArray(nouvellesPistes) ? nouvellesPistes.filter((piste) => typeof piste === "string") : [];
   const visibles = etat.contexte.type === "personnage" ? pistes : [];
@@ -159,76 +117,6 @@ function rendrePistes(nouvellesPistes = pistes) {
     elPistes.appendChild(item);
   }
   elPistes.hidden = false;
-}
-
-function rendrePerso() {
-  etat = observerPersonnage(etat);
-  elIllustration.classList.add("cache");
-  elIllustrationImage.removeAttribute("src");
-  const portrait = imagePourEmotion(vue.personnage.portraits ?? {}, emotionPersonnage);
-  if (!portrait) {
-    elPortrait.classList.add("cache");
-    elPortraitImage.removeAttribute("src");
-    elVisuel.classList.remove("cache");
-    elVisuel.textContent = artInterlocuteur(vue.personnage);
-  } else {
-    elVisuel.classList.add("cache");
-    elPortraitImage.src = portrait;
-    elPortraitImage.alt = `Portrait de ${vue.personnage.nom}`;
-    elPortrait.classList.remove("cache");
-  }
-  mettreAJourPlaceholder();
-  rendrePistes();
-  rendrePlan();
-}
-
-function ouvrirZone(id) {
-  const zone = vue.zones[id];
-  if (!zone) return;
-  etat = observerZone(etat, id);
-  elPortrait.classList.add("cache");
-  elPortraitImage.removeAttribute("src");
-  if (!zone.illustration) {
-    elIllustration.classList.add("cache");
-    elVisuel.classList.remove("cache");
-    elVisuel.textContent = zone.description;
-  } else {
-    elVisuel.classList.add("cache");
-    elIllustrationImage.src = zone.illustration;
-    elIllustrationImage.alt = `Illustration pixel art : ${zone.description}`;
-    elIllustration.classList.remove("cache");
-  }
-  mettreAJourPlaceholder();
-  rendrePistes();
-  rendrePlan();
-}
-
-function rendrePlan() {
-  elPlan.replaceChildren();
-  for (const ligne of GRILLE) {
-    for (const direction of ligne) {
-      const element = document.createElement("button");
-      element.className = "case";
-      if (direction === "C") {
-        element.classList.add("centre");
-        element.textContent = vue.personnage.nom;
-        element.addEventListener("click", rendrePerso);
-      } else if (vue.zones[direction]) {
-        element.textContent = direction;
-        element.addEventListener("click", () => ouvrirZone(direction));
-      } else {
-        element.textContent = "·";
-        element.disabled = true;
-      }
-      const active = (direction === "C" && etat.contexte.type === "personnage") ||
-        (etat.contexte.type === "zone" && direction === etat.contexte.id);
-      if (active) {
-        element.classList.add("active");
-        element.setAttribute("aria-current", "location");
-      }
-      elPlan.appendChild(element);
-    }
-  }
 }
 
 function rendreSac() {
@@ -337,55 +225,30 @@ function finaliserReplique(texte, didascalie = "") {
 }
 
 async function consommerFlux(rep) {
-  const lecteur = rep.body.getReader();
-  const decodeur = new TextDecoder();
-  let tampon = "";
-  let termine = false;
-  try {
-    for (;;) {
-      const { value, done } = await lecteur.read();
-      if (done) break;
-      tampon += decodeur.decode(value, { stream: true });
-      const decoupe = decoupeTrames(tampon);
-      tampon = decoupe.reste;
-      for (const { event, data } of decoupe.trames) {
-        const contenu = JSON.parse(data);
-        if (event === "didascalie") {
-          if (!flux) commencerFlux();
-          flux.didascalie = contenu.texte;
-          rendreFlux();
-        } else if (event === "delta") {
-          if (!flux) commencerFlux();
-          flux.texte += contenu.texte;
-          rendreFlux();
-        } else if (event === "progression") {
-          etat = ajouterRecus(etat, contenu.recus);
-          rendrePistes(contenu.pistes);
-        } else if (event === "erreur") {
-          arreterAttente();
-          finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
-          narration("(communication interrompue)", "Information");
-          termine = true;
-          return;
-        } else if (event === "fin") {
-          arreterAttente();
-          finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
-          termine = true;
-          return;
-        }
-      }
+  await lireEvenementsFlux(rep, ({ event, contenu }) => {
+    if (event === "contexte") {
+      appliquerContexte(contenu.contexte);
+      if (contenu.role === "personnage") etat = recanaliserDernierJoueur(etat, etat.personnageId);
+    } else if (event === "memoire") memoireConversation = contenu.token;
+    else if (["observation", "precision"].includes(event)) {
+      arreterAttente(); narration(contenu.texte, event === "precision" ? "Précision" : "Observation");
+    } else if (event === "didascalie" || event === "delta") {
+      if (!flux) commencerFlux();
+      if (event === "didascalie") flux.didascalie = contenu.texte;
+      else flux.texte += contenu.texte;
+      rendreFlux();
+    } else if (event === "progression") {
+      if (typeof contenu.memoireConversation === "string") memoireConversation = contenu.memoireConversation;
+      etat = ajouterRecus(etat, contenu.recus);
+      if (contenu.etatPublic) { etat = remplacerEtatPublic(etat, contenu.etatPublic); rendreSac(); }
+      rendrePistes(contenu.pistes);
+    } else if (event === "erreur") {
+      arreterAttente(); finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
+      narration(vue.orchestration === "scenes" || contenu.reseau ? contenu.erreur ?? "(communication interrompue)" : "(communication interrompue)", "Information");
+    } else if (event === "fin") {
+      arreterAttente(); finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
     }
-  } catch {
-    arreterAttente();
-    finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
-    narration("Le personnage est injoignable (réseau).", "Information");
-    return;
-  } finally {
-    if (!termine) {
-      arreterAttente();
-      finaliserReplique(flux?.texte ?? "", flux?.didascalie ?? "");
-    }
-  }
+  });
 }
 
 function ouvrirModale(texte, actions) {
@@ -405,65 +268,6 @@ function fermerModale() {
   elModaleContenu.replaceChildren();
 }
 
-async function traiterInteraction(message, intention, angle) {
-  etat = ajouterDialogue(etat, "joueur", message, "scene");
-  rendreDialogueDOM();
-  let rep;
-  try {
-    rep = await fetch(`${apiBase}/interagir`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contexte: etat.contexte,
-        intention,
-        recus: etat.recus,
-        ...(intention.action === "examiner" && angle ? { angle } : {}),
-      }),
-    });
-  } catch {
-    narration("Impossible d'agir (réseau).", "Information");
-    return;
-  }
-  const data = await rep.json().catch(() => ({}));
-  if (!rep.ok) {
-    narration(messageErreurApi(data.erreur, "Cette action est impossible."), "Information");
-    return;
-  }
-  etat = ajouterRecus(etat, data.recus);
-  etat = remplacerEtatPublic(etat, data.etatPublic);
-  rendreSac();
-  narration(data.narration ?? "Rien de particulier ici.");
-  rendrePistes(data.pistes);
-}
-
-async function traiterDialogue(message) {
-  const historique = historiquePourPersonnage(etat);
-  etat = ajouterDialogue(etat, "joueur", message, etat.personnageId);
-  rendreDialogueDOM();
-  demarrerAttente();
-  let rep;
-  try {
-    rep = await fetch(`${apiBase}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, contexte: etat.contexte, recus: etat.recus, historique }),
-    });
-  } catch {
-    arreterAttente();
-    etat = recanaliserDernierTour(etat, "scene");
-    narration("Le personnage est injoignable (réseau).", "Information");
-    return;
-  }
-  if (!rep.ok) {
-    arreterAttente();
-    etat = recanaliserDernierTour(etat, "scene");
-    const data = await rep.json().catch(() => ({}));
-    narration(messageErreurApi(data.erreur, "Erreur de communication."), "Information");
-    return;
-  }
-  await consommerFlux(rep);
-}
-
 function appliquerContexte(contexte) {
   if (contexte?.type === "personnage" && contexte.id === etat.personnageId) {
     rendrePerso();
@@ -478,54 +282,35 @@ function appliquerContexte(contexte) {
 
 function decrireObservation(contexte) {
   if (contexte.type === "personnage") return `Vous vous tournez vers ${vue.personnage.nom}.`;
-  return `Vous observez : ${vue.zones[contexte.id].nom}.`;
+  const zone = vue.zones[contexte.id];
+  return `Vous observez ${zone.article ?? "la"} ${zone.nom}.`;
 }
 
 async function interpreterEntree(message) {
+  if (vue.orchestration !== "scenes") return parcoursHistorique.interpreterEntree(message);
+  etat = ajouterDialogue(etat, "joueur", message, "scene");
+  rendreDialogueDOM();
   demarrerAttente("Vous réfléchissez");
-  let rep;
+  return demanderTour({ message });
+}
+
+async function demanderTour(demande) {
   try {
-    rep = await fetch(`${apiBase}/interpreter`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, contexte: etat.contexte, recus: etat.recus }),
-    });
-  } catch {
-    arreterAttente();
-    narration("L'interprète est indisponible (réseau).", "Information");
-    return;
-  }
-  const data = await rep.json().catch(() => ({}));
-  if (!rep.ok) {
-    arreterAttente();
-    narration(messageErreurApi(data.erreur, "L'interprète est indisponible pour le moment."), "Information");
-    return;
-  }
-  arreterAttente();
-  const decision = data.decision;
-  if (!decision || typeof decision.type !== "string") {
-    narration(`Que souhaitez-vous observer, faire ou demander à ${vue.personnage.nom} ?`);
-    return;
-  }
-  if (decision.type === "observer" && appliquerContexte(decision.contexte)) {
-    etat = ajouterDialogue(etat, "joueur", message, "scene");
-    rendreDialogueDOM();
-    narration(decision.narration ?? decrireObservation(decision.contexte));
-    return;
-  }
-  if (decision.type === "interagir" && appliquerContexte(decision.contexte)) {
-    return traiterInteraction(message, { action: decision.action, cible: decision.cibleId }, decision.angle);
-  }
-  if (decision.type === "dialoguer" && appliquerContexte(decision.contexte)) {
-    return traiterDialogue(message);
-  }
-  if (decision.type === "clarifier") {
-    etat = ajouterDialogue(etat, "joueur", message, "scene");
-    rendreDialogueDOM();
-    narration(decision.question ?? `Que souhaitez-vous observer, faire ou demander à ${vue.personnage.nom} ?`, "Précision");
-    return;
-  }
-  narration(`Que souhaitez-vous observer, faire ou demander à ${vue.personnage.nom} ?`);
+    const rep = await fetch(`${apiBase}/tour`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...demande, contexte: etat.contexte, recus: etat.recus, memoireConversation }) });
+    if (!rep.ok) {
+      const data = await rep.json().catch(() => ({}));
+      arreterAttente(); narration(messageErreurApi(data.erreur, "Le tour est indisponible."), "Information"); return;
+    }
+    await consommerFlux(rep);
+  } catch { arreterAttente(); narration("Le tour est indisponible (réseau).", "Information"); }
+}
+
+async function naviguerScene(contexte) {
+  if (entreeEnCours) return;
+  entreeEnCours = true; reglerSaisieOccupee(true);
+  try { await demanderTour({ navigation: contexte }); }
+  finally { entreeEnCours = false; reglerSaisieOccupee(false); }
 }
 
 async function traiterEntreeChat(message) {

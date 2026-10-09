@@ -147,6 +147,9 @@ export function renommerObjet(enquete, ancien, nouveau) {
       { ...condition, requiertTous: condition.requiertTous.map((e) => renommerEvenement(e, ancien, nouveau)) },
     ]),
   );
+  for (const hook of copie.hooksHistoire ?? []) {
+    hook.apres = renommerEvenement(hook.apres, ancien, nouveau);
+  }
   copie.statut = "brouillon";
   return copie;
 }
@@ -168,6 +171,9 @@ export function renommerFlag(enquete, ancien, nouveau) {
   for (const piste of copie.pistesInterrogatoire) {
     piste.requiert = piste.requiert.map((flag) => flag === ancien ? nouveau : flag);
     if (piste.retireSi) piste.retireSi = piste.retireSi.map((flag) => flag === ancien ? nouveau : flag);
+  }
+  for (const hook of copie.hooksHistoire ?? []) {
+    if (hook.requiertTous) hook.requiertTous = hook.requiertTous.map((flag) => flag === ancien ? nouveau : flag);
   }
   copie.solution.preuvesRequises = copie.solution.preuvesRequises.map((flag) => flag === ancien ? nouveau : flag);
   copie.statut = "brouillon";

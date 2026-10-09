@@ -39,3 +39,9 @@ describe("composerObservation", () => {
     expect(resultat).toBe("Une plante aux feuilles flétries.\nLes feuilles se recourbent sur les bords.");
   });
 });
+
+test("une conclusion non définie reste incertaine pour n'importe quel objet", () => {
+  const resultat = composerObservation({ texteVisible: "Une marque sur un objet.", angle: "identite" });
+  expect(resultat).toContain("Cette observation n’apporte pas de précision certaine sur ce point.");
+  expect(resultat).not.toContain("Laurent");
+});

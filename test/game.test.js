@@ -38,11 +38,12 @@ const VUE = {
   zones: {
     N: {
       nom: "bibliothèque",
+      article: "la",
       description: "Une bibliothèque poussiéreuse.",
       illustration: "/images/nord.png",
       objetsCaches: ["livre", "cle"],
     },
-    S: { nom: "bureau", description: "Un bureau en désordre.", objetsCaches: ["lettre"] },
+    S: { nom: "bureau", article: "le", description: "Un bureau en désordre.", objetsCaches: ["lettre"] },
     SE: {
       nom: "corbeille à papier",
       article: "la",
@@ -114,6 +115,7 @@ function monterFetch(reponses = {}) {
       if (reponses.scenarioRejete) return rep({ erreur: "Enquête indisponible." }, false);
       return rep(reponses.scenario ?? VUE);
     }
+    if (chemin === "/api/tour") return reponses.tourFn(JSON.parse(opts.body));
     if (chemin === "/api/interpreter") {
       if (reponses.interpreterErreur) throw new Error("réseau");
       if (reponses.interpreterOk === false) {
@@ -445,7 +447,7 @@ describe("exploration d'une zone", () => {
 
     envoyerMessage("Regardons le bureau.");
 
-    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous observez : bureau."));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous observez le bureau."));
     const active = boutonParTexte($("plan"), "S");
     expect(active.classList.contains("active")).toBe(true);
     expect(active.getAttribute("aria-current")).toBe("location");
@@ -687,7 +689,7 @@ describe("dialogue (envoi de message)", () => {
 
     boutonParTexte($("plan"), "S").click();
     envoyerMessage("Que vois-je ici ?");
-    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous observez : bureau."));
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Vous observez le bureau."));
     await vi.waitFor(() => expect($("message").disabled).toBe(false));
 
     boutonParTexte($("plan"), "Victor").click();
@@ -701,7 +703,7 @@ describe("dialogue (envoi de message)", () => {
       "Je n'ai rien à dire.",
     ]);
     expect($("dialogue").textContent).toContain("Vous examinez le livre.");
-    expect($("dialogue").textContent).toContain("Vous observez : bureau.");
+    expect($("dialogue").textContent).toContain("Vous observez le bureau.");
   });
 
   test("absorbe la trame progression avant de réutiliser les reçus", async () => {
@@ -969,4 +971,95 @@ describe("envoi multiligne", () => {
     await vi.waitFor(() => expect($("btn-envoyer").disabled).toBe(false));
     expect(document.activeElement).toBe($("message"));
   });
+});
+
+describe("fluidité du chat et clarification", () => {
+  test("affiche le message avant la résolution de l'interprète sans doublon", async () => {
+    let terminer;
+    await charger({ interpreterFn: () => new Promise((resolve) => { terminer = resolve; }) });
+    envoyerMessage("Identifier les traces");
+    expect($("dialogue").querySelectorAll(".tour--joueur")).toHaveLength(1);
+    expect($("dialogue").textContent).toContain("Identifier les traces");
+    terminer({ decision: { type: "clarifier", choix: [], question: "Quelle cible ?" } });
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Quelle cible ?"));
+    expect($("dialogue").querySelectorAll(".tour--joueur")).toHaveLength(1);
+  });
+  test("annonce le changement de zone une seule fois", async () => {
+    await charger();
+    boutonParTexte($("plan"), "N").click();
+    expect($("dialogue").textContent).toContain("Vous observez la bibliothèque.");
+    boutonParTexte($("plan"), "N").click();
+    expect([...$("dialogue").querySelectorAll(".tour--systeme")].filter((tour) => tour.textContent.includes("Vous observez la bibliothèque."))).toHaveLength(1);
+  });
+  test("transmet le journal précédent après une précision", async () => {
+    await charger({ interpreterFn: ({ historique }) => ({ decision: historique.some((tour) => tour.texte === "Identifier les traces de doigts ?")
+      ? { type: "interagir", contexte: { type: "zone", id: "S" }, action: "examiner", cibleId: "telephone", angle: "identite" }
+      : { type: "clarifier", choix: [{ type: "objet", id: "telephone", libelle: "Téléphone d’Hélène" }], question: "Parlez-vous du téléphone ?" } }) });
+    envoyerMessage("Identifier les traces de doigts ?");
+    await vi.waitFor(() => expect($("btn-envoyer").disabled).toBe(false));
+    envoyerMessage("du téléphone");
+    await vi.waitFor(() => expect($("dialogue").textContent).toContain("Action : examiner telephone"));
+    const appels = global.fetch.mock.calls.filter(([url]) => url === "/api/interpreter");
+    expect(JSON.parse(appels[1][1].body).historique).toContainEqual({ role: "joueur", texte: "Identifier les traces de doigts ?" });
+    expect(JSON.parse(appels[1][1].body).historique).toContainEqual({ role: "systeme", texte: "Parlez-vous du téléphone ?" });
+    expect(JSON.parse(appels[1][1].body).historique.some((tour) => tour.texte === "du téléphone")).toBe(false);
+    expect($("dialogue").querySelectorAll(".tour--joueur")).toHaveLength(2);
+  });
+});
+
+describe("chat orchestré par scène", () => {
+  const scenes = { ...VUE, orchestration: "scenes" };
+  const frames = (...events) => fluxSSE(events.map(([event,data])=>`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+  test("un message passe par /tour, reste immédiat et mémorise la réponse signée",async()=>{
+    let finir;
+    await charger({scenario:scenes,tourFn:()=>new Promise(r=>{finir=r;})});
+    envoyerMessage("Quel détail ?");
+    expect($("dialogue").textContent).toContain("Quel détail ?");
+    finir({ok:true,body:frames(["precision",{texte:"De quel objet ?"}],["memoire",{token:"memoire-1"}],["fin",{}])});
+    await vi.waitFor(()=>expect($("message").disabled).toBe(false));
+    expect($("dialogue").textContent).toContain("De quel objet ?");
+    envoyerMessage("Le livre");
+    const appels=global.fetch.mock.calls.filter(([u])=>u==="/api/tour");
+    expect(JSON.parse(appels[1][1].body).memoireConversation).toBe("memoire-1");
+    expect(global.fetch.mock.calls.some(([u])=>["/api/chat","/api/interpreter","/api/interagir"].includes(u))).toBe(false);
+    finir({ok:true,body:frames(["fin",{}])});
+    await vi.waitFor(()=>expect($("message").disabled).toBe(false));
+  });
+  test("le plan navigue par le serveur et n'annonce la zone qu'une fois",async()=>{
+    await charger({scenario:scenes,tourFn:async()=>({ok:true,body:frames(["contexte",{contexte:{type:"zone",id:"N"},role:"exploration"}],["observation",{texte:"Vous observez la bibliothèque."}],["fin",{}])})});
+    boutonParTexte($("plan"),"N").click();
+    await vi.waitFor(()=>expect($("message").disabled).toBe(false));
+    const appel=global.fetch.mock.calls.find(([u])=>u==="/api/tour");
+    expect(JSON.parse(appel[1].body).navigation).toEqual({type:"zone",id:"N"});
+    expect([...$("dialogue").querySelectorAll(".tour--systeme")].filter(t=>t.textContent.includes("Vous observez la bibliothèque."))).toHaveLength(1);
+    expect(boutonParTexte($("plan"),"N").getAttribute("aria-current")).toBe("location");
+  });
+  test("une erreur après progression conserve reçu et mémoire pour le tour suivant",async()=>{
+    await charger({scenario:scenes,tourFn:async()=>({ok:true,body:frames(["progression",{recus:["nouveau"]}],["erreur",{erreur:"Suite interrompue"}],["memoire",{token:"memoire-2"}],["fin",{}])})});
+    envoyerMessage("Action");await vi.waitFor(()=>expect($("message").disabled).toBe(false));
+    envoyerMessage("Reprendre");await vi.waitFor(()=>expect($("message").disabled).toBe(false));
+    const appels=global.fetch.mock.calls.filter(([u])=>u==="/api/tour");
+    expect(JSON.parse(appels[1][1].body)).toMatchObject({recus:["nouveau"],memoireConversation:"memoire-2"});
+  });
+  test("une trame de progression suffit à reprendre si le réseau coupe avant la mémoire finale", async () => {
+    let tours = 0;
+    await charger({ scenario: scenes, tourFn: async () => {
+      if (++tours !== 1) return { ok: true, body: frames(["fin", {}]) };
+      let lu = false;
+      return { ok: true, body: { getReader: () => ({
+        read: async () => {
+          if (lu) throw new Error("réseau coupé");
+          lu = true;
+          return { done: false, value: new TextEncoder().encode('event: progression\ndata: {"recus":["confirme"],"memoireConversation":"memoire-confirmee"}\n\n') };
+        }, releaseLock: () => {},
+      }) } };
+    } });
+    envoyerMessage("Action");
+    await vi.waitFor(() => expect($("message").disabled).toBe(false));
+    envoyerMessage("Reprendre");
+    await vi.waitFor(() => expect($("message").disabled).toBe(false));
+    const appels = global.fetch.mock.calls.filter(([u]) => u === "/api/tour");
+    expect(JSON.parse(appels[1][1].body)).toMatchObject({ recus: ["confirme"], memoireConversation: "memoire-confirmee" });
+  });
+
 });

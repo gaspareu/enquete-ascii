@@ -1,4 +1,4 @@
-import { MODELE_PAR_DEFAUT } from "./model.js";
+import { MODELE_PAR_DEFAUT, MODELE_EXPLORATION_PAR_DEFAUT, verifierModelesScenes } from "./model.js";
 import { randomBytes } from "node:crypto";
 import { creerApplication } from "./app.js";
 import { creerClient } from "./claude.js";
@@ -28,12 +28,17 @@ const voix = process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID
     }
   : null;
 
+const modelPersonnage = process.env.MODELE_SCENE_PERSONNAGE || process.env.MODEL || MODELE_PAR_DEFAUT;
+const modelExploration = process.env.MODELE_SCENE_EXPLORATION || MODELE_EXPLORATION_PAR_DEFAUT;
+if (client) await verifierModelesScenes(client, [modelPersonnage, modelExploration]);
+
 const mode = process.argv.includes("--editor") ? "editeur" : "jeu";
 const app = creerApplication({
   mode,
   secret: randomBytes(32),
   client,
-  model: process.env.MODEL || MODELE_PAR_DEFAUT,
+  model: modelPersonnage,
+  modelExploration,
   modelInterprete: process.env.INTERPRETER_MODEL || process.env.MODEL || MODELE_PAR_DEFAUT,
   voix,
 });

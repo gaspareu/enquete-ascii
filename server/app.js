@@ -1,4 +1,4 @@
-import { MODELE_PAR_DEFAUT } from "./model.js";
+import { MODELE_PAR_DEFAUT, MODELE_EXPLORATION_PAR_DEFAUT } from "./model.js";
 // Assemblage HTTP des enquêtes ; la source privée reste hors de public/.
 
 import { randomBytes } from "node:crypto";
@@ -27,6 +27,7 @@ export function creerApplication({
   client = null,
   model = MODELE_PAR_DEFAUT,
   modelInterprete = model,
+  modelExploration = MODELE_EXPLORATION_PAR_DEFAUT,
   voix = null,
   jetonEditeur,
 } = {}) {
@@ -92,6 +93,7 @@ export function creerApplication({
         client,
         model,
         modelInterprete,
+        modelExploration,
         voix,
       });
       routeurs.set(cle, routeur);
@@ -106,6 +108,7 @@ export function creerApplication({
     client,
     model,
     modelInterprete,
+    modelExploration,
     voix,
   }));
 

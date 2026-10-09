@@ -15,6 +15,8 @@ export function composerObservation({
   if (details.length) phrases.push(details[index]);
   if (Object.hasOwn(limites, angle) && typeof limites[angle] === "string") {
     phrases.push(limites[angle]);
+  } else if (["date", "cause", "identite"].includes(angle)) {
+    phrases.push("Cette observation n’apporte pas de précision certaine sur ce point.");
   }
   return phrases.filter(Boolean).join("\n");
 }

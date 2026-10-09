@@ -13,21 +13,19 @@ vers un pixel art rétro assumé.
 
 ## En cours
 
-### T-12 · Chat contextuel et lisibilité avec Sonnet 5.5
+### T-13 · Agents par scène — V1 à livrer
 
-Migration du modèle et amélioration de l’exploration via le chat. La tâche reste
-ouverte jusqu’à la fusion de la PR.
+Le chat utilise `/tour`, un contexte local et une mémoire signée par scène.
+Sonnet 5.5 pour le personnage, Haiku 4.5 configurable pour les zones en attendant
+Haiku 5.5. Hooks privés adressés et contrôles dans l’atelier. Le moteur des
+capacités et des reçus reste l’autorité. Référence :
+[plan](docs/plan-agents-par-scene.md).
 
-Critères d’acceptation :
-
-- Sonnet 5.5 fonctionne pour dialogue, interprète, débrief et génération d’objets ;
-- une cible générique est résolue dans la zone courante, sans déplacement implicite ;
-- les observations sont lisibles et les états temporaires sont distincts ;
-- la relecture reste stable pendant le streaming et la saisie accepte plusieurs lignes ;
-- tests et couverture restent verts.
-
-Références : [plan](docs/plan-cibles-contextuelles.md) et
-[audit UX](docs/critique-ux-chat.md).
+La PR conserve cette tâche ouverte jusqu’à sa fusion. La validation comparative
+coût/latence reste à faire ; les
+vraies pièces, personnages multiples et simulation dédiée des hooks dans
+l’atelier restent des extensions ultérieures. Tester les hooks dans l’aperçu
+de partie actuel. Retirer cette tâche uniquement après fusion.
 
 ### T-11 · Observations d'objets immersives
 
@@ -38,6 +36,8 @@ rester prudentes ; les révélations restent sous le contrôle du serveur.
 
 Critères d'acceptation :
 
+- les précisions courtes (« du téléphone », « oui ») reprennent la question initiale ;
+- les messages du joueur apparaissent dès l’envoi et les changements de zone sont annoncés ;
 - les questions sur la distinction et la plante ne retombent plus sur la table ;
 - tous les objets trouvés ont des détails d'ambiance, sans révélation à la fouille ;
 - l'examen répété peut varier le détail tout en conservant les faits établis ;

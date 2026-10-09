@@ -24,6 +24,12 @@ export function historiquePourPersonnage(etat, personnageId = etat.personnageId 
   return etat.historique.filter((tour) => tour.canal === personnageId);
 }
 
+// Le journal récent relie observations, questions et précisions. Il sert seulement
+// à interpréter une intention ; les reçus restent la preuve des droits du joueur.
+export function historiquePourInterprete(etat) {
+  return etat.historique.slice(-12).map(({ role, texte }) => ({ role, texte: texte.slice(0, 2000) }));
+}
+
 // Alias de compatibilité pour les usages historiques.
 export const historiquePourLaurent = historiquePourPersonnage;
 
@@ -64,4 +70,11 @@ export function remplacerEtatPublic(etat, etatPublic) {
     sac: Array.isArray(etatPublic?.sac) ? [...etatPublic.sac] : [],
     objetsConnus,
   };
+}
+
+// Une annonce de déplacement peut suivre le joueur avant que son rôle soit connu.
+export function recanaliserDernierJoueur(etat, canal) {
+  const index = etat.historique.findLastIndex((tour) => tour.role === "joueur");
+  return index < 0 ? etat : { ...etat, historique: etat.historique.map((tour, position) =>
+    position === index ? { ...tour, canal, contexte: { ...etat.contexte } } : tour) };
 }

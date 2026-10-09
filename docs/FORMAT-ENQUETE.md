@@ -332,3 +332,44 @@ progression reste définie par `declencheurs`, `preconditions`,
 
 Le [plan de l'éditeur local](superpowers/plans/2026-09-17-editeur-local-enquetes.md)
 décrit une première interface permettant de créer et de tester ces enquêtes.
+
+## Extension V1 : contextes et hooks des agents
+
+Les champs suivants sont facultatifs. Une enquête existante ne change pas.
+Les faits privés ne sont jamais exposés dans `/scenario` ni dans le jeton de
+conversation. Un hook est rejoué sur les événements réellement signés, dans
+leur ordre ; les conditions sont vérifiées au moment de son événement.
+
+```json
+{
+  "faitsHistoire": {
+    "objet_presente": { "texte": "Le joueur vous a présenté l’objet." }
+  },
+  "contextesScenes": {
+    "personnage:laurent": { "personnage": [], "exploration": [] },
+    "zone:O": { "exploration": [] }
+  },
+  "hooksHistoire": [{
+    "id": "partager_objet",
+    "apres": "donner:objet_ramassable",
+    "requiertTous": [],
+    "destinataire": { "sceneId": "personnage:laurent", "role": "personnage" },
+    "ajouterFaits": ["objet_presente"]
+  }]
+}
+```
+
+Remplacer l’exemple `objet_ramassable` par un identifiant réel. `apres` accepte
+`fouiller:zone`, `examiner:objet`, `ramasser:objet`, `donner:objet` ou
+`dialogue:evenementQuandExprime`. `requiertTous` référence les flags déclarés.
+Les références de faits, scènes, événements et rôles sont validées. Un rôle
+`personnage` cible uniquement la scène du personnage ; `exploration` est un
+canal distinct. Les effets sont idempotents, adressés à leur seul destinataire,
+et ne créent aucun flag ni droit d’action. Examiner ne transmet aucun nouveau
+fait au personnage sans effet auteur ; les `connaissances` historiques continuent
+à suivre leurs conditions existantes. La simulation des connaissances dans
+l’atelier reste historique ; vérifier les hooks avec la prévisualisation de partie.
+
+Dans l’atelier, les opérations de renommage d’objet et de flag mettent également
+à jour `apres` et `requiertTous` des hooks. Les identifiants de faits d’histoire
+appartiennent à un registre distinct et ne sont pas renommés avec les flags.

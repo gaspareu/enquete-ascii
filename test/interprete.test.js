@@ -98,7 +98,7 @@ describe("resoudreIntention", () => {
       input_schema: { additionalProperties: false },
     });
     expect(options.tools[0].input_schema.properties.choix).not.toHaveProperty("maxItems");
-    expect(options.tools[0].input_schema.required).toEqual(["type", "contexte", "angle", "cibleId"]);
+    expect(options.tools[0].input_schema.required).toEqual(["type", "contexte", "angle", "cibleId", "portee"]);
     expect(options.system).toContain("nom ou un alias d'une unique zone");
     expect(JSON.stringify(options)).not.toContain("Grand cru");
     expect(JSON.stringify(options)).not.toContain("plante_fanee");
@@ -193,5 +193,23 @@ describe("resoudreIntention", () => {
       question: "Que souhaitez-vous observer, faire ou demander à Laurent ?",
     });
     expect(horsCatalogue).toEqual(sansOutil);
+  });
+});
+
+describe("contexte d'exploration vérifié", () => {
+  test("identifie le dernier objet examiné depuis les événements, sans descriptions secrètes", () => {
+    const resultat = catalogue([{ type: "fouiller", cible: "N", contexte: nord }, { type: "examiner", cible: "distinction", contexte: nord }]);
+    expect(resultat.derniereInteraction).toEqual({ action: "examiner", cibleId: "distinction", nom: scenario.objets.distinction.nom });
+    expect(JSON.stringify(resultat.derniereInteraction)).not.toContain(scenario.objets.distinction.description);
+  });
+  test("un déplacement rend inactif le sujet de la zone précédente", () => {
+    expect(catalogue([{ type: "examiner", cible: "distinction", contexte: nord }], { type: "zone", id: "O" }).derniereInteraction).toBeNull();
+  });
+  test("observer la pièce ne choisit aucune zone et ne révèle aucun objet caché", () => {
+    const resultat = validerDecisionInterprete({ type: "observer", contexte: nord, portee: "piece", cibleId: "" }, catalogue());
+    expect(resultat.portee).toBe("piece");
+    expect(resultat.contexte).toEqual(nord);
+    expect(resultat.narration).toContain("table à dessin");
+    expect(resultat.narration).not.toContain(scenario.objets.distinction.nom);
   });
 });

@@ -245,3 +245,30 @@ instructions) et 75 % (branches).
 La source de vérité est [BACKLOG.md](BACKLOG.md). Les specs et plans livrés sont
 archivés dans `docs/superpowers/`; l'historique des changements reste dans git et
 les pull requests.
+
+### Chat orchestré par scène
+
+Le navigateur affiche la demande immédiatement et envoie un seul `POST /tour`.
+Le serveur choisit le profil de la zone courante, valide ses intentions avec le
+moteur existant et diffuse le contexte, les observations, la parole, les reçus
+et une mémoire signée. Chaque événement `progression` joint les reçus et leur
+mémoire correspondante dans une trame SSE complète, utilisable après une coupure
+réseau. La navigation par le plan ne sollicite aucun modèle.
+Chaque scène garde sa conversation locale ; le personnage possède un canal de
+parole distinct. Un transfert transmet la demande initiale, sans l’historique
+de la scène quittée. Les anciennes routes restent compatibles.
+
+`MODELE_SCENE_PERSONNAGE` utilise Sonnet 5.5 par défaut (ou `MODEL`).
+`MODELE_SCENE_EXPLORATION` utilise Haiku 4.5 en attendant Haiku 5.5. Le serveur
+vérifie les modèles configurés au démarrage et refuse une configuration inaccessible.
+La clé reste dans `.env`. Redémarrer le serveur après changement de configuration.
+
+Les champs optionnels `faitsHistoire`, `contextesScenes`, `hooksHistoire` permettent
+à l’auteur de définir des effets privés adressés à une scène et un rôle. Ils sont
+éditables dans « Dialogue et pistes » et validés avant la mise à disposition de
+l’enquête. Les connaissances conditionnelles historiques sont conservées.
+Voir [le format](docs/FORMAT-ENQUETE.md) et [le plan](docs/plan-agents-par-scene.md).
+La V1 adapte les huit zones et le personnage ; les vraies pièces et personnages
+multiples sont différés. La mémoire est bornée (12 entrées par canal, 48 au total,
+90 Ko de contenu UTF-8) et contient uniquement des échanges publics ; sa signature
+n’est pas un chiffrement. Aucun gain de coût ou de latence n’est présumé.

@@ -6,6 +6,7 @@ import {
   ajouterDialogue,
   historiquePourLaurent,
   historiquePourPersonnage,
+  historiquePourInterprete,
   ajouterRecus,
   remplacerEtatPublic,
   recanaliserDernierTour,
@@ -117,4 +118,29 @@ describe("échecs de dialogue", () => {
     expect(apres.historique[0].canal).toBe("scene");
     expect(historiquePourLaurent(apres)).toEqual([]);
   });
+});
+
+
+describe("historique de l’interprète", () => {
+  test("borne le journal et conserve observations et paroles sans métadonnées de progression", () => {
+    let etat = etatInitial();
+    for (let index = 0; index < 15; index += 1) etat = ajouterDialogue(etat, index % 2 ? "systeme" : "joueur", `Tour ${index}`);
+    const historique = historiquePourInterprete(etat);
+    expect(historique).toHaveLength(12);
+    expect(historique[0]).toEqual({ role: "systeme", texte: "Tour 3" });
+    expect(historique.at(-1)).toEqual({ role: "joueur", texte: "Tour 14" });
+    expect(etat.historique).toHaveLength(15);
+  });
+  test("borne aussi la taille d'une longue observation", () => {
+    expect(historiquePourInterprete(ajouterDialogue(etatInitial(), "systeme", "x".repeat(3000)))[0].texte).toHaveLength(2000);
+  });
+});
+
+test("attribue le joueur au personnage même après une annonce de déplacement",async()=>{
+  const {recanaliserDernierJoueur}=await import('../public/state.js');
+  const initial=ajouterDialogue(ajouterDialogue(etatInitial(),'joueur','Bonjour','scene'),'systeme','Vous vous tournez vers Laurent.','scene');
+  const apres=recanaliserDernierJoueur(initial,'laurent');
+  expect(apres.historique[0].canal).toBe('laurent');
+  expect(apres.historique[1]).toEqual(initial.historique[1]);
+  expect(initial.historique[0].canal).toBe('scene');
 });

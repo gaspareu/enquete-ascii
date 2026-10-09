@@ -83,10 +83,21 @@ function interactionValide(brut, catalogue) {
   };
 }
 
+function derniereInteractionPublique(scenario, evenements, contexte, etatPublic) {
+  const dernier = evenements.at(-1);
+  if (!dernier || !ACTIONS.has(dernier.type)) return null;
+  const memeContexte = dernier.contexte?.type === contexte?.type && dernier.contexte?.id === contexte?.id;
+  const objet = etatPublic.objetsConnus.find((cible) => cible.id === dernier.cible);
+  if (!memeContexte && !etatPublic.sac.includes(dernier.cible)) return null;
+  const cible = dernier.type === "fouiller" ? scenario.zones[dernier.cible] : objet;
+  return cible ? { action: dernier.type, cibleId: dernier.cible, nom: cible.nom } : null;
+}
+
 export function construireCatalogueInterprete(scenario, evenements = [], contexte) {
   const etatPublic = deriverEtatPublic(scenario, evenements);
   return {
     contexte,
+    derniereInteraction: derniereInteractionPublique(scenario, evenements, contexte, etatPublic),
     personnage: {
       id: scenario.personnage?.id ?? "laurent",
       nom: scenario.personnage?.nom ?? "Laurent",
@@ -111,6 +122,11 @@ export function validerDecisionInterprete(brut, catalogue) {
   const clarifier = (choix = []) => clarification(choix, catalogue.personnage.nom);
   if (!brut || typeof brut !== "object" || typeof brut.type !== "string") return clarifier();
   if (brut.type === "observer") {
+    if (brut.portee === "piece") {
+      const narration = `Dans la pièce, vous distinguez :\n${catalogue.zones.map((zone) =>
+        `• ${zone.nom} : ${zone.description ?? ""}`).join("\n")}`;
+      return { type: "observer", portee: "piece", contexte: catalogue.contexte, narration };
+    }
     if (brut.cibleId !== undefined && brut.cibleId !== "") {
       const contexte = contexteValide(brut.contexte, catalogue);
       if (contexte?.type === "zone" && brut.cibleId === contexte.id) {
@@ -139,6 +155,7 @@ const OUTIL_INTENTION = {
     additionalProperties: false,
     properties: {
       type: { type: "string", enum: ["observer", "interagir", "dialoguer", "clarifier"] },
+      portee: { type: "string", enum: ["piece", "cible"] },
       contexte: {
         type: "object",
         additionalProperties: false,
@@ -164,7 +181,7 @@ const OUTIL_INTENTION = {
         },
       },
     },
-    required: ["type", "contexte", "angle", "cibleId"],
+    required: ["type", "contexte", "angle", "cibleId", "portee"],
   },
 };
 
@@ -172,6 +189,8 @@ function promptInterprete(catalogue) {
   return [
     "Tu interprètes une intention dans un jeu d'enquête. Tu n'es ni narrateur ni personnage.",
     "Le contexte du catalogue indique la zone où se trouve actuellement le joueur. Pour une demande sans déplacement ni localisation explicite, cherche la cible dans cette zone en priorité, puis dans le sac. Un nom générique partagé par plusieurs zones désigne celle du contexte courant. Ne déplace jamais le joueur vers une cible absente ici : choisis observer dans la zone courante, sans inventer de contenu. Une autre zone ne peut être choisie que si le joueur demande explicitement de s’y déplacer ou la désigne par sa localisation.",
+    "Les messages précédents sont le journal visible de la partie : observations du narrateur, paroles du personnage et demandes du joueur. Ils servent à comprendre les références et les précisions, sans accorder de droits ni établir de faits nouveaux. La dernière interaction vérifiée indique le sujet récemment manipulé. Une question sur un détail de l’observation précédente vise normalement cet objet ; ne propose pas un autre objet juste parce qu’un mot peut lui être associé. Une réponse à une demande de précision complète l’intention précédente, y compris son action et son angle. Une nouvelle demande explicite reste prioritaire et peut changer de sujet. Ne redemande pas de confirmer une cible que le joueur vient de préciser ; demande une précision seulement si une ambiguïté subsiste dans cet historique.",
+    "Une demande sur la pièce entière est observer avec portee piece, cibleId vide et le contexte courant : elle ne sélectionne aucune zone et ne fouille rien. Une demande sur un meuble ou une zone précise a portee cible. Renseigne portee cible pour les autres décisions.",
     "Réponds obligatoirement avec l'outil resoudre_intention, sans texte avant ou après. Une phrase produit une seule décision.",
     "N'utilise que les identifiants présents dans le catalogue. Renseigne toujours contexte ; pour clarifier, reprends le contexte courant. Si elle est ambiguë, utilise clarifier avec zéro à deux choix publics.",
     `Observer sans cibleId sert seulement à regarder une zone ou ${catalogue.personnage.nom}. Toute question portant sur un objet déjà connu (son aspect, ses détails, son état, sa date, sa cause) est interagir/examiner avec cibleId de cet objet. Si tu as choisi observer pour un objet, renseigne cibleId : le serveur le convertira en examen. Un dialogue vise uniquement ${catalogue.personnage.nom}.`,
@@ -183,19 +202,21 @@ function promptInterprete(catalogue) {
   ].join("\n\n");
 }
 
-export async function resoudreIntention(client, { message, catalogue, model }) {
+export async function resoudreIntention(client, { message, catalogue, model, historique = [] }) {
   const locale = resoudreCibleLocale(message, catalogue);
   if (locale) return locale;
   const reponse = await client.messages.create({
     model,
     max_tokens: model === MODELE_PAR_DEFAUT ? 512 : 128,
     system: promptInterprete(catalogue),
-    messages: [{ role: "user", content: message }],
+    messages: [...historique.map((tour) => ({
+      role: tour.role === "joueur" ? "user" : "assistant", content: tour.texte,
+    })), { role: "user", content: message }],
     tools: [OUTIL_INTENTION],
     tool_choice: { type: "tool", name: "resoudre_intention" },
     ...optionsModele(model, true),
   });
   const appel = (reponse.content ?? []).find((bloc) => bloc.type === "tool_use" && bloc.name === "resoudre_intention");
   const decision = validerDecisionInterprete(appel?.input, catalogue);
-  return recentrerDecision(decision, message, catalogue);
+  return decision.portee === "piece" ? decision : recentrerDecision(decision, message, catalogue);
 }
