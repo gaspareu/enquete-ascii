@@ -75,7 +75,7 @@ export function creerRouteurEditeur({ depot, client = null, model = MODELE_PAR_D
   routeur.use(express.json({ limit: "2mb" }));
 
   routeur.post("/enquetes", attraper(async (req, res) => {
-    const resultat = await depot.creer({ id: req.body?.id, sourceId: req.body?.sourceId });
+    const resultat = await depot.creer({ id: req.body?.id, sourceId: req.body?.sourceId, modele: req.body?.modele });
     res.status(201).json(resultat);
   }));
 

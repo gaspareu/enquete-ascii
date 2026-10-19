@@ -1,17 +1,20 @@
 # Enquête ASCII — framework d'enquêtes conversationnelles
 
-Framework local d'enquêtes web rétro en français. Chaque enquête définit une
-pièce en plan 3 × 3, huit zones, un interlocuteur, des objets, des faits de
+Outil de création d'enquêtes web rétro en français, actuellement local. Chaque
+enquête définit une pièce en plan 3 × 3, huit zones, un interlocuteur, des objets, des faits de
 progression et un débrief. L'affaire d'Hélène reste l'exemple fourni. Le
 dialogue est généré par Claude et le personnage ne reçoit que les connaissances
 que les actions du joueur ont réellement révélées.
 
 ## Cible du projet
 
-Permettre à un auteur de créer localement une enquête indépendante, de la
-prévisualiser, de vérifier ses règles et de la proposer au joueur. Le moteur
-garde les secrets et la progression côté serveur. Cette première version accepte
-une pièce et un interlocuteur central par enquête.
+Permettre à un auteur qui ne code pas de créer une enquête dans son navigateur,
+de la tester et de la partager par lien. L’atelier fonctionne actuellement
+localement ; les comptes, le stockage hébergé et le partage privé restent à
+construire. Le [plan de réalisation web](docs/plan-atelier-web.md) et le
+[backlog](BACKLOG.md) détaillent les lots et leurs critères d’acceptation.
+Le moteur garde les secrets et la progression côté serveur. Cette première
+version accepte une pièce et un interlocuteur central par enquête.
 
 ## État actuel
 
@@ -62,10 +65,17 @@ npm run editor
 ```
 
 Ouvrez <http://127.0.0.1:3000/editeur/>. Créez un brouillon ou dupliquez
-l'exemple d'Hélène, renseignez les sections de l'atelier, puis utilisez
+l'exemple d'Hélène. Pour commencer, choisissez **Une enquête courte à personnaliser** :
+le modèle « Le médaillon disparu » contient un personnage, deux indices et une
+révélation qui exige de les avoir examinés tous les deux. Sa création ne fait
+aucun appel IA et ne nécessite aucune image. **Un brouillon vide** reste disponible.
+
+Dans l’atelier, ouvrez **Bien commencer** pour passer de la vérité de l’histoire
+aux indices, aux révélations et au test. Renseignez les sections, puis utilisez
 **Enregistrer**, **Vérifier l'enquête** et **Prévisualiser la partie**.
 Une enquête complète peut être marquée **prête** ; elle apparaît alors dans la
-sélection du jeu. Hélène est en lecture seule, mais duplicable.
+sélection du jeu de ce serveur. Cela ne crée pas encore un lien de partage
+web privé. Hélène est en lecture seule, mais duplicable.
 Les portraits et les illustrations sont facultatifs : sans image, le jeu affiche
 le visage ASCII et la description de la zone.
 

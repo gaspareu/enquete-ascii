@@ -47,6 +47,11 @@ main { max-width: 92rem; margin: auto; padding: var(--esp-2xl); }
 .cartes { flex-wrap: wrap; }
 .carte { flex: 1 1 17rem; }
 .carte .actions { margin-top: var(--esp-2xl); }
+.guide-auteur { margin-top: var(--esp-2xl); }
+.guide-auteur summary { cursor: pointer; color: var(--c-vert); }
+.parcours-auteur { display: grid; gap: var(--esp-2xl); padding-left: var(--esp-3xl); }
+.parcours-auteur h3 { margin-bottom: var(--esp-sm); }
+.parcours-auteur .actions { margin-top: var(--esp-md); }
 .cartes h3 { color: var(--c-vert); }
 .plan { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-xs); max-width: 33rem; }
 .plan button { min-height: 4rem; }

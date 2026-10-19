@@ -133,6 +133,12 @@ qu'une valeur arbitraire. Gouttières de la grille de jeu : `--esp-md`.
   accessibles au clavier, plan 3 × 3, graphe des faits et liste équivalente.
   Les diagnostics pointent vers leur champ. Sous `48rem`, les colonnes deviennent
   une seule colonne et les onglets restent défilables.
+  Le point de départ propose un modèle court ou un brouillon vide. Le guide
+  « Bien commencer » utilise un `details` natif, une liste ordonnée et des boutons
+  vers les onglets ; le focus rejoint l’onglet choisi. Son état ouvert est
+  conservé pendant la navigation. Couleurs et espacements réutilisent les tokens
+  existants ; aucune animation n’est ajoutée. Le guide distingue l’activation
+  locale du futur partage web.
 
 ## Mouvement & ambiance CRT
 

@@ -6,6 +6,7 @@ import { copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ID_SUR, DIRECTIONS, VERSION_SCHEMA, validerEnquete } from "./enquetes-schema.js";
+import { appliquerModeleInitiation } from "./modele-initiation.js";
 
 const BASE = fileURLToPath(new URL("../", import.meta.url));
 const RACINE_DEFAUT = join(BASE, "data", "enquetes");
@@ -229,8 +230,11 @@ export function creerDepotEnquetes({ racine = RACINE_DEFAUT, imagesDir = IMAGES_
     }
   }
 
-  async function creer({ id, sourceId } = {}) {
+  async function creer({ id, sourceId, modele } = {}) {
     verifierId(id);
+    if (modele !== undefined && (modele !== "initiation" || sourceId !== undefined)) {
+      throw erreur(400, "Choisissez un modèle connu ou une enquête à dupliquer.");
+    }
     if (id === "helene") throw erreur(409, "Hélène est un exemple en lecture seule.");
     if (sourceId !== undefined) verifierId(sourceId);
     const source = sourceId ? (await lire(sourceId, { inclureBrouillons: true })).enquete : null;
@@ -241,7 +245,9 @@ export function creerDepotEnquetes({ racine = RACINE_DEFAUT, imagesDir = IMAGES_
     await mkdir(dossier, { mode: 0o700 });
     let imagesCrees = false;
     try {
-      const enquete = source ? { ...structuredClone(source), id, statut: "brouillon" } : brouillonVide(id);
+      const base = brouillonVide(id);
+      const enquete = source ? { ...structuredClone(source), id, statut: "brouillon" }
+        : modele === "initiation" ? appliquerModeleInitiation(base) : base;
       if (source) {
         enquete.personnage = { id: "laurent", ...(enquete.personnage ?? {}) };
         await dupliquerImages(sourceId, id, enquete);
