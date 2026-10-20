@@ -22,8 +22,8 @@ export function creerActionsAtelier({ application, etat, LECTURE_SEULE, actionAs
       if (action === "valider") return valider();
       if (action === "apercu") return apercu();
       if (action === "activer") return activer();
-      if (action === "onglet") {
-        etat.onglet = cible.dataset.tab;
+      if (action === "onglet" || action === "etape") {
+        etat.onglet = cible.dataset.tab ?? cible.dataset.section;
         rendre();
         application.querySelector(`[data-tab="${etat.onglet}"]`)?.focus();
         return;

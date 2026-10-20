@@ -121,6 +121,15 @@ publiques sans sélectionner de zone ni effectuer de fouille.
 - [BACKLOG.md](BACKLOG.md) — tâches priorisées pour enchaîner les améliorations.
 - [data/scenario.js](data/scenario.js) — éditer l'enquête sans toucher au code.
 
+## Évolution vers l’atelier web
+
+Le cadrage et les lots sont décrits dans `docs/plan-atelier-web.md` et `BACKLOG.md`
+(W-01 à W-18). L’atelier reste local tant que les contrôles hébergés ne sont pas
+implémentés ; ne pas retirer la protection localhost pour le rendre public.
+`server/modele-initiation.js` construit un exemple privé, copié par le dépôt lors
+de la création avec `modele: "initiation"`. `editeur/guide-auteur.js` ne fait que
+naviguer entre les formulaires ; il n’accorde aucun droit de jeu.
+
 ## Chat orchestré par scène (V1)
 
 `game.js` affiche le joueur puis appelle `/tour` (`server/tour.js`).

@@ -1,4 +1,5 @@
 import { creerActionsAtelier } from "./actions-atelier.js";
+import { rendreGuideAuteur } from "./guide-auteur.js";
 import { ajouterObjetsGeneres, completerPourAffichage, mettreAJour, proposerId, renommerFlag, renommerObjet, retirerObjet } from "./state.js";
 import { api, definirJeton } from "./api.js";
 import { preparerDemandeGeneration } from "./generation.js";
@@ -75,7 +76,14 @@ function rendreTableau() {
   const label = element("label", "Titre de la nouvelle enquête"); label.htmlFor = "nouveau-titre";
   const entree = element("input"); entree.id = "nouveau-titre"; entree.placeholder = "ex. L’affaire du quai";
   champ.append(label, entree);
-  formulaire.append(titre("Nouvelle enquête", 3), champ, bouton("Créer l’enquête", "creer"));
+  const choix = element("div", "", "champ");
+  const labelModele = element("label", "Point de départ"); labelModele.htmlFor = "nouveau-modele";
+  const modele = element("select"); modele.id = "nouveau-modele";
+  for (const [valeur, libelle] of [["initiation", "Une enquête courte à personnaliser"], ["", "Un brouillon vide"]]) {
+    const option = element("option", libelle); option.value = valeur; modele.append(option);
+  }
+  choix.append(labelModele, modele, zoneAide("Le modèle contient un personnage, deux indices et une révélation. Sa création n’utilise pas l’IA ; le dialogue en partie nécessite la configuration du serveur."));
+  formulaire.append(titre("Nouvelle enquête", 3), champ, choix, bouton("Créer l’enquête", "creer"));
   page.append(formulaire);
   const cartes = element("div", "", "cartes");
   for (const enquete of etat.catalogue) {
@@ -106,7 +114,8 @@ function rendreAtelier() {
   const enregistrerBouton = bouton("Enregistrer", "enregistrer");
   enregistrerBouton.disabled = !etat.sale || enquete.id === LECTURE_SEULE;
   actions.append(bouton("Mes enquêtes", "tableau"), enregistrerBouton, bouton("Vérifier", "valider"), bouton("Tester", "apercu"));
-  barre.append(actions); racine.append(barre);
+  barre.append(actions);
+  racine.append(barre, rendreGuideAuteur(application.querySelector(".guide-auteur")?.open));
   const onglets = element("nav", "", "onglets");
   onglets.setAttribute("aria-label", "Sections de l’enquête");
   onglets.setAttribute("role", "tablist");
@@ -175,13 +184,15 @@ async function creer(sourceId = "") {
   let suffixe = 2;
   while (etat.catalogue.some((item) => item.id === id)) id = `${(sourceId || proposerId(titreNouveau)).slice(0, 54)}_copie_${suffixe++}`;
   const corps = { id };
+  const modeleChoisi = document.getElementById("nouveau-modele")?.value;
   if (sourceId) corps.sourceId = sourceId;
+  else if (modeleChoisi) corps.modele = modeleChoisi;
   const { enquete, revision } = await api("/api/editeur/enquetes", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps),
   });
   const brouillon = titreNouveau && enquete.titre !== titreNouveau ? mettreAJour(enquete, ["titre"], titreNouveau) : enquete;
   changerEnquete(brouillon, revision, brouillon !== enquete);
-  annoncer("Enquête créée. Renseignez les sections, puis enregistrez le brouillon.");
+  annoncer("Enquête créée. Ouvrez « Bien commencer » pour personnaliser votre histoire, puis enregistrez le brouillon.");
 }
 
 async function enregistrer() {
